@@ -1,0 +1,352 @@
+// Gmail API sending via Google Service Account
+// with Domain-Wide Delegation
+
+// Generate JWT for service account
+async function generateServiceAccountToken(env, userEmail) {
+  let serviceAccount;
+  try {
+    serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  } catch (e) {
+    throw new Error('Failed to parse service account JSON: ' +
+      e.message + ' | First 100 chars: ' +
+      env.GOOGLE_SERVICE_ACCOUNT_JSON?.slice(0, 100));
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const payload = {
+    iss: serviceAccount.client_email,
+    sub: userEmail, // impersonate this user
+    scope: 'https://www.googleapis.com/auth/gmail.send',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600
+  };
+
+  // Base64url encode
+  const b64 = (obj) => btoa(JSON.stringify(obj))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+  const signingInput = `${b64(header)}.${b64(payload)}`;
+
+  // Import the private key
+  const privateKey = serviceAccount.private_key;
+  const pemBody = privateKey
+    .replace('-----BEGIN PRIVATE KEY-----', '')
+    .replace('-----END PRIVATE KEY-----', '')
+    .replace(/\n/g, '');
+
+  const keyData = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8',
+    keyData,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    cryptoKey,
+    new TextEncoder().encode(signingInput)
+  );
+
+  const b64sig = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+  const jwt = `${signingInput}.${b64sig}`;
+
+  // Exchange JWT for access token
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt
+    })
+  });
+
+  const tokenData = await tokenRes.json();
+  if (!tokenData.access_token) {
+    throw new Error('Failed to get Gmail access token: ' +
+      JSON.stringify(tokenData));
+  }
+
+  return tokenData.access_token;
+}
+
+// Build RFC 2822 email message
+function buildEmailMessage({ from, fromName, to, subject,
+  htmlBody, inReplyTo, references, messageId }) {
+
+  const mid = messageId ||
+    `<${Date.now()}.${Math.random().toString(36).slice(2)}@eshopbox.com>`;
+
+  let message = [
+    `From: ${fromName} <${from}>`,
+    `To: ${to}`,
+    `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`,
+    `Content-Type: text/html; charset=utf-8`,
+    `MIME-Version: 1.0`,
+    `Message-ID: ${mid}`,
+  ];
+
+  if (inReplyTo) {
+    message.push(`In-Reply-To: ${inReplyTo}`);
+    message.push(`References: ${references || inReplyTo}`);
+  }
+
+  message.push('');
+  message.push(htmlBody);
+
+  // UTF-8 safe base64url encoding
+  const rawString = message.join('\r\n');
+  const utf8Bytes = new TextEncoder().encode(rawString);
+  const binaryString = String.fromCharCode(...utf8Bytes);
+  const raw = btoa(binaryString)
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+  return { raw, messageId: mid };
+}
+
+// Create a Gmail draft using a pre-obtained personal OAuth access token
+export async function createGmailDraft(accessToken, {
+  fromEmail, fromName, toEmail, subject,
+  htmlBody, inReplyTo, references
+}) {
+  const { raw, messageId } = buildEmailMessage({
+    from: fromEmail,
+    fromName,
+    to: toEmail,
+    subject,
+    htmlBody,
+    inReplyTo,
+    references
+  });
+
+  const res = await fetch(
+    `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/drafts`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ message: { raw } })
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok || data.error) {
+    throw new Error('Gmail draft creation failed: ' + JSON.stringify(data));
+  }
+
+  return {
+    draftId: data.id,
+    messageId,
+    gmailMessageId: data.message?.id
+  };
+}
+
+export async function checkDraftSent(accessToken, fromEmail, draftId, gmailMessageId) {
+  // Step 1: Get the draft to find its threadId before it disappears
+  const draftRes = await fetch(
+    `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/drafts/${draftId}?format=minimal`,
+    { headers: { 'Authorization': `Bearer ${accessToken}` } }
+  );
+
+  if (draftRes.ok) {
+    const draftData = await draftRes.json();
+    const threadId = draftData.message?.threadId;
+
+    // Draft still exists — check if the thread has a SENT message
+    if (threadId) {
+      const threadRes = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/threads/${threadId}?format=minimal`,
+        { headers: { 'Authorization': `Bearer ${accessToken}` } }
+      );
+      if (threadRes.ok) {
+        const threadData = await threadRes.json();
+        const messages = threadData.messages || [];
+        for (const msg of messages) {
+          const labels = msg.labelIds || [];
+          if (labels.includes('SENT') && !labels.includes('TRASH')) {
+            return { sent: true };
+          }
+        }
+      }
+    }
+    return { sent: false };
+  }
+
+  // Draft is gone (404) — check the thread via gmailMessageId
+  if (gmailMessageId) {
+    const msgRes = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/messages/${gmailMessageId}?format=minimal`,
+      { headers: { 'Authorization': `Bearer ${accessToken}` } }
+    );
+
+    if (msgRes.ok) {
+      const msgData = await msgRes.json();
+      const threadId = msgData.threadId;
+      if (threadId) {
+        const threadRes = await fetch(
+          `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/threads/${threadId}?format=minimal`,
+          { headers: { 'Authorization': `Bearer ${accessToken}` } }
+        );
+        if (threadRes.ok) {
+          const threadData = await threadRes.json();
+          const messages = threadData.messages || [];
+          for (const msg of messages) {
+            const labels = msg.labelIds || [];
+            if (labels.includes('SENT') && !labels.includes('TRASH')) {
+              return { sent: true };
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return { sent: false };
+}
+
+export async function getRealMessageId(accessToken, fromEmail, draftId, gmailMessageId) {
+  // Try to get the real sent Message-ID from the thread
+  // First try via the draft's thread
+  const draftRes = await fetch(
+    `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/drafts/${draftId}?format=minimal`,
+    { headers: { 'Authorization': `Bearer ${accessToken}` } }
+  );
+
+  let threadId = null;
+
+  if (draftRes.ok) {
+    const draftData = await draftRes.json();
+    threadId = draftData.message?.threadId;
+  } else if (gmailMessageId) {
+    // Draft is gone, get threadId from the message
+    const msgRes = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/messages/${gmailMessageId}?format=minimal`,
+      { headers: { 'Authorization': `Bearer ${accessToken}` } }
+    );
+    if (msgRes.ok) {
+      const msgData = await msgRes.json();
+      threadId = msgData.threadId;
+    }
+  }
+
+  if (!threadId) return null;
+
+  // Get all messages in thread and find the SENT one
+  const threadRes = await fetch(
+    `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/threads/${threadId}?format=metadata&metadataHeaders=Message-ID`,
+    { headers: { 'Authorization': `Bearer ${accessToken}` } }
+  );
+
+  if (!threadRes.ok) return null;
+
+  const threadData = await threadRes.json();
+  const messages = threadData.messages || [];
+
+  // Find the sent message (has SENT label)
+  for (const msg of messages) {
+    const labels = msg.labelIds || [];
+    if (labels.includes('SENT') && !labels.includes('TRASH')) {
+      // Get its real Message-ID header
+      const headers = msg.payload?.headers || [];
+      const midHeader = headers.find(h =>
+        h.name === 'Message-ID' || h.name === 'Message-Id'
+      );
+      if (midHeader?.value) return midHeader.value;
+    }
+  }
+
+  return null;
+}
+
+// Send email via Gmail API using a pre-obtained personal OAuth access token
+export async function sendGmailEmailWithToken(accessToken, {
+  fromEmail, fromName, toEmail, subject,
+  htmlBody, inReplyTo, references
+}) {
+  const { raw, messageId } = buildEmailMessage({
+    from: fromEmail,
+    fromName,
+    to: toEmail,
+    subject,
+    htmlBody,
+    inReplyTo,
+    references
+  });
+
+  const res = await fetch(
+    `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/messages/send`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ raw })
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok || data.error) {
+    throw new Error('Gmail send failed: ' + JSON.stringify(data));
+  }
+
+  return {
+    success: true,
+    gmailMessageId: data.id,
+    messageId
+  };
+}
+
+// Send email via Gmail API
+export async function sendGmailEmail(env, {
+  fromEmail, fromName, toEmail, subject,
+  htmlBody, inReplyTo, references
+}) {
+  // Get access token impersonating the rep
+  const accessToken = await generateServiceAccountToken(env, fromEmail);
+
+  const { raw, messageId } = buildEmailMessage({
+    from: fromEmail,
+    fromName,
+    to: toEmail,
+    subject,
+    htmlBody,
+    inReplyTo,
+    references
+  });
+
+  // Send via Gmail API
+  const res = await fetch(
+    `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/messages/send`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ raw })
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok || data.error) {
+    throw new Error('Gmail send failed: ' + JSON.stringify(data));
+  }
+
+  return {
+    success: true,
+    gmailMessageId: data.id,
+    messageId // the RFC 2822 Message-ID for threading
+  };
+}
