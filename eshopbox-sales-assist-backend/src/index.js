@@ -496,11 +496,37 @@ app.post('/auth/reset-password', async (c) => {
   }
 });
 
+app.get('/api/users/all', requireAuth, async (c) => {
+  try {
+    const user = c.get('user');
+    if (user.email !== 'satyanarayan.sahoo@eshopbox.com') {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+    const rows = await c.env.DB.prepare(
+      'SELECT id, name, email, role, is_active FROM users ORDER BY name ASC'
+    ).all();
+    return c.json({ users: rows.results || [] });
+  } catch (err) {
+    return c.json({ error: 'Failed to fetch users', details: err.message }, 500);
+  }
+});
+
 // ─── DEALS ROUTES ───────────────────────────────────────
 app.get('/api/deals', requireAuth, async (c) => {
   try {
     const user = c.get('user');
-    const useSharedCache = ['Admin', 'Manager', 'Developer'].includes(user.role);
+    let effectiveUser = user;
+    if (user.email === 'satyanarayan.sahoo@eshopbox.com') {
+      const viewAsEmail = c.req.header('x-view-as-email');
+      if (viewAsEmail) {
+        const viewAsUser = await c.env.DB.prepare(
+          'SELECT id, email, name, role FROM users WHERE email = ?'
+        ).bind(viewAsEmail).first();
+        if (viewAsUser) effectiveUser = viewAsUser;
+      }
+    }
+    const isImpersonating = effectiveUser !== user;
+    const useSharedCache = !isImpersonating && ['Admin', 'Manager', 'Developer'].includes(effectiveUser.role);
     if (useSharedCache) {
       const cached = await c.env.TOKEN_CACHE.get('deals_cache');
       if (cached) return c.json(JSON.parse(cached));
@@ -514,16 +540,16 @@ app.get('/api/deals', requireAuth, async (c) => {
   .filter(d => VALID_VOLUMES.includes(d.How_many_orders_do_you_ship_in_a_month) || d.Stage === 'Won/Payment Received')
   .map(mapZohoDeal);
 
-    if (user.role === 'Sales rep') {
-      dealsList = dealsList.filter(d => d.repEmail === user.email);
-    } else if (user.role === 'Sales Lead Mid-Market') {
+    if (effectiveUser.role === 'Sales rep') {
+      dealsList = dealsList.filter(d => d.repEmail === effectiveUser.email);
+    } else if (effectiveUser.role === 'Sales Lead Mid-Market') {
       dealsList = dealsList.filter(d => d.solutionInterest?.toLowerCase() === 'shipping');
-    } else if (user.role === 'Sales Lead Enterprise') {
+    } else if (effectiveUser.role === 'Sales Lead Enterprise') {
       dealsList = dealsList.filter(d => ['warehousing', 'both'].includes(d.solutionInterest?.toLowerCase()));
-    } else if (user.role === 'Sales Rep Mid-Market') {
-      dealsList = dealsList.filter(d => d.repEmail === user.email && d.solutionInterest?.toLowerCase() === 'shipping');
-    } else if (user.role === 'Sales Rep Enterprise') {
-      dealsList = dealsList.filter(d => d.repEmail === user.email && ['warehousing', 'both'].includes(d.solutionInterest?.toLowerCase()));
+    } else if (effectiveUser.role === 'Sales Rep Mid-Market') {
+      dealsList = dealsList.filter(d => d.repEmail === effectiveUser.email && d.solutionInterest?.toLowerCase() === 'shipping');
+    } else if (effectiveUser.role === 'Sales Rep Enterprise') {
+      dealsList = dealsList.filter(d => d.repEmail === effectiveUser.email && ['warehousing', 'both'].includes(d.solutionInterest?.toLowerCase()));
     }
 
     // Secondary fetch: SA_Logged=true deals excluded by stage/volume filters
@@ -550,16 +576,16 @@ app.get('/api/deals', requireAuth, async (c) => {
           d.stage === 'Won/Payment Received'
         );
       saLoggedDeals.forEach(d => { d.manuallyLogged = true; });
-      if (user.role === 'Sales rep') {
-        saLoggedDeals = saLoggedDeals.filter(d => d.repEmail === user.email);
-      } else if (user.role === 'Sales Lead Mid-Market') {
+      if (effectiveUser.role === 'Sales rep') {
+        saLoggedDeals = saLoggedDeals.filter(d => d.repEmail === effectiveUser.email);
+      } else if (effectiveUser.role === 'Sales Lead Mid-Market') {
         saLoggedDeals = saLoggedDeals.filter(d => d.solutionInterest?.toLowerCase() === 'shipping');
-      } else if (user.role === 'Sales Lead Enterprise') {
+      } else if (effectiveUser.role === 'Sales Lead Enterprise') {
         saLoggedDeals = saLoggedDeals.filter(d => ['warehousing', 'both'].includes(d.solutionInterest?.toLowerCase()));
-      } else if (user.role === 'Sales Rep Mid-Market') {
-        saLoggedDeals = saLoggedDeals.filter(d => d.repEmail === user.email && d.solutionInterest?.toLowerCase() === 'shipping');
-      } else if (user.role === 'Sales Rep Enterprise') {
-        saLoggedDeals = saLoggedDeals.filter(d => d.repEmail === user.email && ['warehousing', 'both'].includes(d.solutionInterest?.toLowerCase()));
+      } else if (effectiveUser.role === 'Sales Rep Mid-Market') {
+        saLoggedDeals = saLoggedDeals.filter(d => d.repEmail === effectiveUser.email && d.solutionInterest?.toLowerCase() === 'shipping');
+      } else if (effectiveUser.role === 'Sales Rep Enterprise') {
+        saLoggedDeals = saLoggedDeals.filter(d => d.repEmail === effectiveUser.email && ['warehousing', 'both'].includes(d.solutionInterest?.toLowerCase()));
       }
       console.log(`Secondary SA_Logged fetch: ${saLoggedDeals.length} additional deals found`);
     } catch (e) {
@@ -653,6 +679,16 @@ app.get('/api/deals/:id', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id');
     const user = c.get('user');
+    let effectiveUser = user;
+    if (user.email === 'satyanarayan.sahoo@eshopbox.com') {
+      const viewAsEmail = c.req.header('x-view-as-email');
+      if (viewAsEmail) {
+        const viewAsUser = await c.env.DB.prepare(
+          'SELECT id, email, name, role FROM users WHERE email = ?'
+        ).bind(viewAsEmail).first();
+        if (viewAsUser) effectiveUser = viewAsUser;
+      }
+    }
     const [dealRes, tasksRes, activitiesRes] = await Promise.all([
       getDeal(c.env, dealId),
       getDealTasks(c.env, dealId),
@@ -721,7 +757,7 @@ deal.activities = (activitiesRes?.data || []).map(a => ({
       date: a.Created_Time,
       description: a.Description || a.Subject || '',
     }));
-    if (user.role === 'Sales rep' && deal.repEmail !== user.email) return c.json({ error: 'Access denied' }, 403);
+    if (effectiveUser.role === 'Sales rep' && deal.repEmail !== effectiveUser.email) return c.json({ error: 'Access denied' }, 403);
     const flags = computeAttentionFlags(deal);
     const attentionLevel = getAttentionLevel(flags);
     console.log('[dealSummary] returning dealSummary for', dealId, ':', dealSummary);
@@ -1173,6 +1209,17 @@ app.post('/api/deals/:id/emails', requireAuth, async (c) => {
 app.get('/api/deals/:id/emails', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id');
+    const user = c.get('user');
+    let effectiveUser = user;
+    if (user.email === 'satyanarayan.sahoo@eshopbox.com') {
+      const viewAsEmail = c.req.header('x-view-as-email');
+      if (viewAsEmail) {
+        const viewAsUser = await c.env.DB.prepare(
+          'SELECT id, email, name, role FROM users WHERE email = ?'
+        ).bind(viewAsEmail).first();
+        if (viewAsUser) effectiveUser = viewAsUser;
+      }
+    }
     const emailRows = await c.env.DB.prepare(
       'SELECT * FROM deal_emails WHERE deal_id = ? ORDER BY created_at ASC'
     ).bind(dealId).all();
@@ -1485,6 +1532,17 @@ app.get('/api/deals/:id/form-data', requireAuth, async (c) => {
 app.get('/api/deals/:id/analysis', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id');
+    const user = c.get('user');
+    let effectiveUser = user;
+    if (user.email === 'satyanarayan.sahoo@eshopbox.com') {
+      const viewAsEmail = c.req.header('x-view-as-email');
+      if (viewAsEmail) {
+        const viewAsUser = await c.env.DB.prepare(
+          'SELECT id, email, name, role FROM users WHERE email = ?'
+        ).bind(viewAsEmail).first();
+        if (viewAsUser) effectiveUser = viewAsUser;
+      }
+    }
     const result = await c.env.DB.prepare(
       'SELECT * FROM deal_form_data WHERE deal_id = ?'
     ).bind(dealId).first();

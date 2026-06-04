@@ -391,7 +391,7 @@ function SequenceChecklist({ emails, dealId, deal }) {
 
 // ─── Merged Sequence View ────────────────────────────────────────────────────
 
-function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, autoGenerating, autoGenError, prospectEmail, repEmail, fetchEmails, onLogDemo }) {
+function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, autoGenerating, autoGenError, prospectEmail, repEmail, fetchEmails, onLogDemo, isImpersonating, handleImpersonationAction }) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const [expanded, setExpanded] = useState({});
   const [creating, setCreating] = useState({});
@@ -652,7 +652,7 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, au
               </span>
               {step.key === 'day2' && !(email?.status === 'sent' && email?.sent_at != null) && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); setProposalModal(true); }}
+                  onClick={isImpersonating ? (e) => { e.stopPropagation(); handleImpersonationAction(); } : (e) => { e.stopPropagation(); setProposalModal(true); }}
                   style={{ padding: '6px 14px', fontSize: 13, fontWeight: 500, background: 'var(--brand)', color: 'white', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', flexShrink: 0 }}
                 >
                   Mark as sent →
@@ -689,7 +689,7 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, au
                       </button>
                     ) : (
                       <button
-                        onClick={() => handleSendEmail(step.emailKey)}
+                        onClick={isImpersonating ? handleImpersonationAction : () => handleSendEmail(step.emailKey)}
                         style={{ fontSize: 12, color: '#fff', fontWeight: 700, background: '#EA4335', border: 'none', borderRadius: 6, padding: '5px 14px', cursor: 'pointer', fontFamily: 'inherit' }}
                       >
                         Send via Gmail →
@@ -1170,7 +1170,7 @@ function Toast({ msg, ok }) {
 export default function DealDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, deals, canLogDemo, fetchDeals } = useAppContext();
+  const { user, deals, canLogDemo, fetchDeals, handleImpersonationAction, isImpersonating } = useAppContext();
   const localDeal = deals.find(d => d.id === id) || null;
   const [emails, setEmails] = useState([]);
   const [emailsLoading, setEmailsLoading] = useState(true);
@@ -1463,7 +1463,7 @@ export default function DealDetail() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto', flexWrap: 'wrap' }}>
           {isPreDemo ? (
             <>
-              <button onClick={() => navigate(`/form?dealId=${localDeal.id}`)} style={btnPrimaryStyle}>+ Log demo (after call)</button>
+              <button onClick={isImpersonating ? handleImpersonationAction : () => navigate(`/form?dealId=${localDeal.id}`)} style={btnPrimaryStyle}>+ Log demo (after call)</button>
             </>
           ) : (
             <>
@@ -1526,7 +1526,7 @@ export default function DealDetail() {
             </span>
           </div>
           <button
-            onClick={() => navigate(`/form?dealId=${localDeal.id}`)}
+            onClick={isImpersonating ? handleImpersonationAction : () => navigate(`/form?dealId=${localDeal.id}`)}
             style={{
               padding: '7px 14px',
               borderRadius: 6,
@@ -1780,7 +1780,9 @@ export default function DealDetail() {
             prospectEmail={formRecord?.prospect_email}
             repEmail={user?.email}
             fetchEmails={fetchEmails}
-            onLogDemo={() => navigate(`/form?dealId=${localDeal.id}`)}
+            onLogDemo={isImpersonating ? handleImpersonationAction : () => navigate(`/form?dealId=${localDeal.id}`)}
+            isImpersonating={isImpersonating}
+            handleImpersonationAction={handleImpersonationAction}
           />
           <ReEngagementGenerator deal={localDeal} dealId={localDeal.id} onReengage={handleReengage} />
           {localDeal.lostReason && (

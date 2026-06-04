@@ -11,7 +11,7 @@ import Login from "./pages/Login.jsx";
 import AcceptInvite from "./pages/AcceptInvite";
 import Performance from "./pages/Performance";
 import Notifications from "./pages/Notifications";
-import { getUser, clearAuth, apiFetch } from "./api.js";
+import { getUser, clearAuth, apiFetch, setViewAsEmail } from "./api.js";
 import { AppContext, useAppContext } from "./AppContext.js";
 import { computeAttentionFlags, getAttentionLevel } from "./utils/attentionRules";
 
@@ -701,7 +701,102 @@ function ProtectedRoute() {
   return user ? <Outlet /> : <Navigate to="/login" replace />;
 }
 
+function DevPanel() {
+  const { viewAsUser, setViewAsUser } = useAppContext();
+  const [expanded, setExpanded] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!expanded) return;
+    setLoading(true);
+    apiFetch('/api/users/all')
+      .then(data => setAllUsers(data.users || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [expanded]);
+
+  if (!expanded) {
+    return (
+      <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999 }}>
+        <button
+          onClick={() => setExpanded(true)}
+          style={{
+            background: '#1D1D1D', color: 'white', borderRadius: 999,
+            padding: '8px 16px', fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', border: 'none',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          }}
+        >🛠 Dev</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999 }}>
+      <div style={{
+        background: '#1D1D1D', color: 'white',
+        borderRadius: 16, padding: 20, width: 280,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>🛠 Developer Mode</div>
+          <button
+            onClick={() => setExpanded(false)}
+            style={{ background: 'none', border: 'none', color: '#8A8A85', fontSize: 18, cursor: 'pointer', padding: 0, lineHeight: 1 }}
+          >×</button>
+        </div>
+        <div style={{ fontSize: 12, color: '#8A8A85', marginBottom: 16 }}>Impersonate any user</div>
+        <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+          {loading ? (
+            <div style={{ fontSize: 12, color: '#8A8A85', padding: '8px 0' }}>Loading users…</div>
+          ) : allUsers.map(u => {
+            const initials = u.name?.split(' ').map(w => w[0]).slice(0, 2).join('') || '?';
+            const isActive = viewAsUser?.email === u.email;
+            return (
+              <div
+                key={u.id}
+                onClick={() => { setViewAsUser(u); setExpanded(false); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '8px 10px', borderRadius: 8, cursor: 'pointer',
+                  background: isActive ? 'rgba(255,255,255,0.12)' : 'transparent',
+                }}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+              >
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: '#F95253', color: 'white',
+                  fontSize: 11, fontWeight: 700, flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>{initials}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</div>
+                  <div style={{ fontSize: 10, color: '#8A8A85' }}>{u.role}</div>
+                </div>
+                {isActive && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22C55E', flexShrink: 0 }} />}
+              </div>
+            );
+          })}
+        </div>
+        {viewAsUser && (
+          <button
+            onClick={() => setViewAsUser(null)}
+            style={{
+              background: '#F95253', color: 'white', borderRadius: 8,
+              padding: '8px 12px', fontSize: 12, fontWeight: 600,
+              width: '100%', border: 'none', cursor: 'pointer', marginTop: 12,
+            }}
+          >Exit impersonation</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MainLayout() {
+  const { viewAsUser, setViewAsUser } = useAppContext();
   return (
     <div style={{ display: "flex", height: "100vh", background: V2.bg, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: V2.ink }}>
       <style>{`
@@ -753,9 +848,24 @@ function MainLayout() {
       `}</style>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       <Sidebar />
-      <div style={{ flex: 1, overflowY: "auto", zoom: 0.9 }}>
-        <div style={{ padding: "28px 40px 60px" }}>
-          <Outlet />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, zoom: 0.9 }}>
+        {viewAsUser && (
+          <div style={{
+            background: '#FEF3C7', borderBottom: '1px solid #FCD34D',
+            padding: '8px 20px', fontSize: 13, color: '#92400E',
+            display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
+          }}>
+            <span>👁 Viewing as {viewAsUser.name} ({viewAsUser.role}) — You are in impersonation mode. Actions are disabled.</span>
+            <button
+              onClick={() => setViewAsUser(null)}
+              style={{ marginLeft: 'auto', background: 'none', border: '1px solid #92400E', color: '#92400E', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}
+            >Exit</button>
+          </div>
+        )}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ padding: "28px 40px 60px" }}>
+            <Outlet />
+          </div>
         </div>
       </div>
     </div>
@@ -769,6 +879,9 @@ export default function App() {
   const [dealsLoading, setDealsLoading] = useState(false);
   const [formData, setFormData] = useState(null);
   const [formScore, setFormScore] = useState(0);
+  const [viewAsUser, setViewAsUser] = useState(null);
+  const [impersonationToast, setImpersonationToast] = useState(false);
+  const DEVELOPER_EMAIL = 'satyanarayan.sahoo@eshopbox.com';
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
@@ -807,6 +920,12 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
+    if (!user) return;
+    setViewAsEmail(viewAsUser?.email || null);
+    fetchDeals();
+  }, [viewAsUser]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     if (!document.getElementById('tabler-icons-css')) {
       const link = document.createElement('link');
       link.id = 'tabler-icons-css';
@@ -837,6 +956,11 @@ export default function App() {
     setUser(null);
     setDeals(null);
   }
+
+  const handleImpersonationAction = () => {
+    setImpersonationToast(true);
+    setTimeout(() => setImpersonationToast(false), 3000);
+  };
 
   const isManagerRole = user !== null && (user.role === "Admin" || user.role === "Manager" || user.role === "Sales Lead Mid-Market" || user.role === "Sales Lead Enterprise");
 
@@ -912,6 +1036,8 @@ export default function App() {
   const role = user ? (user.role === "Admin" || user.role === "Manager" ? "manager" : "rep") : null;
   const repName = user ? user.name.split(" ")[0] : null;
   const canLogDemo = user ? ["Admin", "Manager", "Sales rep"].includes(user.role) : false;
+  const isDeveloper = user?.email === DEVELOPER_EMAIL;
+  const isImpersonating = viewAsUser !== null;
 
   const HEALTH_CARDS = [
     { key: "inbox",      label: "Inbox",           count: inboxCount },
@@ -947,6 +1073,7 @@ export default function App() {
     role, repName, canLogDemo,
     formData, setFormData, formScore, setFormScore,
     handleLogout,
+    viewAsUser, setViewAsUser, isImpersonating, handleImpersonationAction,
     sidebarCollapsed, setSidebarCollapsed,
     search, setSearch,
     filterStage, setFilterStage,
@@ -966,6 +1093,18 @@ export default function App() {
 
   return (
     <AppContext.Provider value={ctx}>
+      {isDeveloper && <DevPanel />}
+      {impersonationToast && (
+        <div style={{
+          position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 10000, background: '#1D1D1D', color: 'white',
+          borderRadius: 10, padding: '12px 20px', fontSize: 13, fontWeight: 500,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+          whiteSpace: 'nowrap',
+        }}>
+          ⚠️ You are in impersonation mode — actions are disabled
+        </div>
+      )}
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login onLogin={handleLogin} />} />
         <Route path="/accept-invite" element={<AcceptInvite onLogin={handleLogin} />} />

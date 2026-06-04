@@ -1,5 +1,8 @@
 export const API_BASE = 'https://eshopbox-sales-assist-backend.satyanarayan-sahoo.workers.dev';
 
+let _viewAsEmail = null;
+export function setViewAsEmail(email) { _viewAsEmail = email; }
+
 export async function apiFetch(path, options = {}) {
   const token = localStorage.getItem('auth_token');
   const res = await fetch(`${API_BASE}${path}`, {
@@ -7,6 +10,7 @@ export async function apiFetch(path, options = {}) {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(_viewAsEmail ? { 'x-view-as-email': _viewAsEmail } : {}),
       ...(options.headers || {}),
     },
   });
