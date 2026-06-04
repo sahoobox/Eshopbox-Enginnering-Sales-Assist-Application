@@ -52,7 +52,7 @@ function LoadingScreen() {
         position: "fixed", inset: 0, background: "#FAFAF7",
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
-        fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       }}>
         {/* Logo mark */}
         <img
@@ -123,13 +123,26 @@ function LoadingScreen() {
 const V2 = {
   brand: "#F95253",
   brandDark: "#D63E3F",
-  ink: "#1D1D1D",
-  ink2: "#4A4A46",
-  ink3: "#8A8A85",
+  accentLight: "#FEECEC",
   bg: "#FAFAF7",
   surface: "#FFFFFF",
   surface2: "#F4F2EC",
   line: "#EBE8E0",
+  line2: "#D9D5C9",
+  ink: "#1D1D1D",
+  ink2: "#4A4A46",
+  ink3: "#8A8A85",
+  white: "#FFFFFF",
+  ok: "#0F6E56",
+  okBg: "#E1F5EE",
+  danger: "#991F1F",
+  dangerBg: "#FCEBEB",
+  info: "#185FA5",
+  infoBg: "#E6F1FB",
+  warn: "#854F0B",
+  warnBg: "#FAEEDA",
+  purple: "#534AB7",
+  purpleBg: "#EEEDFE",
 };
 
 const PANEL_STAGES = [
@@ -212,7 +225,7 @@ function Sidebar() {
     filterRep, setFilterRep, filterSolution, setFilterSolution, filterVolume, setFilterVolume,
     filterFlags, setFilterFlags, filterDays, setFilterDays,
     healthCard, setHealthCard, dateFrom, setDateFrom, dateTo, setDateTo,
-    panelCounts, repList, HEALTH_CARDS, activeFilterCount, clearAllFilters, isManagerRole,
+    panelCounts, repList, HEALTH_CARDS, activeFilterCount, clearAllFilters, isManagerRole, canLogDemo,
   } = useAppContext();
   const [showSignOut, setShowSignOut] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState({ view: false, stage: true, grade: true, rep: true, solution: true, volume: true, flags: true, days: true, demoDate: true });
@@ -273,6 +286,32 @@ function Sidebar() {
     ],
     "Admin": adminSections,
     "Developer": adminSections,
+    "Sales Lead Mid-Market": [
+      {
+        label: "OPERATE", items: [
+          { label: "Performance", path: "/performance" },
+          { label: "Mid-Market Pipeline", path: "/deals", badge: totalDeals || null, badgeColor: "neutral" },
+        ],
+      },
+      {
+        label: "ACTIVITY", items: [
+          { label: "Notifications", path: "/notifications" },
+        ],
+      },
+    ],
+    "Sales Lead Enterprise": [
+      {
+        label: "OPERATE", items: [
+          { label: "Performance", path: "/performance" },
+          { label: "Enterprise Pipeline", path: "/deals", badge: totalDeals || null, badgeColor: "neutral" },
+        ],
+      },
+      {
+        label: "ACTIVITY", items: [
+          { label: "Notifications", path: "/notifications" },
+        ],
+      },
+    ],
   };
 
   const sections = navSections[role] || navSections["Sales rep"];
@@ -330,25 +369,25 @@ function Sidebar() {
       {/* Inner sidebar — overflow:hidden clips text during width animation */}
       <div style={{
         width: '100%', height: '100%',
-        background: V2.surface,
-        borderRight: `1px solid ${V2.line}`,
+        background: 'var(--surface)',
+        borderRight: '1px solid var(--line)',
         display: "flex", flexDirection: "column",
         boxSizing: "border-box",
         overflow: 'hidden',
       }}>
         {/* Fixed top: brand + nav */}
-        <div style={{ flexShrink: 0, padding: sidebarCollapsed ? "18px 8px 8px" : "18px 14px 8px" }}>
+        <div style={{ flexShrink: 0, padding: sidebarCollapsed ? "20px 8px 8px" : "20px 16px 8px" }}>
           {/* Brand block */}
-          <div style={{ display: "flex", alignItems: "center", gap: sidebarCollapsed ? 0 : 10, marginBottom: 16, justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}>
+          <div style={{ display: "flex", alignItems: "center", gap: sidebarCollapsed ? 0 : 10, marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--line)', justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}>
             <img
               src="/eshopbox-monogram.jpg"
               alt="Eshopbox"
-              style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'contain', background: '#fff', flexShrink: 0 }}
+              style={{ width: 30, height: 30, borderRadius: 6, objectFit: 'contain', background: '#fff', flexShrink: 0 }}
             />
             {!sidebarCollapsed && (
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: V2.ink, lineHeight: 1.2 }}>Sales Assist</div>
-                <div style={{ fontSize: 11.5, color: V2.ink3, lineHeight: 1.2 }}>Eshopbox</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: V2.ink, lineHeight: 1.2 }}>Sales Assist</div>
+                <div style={{ fontSize: 12, color: V2.ink3, lineHeight: 1.2 }}>Eshopbox</div>
               </div>
             )}
           </div>
@@ -358,7 +397,7 @@ function Sidebar() {
             {sections.map((section) => (
               <div key={section.label} style={{ marginBottom: 4 }}>
                 {!sidebarCollapsed && (
-                  <div style={{ fontSize: 10, fontWeight: 600, color: V2.ink3, letterSpacing: "0.07em", textTransform: "uppercase", padding: "8px 4px 3px", margin: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: "0.06em", textTransform: "uppercase", padding: "16px 10px 6px", margin: 0 }}>
                     {section.label}
                   </div>
                 )}
@@ -390,18 +429,17 @@ function Sidebar() {
                       key={item.path}
                       onClick={() => navigate(item.path)}
                       style={{
-                        width: "100%", display: "flex", alignItems: "center", gap: 8,
-                        padding: '6px 10px', borderRadius: 6, border: "none",
-                        borderLeft: active ? '2px solid var(--brand)' : '2px solid transparent',
-                        background: active ? V2.surface2 : "transparent",
+                        width: "100%", display: "flex", alignItems: "center", gap: 10,
+                        padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: "none",
+                        background: active ? 'var(--surface-2)' : "transparent",
                         cursor: "pointer", fontFamily: "inherit", textAlign: "left", marginBottom: 2,
-                        transition: "background 0.1s",
+                        transition: "all 0.12s ease",
                       }}
-                      onMouseEnter={e => { if (!active) e.currentTarget.style.background = V2.surface2; }}
+                      onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--surface-2)'; }}
                       onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
                     >
-                      <i className={`ti ${icon}`} style={{ fontSize: 16, flexShrink: 0, color: active ? 'var(--brand)' : 'var(--ink-3)' }} aria-hidden="true" />
-                      <span style={{ flex: 1, fontSize: 13, fontWeight: active ? 500 : 400, color: active ? V2.ink : V2.ink3 }}>{item.label}</span>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: active ? 'var(--brand)' : 'var(--ink-3)', flexShrink: 0, display: 'inline-block' }} />
+                      <span style={{ flex: 1, fontSize: 14, fontWeight: active ? 500 : 400, color: active ? 'var(--ink)' : 'var(--ink-2)' }}>{item.label}</span>
                       {item.badge != null && (
                         <span style={{
                           fontSize: 11, padding: "1px 7px", borderRadius: 10, fontWeight: 700, marginLeft: "auto",
@@ -453,7 +491,13 @@ function Sidebar() {
               </FilterSection>
 
               <FilterSection label="Volume" isActive={filterVolume !== "all"} collapsed={!!collapsedSections.volume} onToggle={() => setCollapsedSections(s => ({ ...s, volume: !s.volume }))}>
-                {[{ value: "<3,000", label: "<3,000/mo" }, { value: "3,001–10,000", label: "3,001–10,000/mo" }, { value: "10,000+", label: "10,000+/mo" }].map(({ value, label }) => (
+                {[
+                  { value: "New store / not shipping orders yet", label: "New store" },
+                  { value: "1 - 500 orders/month",               label: "1–500/mo" },
+                  { value: "501 - 3,000 orders/month",            label: "501–3,000/mo" },
+                  { value: "3,001 - 10,000 orders/month",         label: "3,001–10,000/mo" },
+                  { value: "More than 10,000 orders/month",       label: "10,000+/mo" },
+                ].map(({ value, label }) => (
                   <FilterOption key={value} label={label} count={panelCounts?.volume[value] || 0} selected={filterVolume === value} onSelect={() => setFilterVolume(filterVolume === value ? "all" : value)} />
                 ))}
               </FilterSection>
@@ -496,6 +540,24 @@ function Sidebar() {
           )}
         </div>
 
+        {/* Log Demo button */}
+        {canLogDemo && (
+          <div style={{ flexShrink: 0, borderTop: `1px solid ${V2.line}`, padding: sidebarCollapsed ? "8px" : "10px 14px" }}>
+            {sidebarCollapsed ? (
+              <div
+                onClick={() => navigate('/form')}
+                title="Log demo"
+                style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--brand)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', margin: '0 auto', color: '#fff', fontSize: 18, fontWeight: 700 }}
+              >+</div>
+            ) : (
+              <button
+                onClick={() => navigate('/form')}
+                style={{ width: '100%', padding: '10px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'var(--brand)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.01em' }}
+              >+ Log demo</button>
+            )}
+          </div>
+        )}
+
         {/* Fixed bottom: user card */}
         <div style={{ flexShrink: 0, borderTop: `1px solid ${V2.line}`, padding: sidebarCollapsed ? "8px" : "8px 14px" }}>
           <div
@@ -503,23 +565,23 @@ function Sidebar() {
               display: "flex", alignItems: "center",
               gap: sidebarCollapsed ? 0 : 10,
               cursor: "pointer",
-              padding: sidebarCollapsed ? "4px 0" : "8px 10px",
+              padding: sidebarCollapsed ? "4px 0" : "12px 14px",
               borderRadius: "var(--radius-md)", background: "var(--surface-2)",
               justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
             }}
             onClick={() => !sidebarCollapsed && setShowSignOut(s => !s)}
             title={sidebarCollapsed ? (user?.name || '') : undefined}
           >
-            <div style={{ width: 30, height: 30, borderRadius: "50%", background: V2.brand + "20", border: `1.5px solid ${V2.brand}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: V2.brand, flexShrink: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: "50%", background: V2.brand + "20", border: `1.5px solid ${V2.brand}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: V2.brand, flexShrink: 0 }}>
               {initials}
             </div>
             {!sidebarCollapsed && (
               <>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: V2.ink, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: V2.ink, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {user?.name?.split(" ")[0]}
                   </div>
-                  <div style={{ fontSize: 11.5, color: V2.ink3, lineHeight: 1.2 }}>{user?.role}</div>
+                  <div style={{ fontSize: 12, color: V2.ink3, lineHeight: 1.2 }}>{user?.role}</div>
                 </div>
                 <span style={{ fontSize: 11, color: V2.ink3, userSelect: "none" }}>⌄</span>
               </>
@@ -641,34 +703,58 @@ function ProtectedRoute() {
 
 function MainLayout() {
   return (
-    <div style={{ display: "flex", height: "100vh", background: V2.bg, fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif", color: V2.ink }}>
+    <div style={{ display: "flex", height: "100vh", background: V2.bg, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: V2.ink }}>
       <style>{`
         :root {
-          --brand: #F95253;
+          --brand:      #F95253;
           --brand-dark: #D63E3F;
-          --surface: #ffffff;
-          --surface-2: #ECEAE3;
-          --line: #D8D5CD;
-          --line-2: #B5B2A9;
-          --ink: #0A0A0A;
-          --ink-2: #6A6760;
-          --ink-3: #8A8A85;
-          --ok: #0B6B5A;
-          --ok-bg: #E1F5EE;
-          --danger: #BE3728;
-          --danger-bg: #FCEBEB;
-          --info: #1A5FA0;
-          --info-bg: #E6F1FB;
-          --warn: #B05C00;
-          --warn-bg: #FAEEDA;
-          --radius-sm: 6px;
-          --radius-md: 8px;
+          --bg:         #FAFAF7;
+          --surface:    #FFFFFF;
+          --surface-2:  #F4F2EC;
+          --line:       #EBE8E0;
+          --line-2:     #D9D5C9;
+          --ink:        #1D1D1D;
+          --ink-2:      #4A4A46;
+          --ink-3:      #8A8A85;
+          --ok:         #0F6E56;
+          --ok-bg:      #E1F5EE;
+          --danger:     #991F1F;
+          --danger-bg:  #FCEBEB;
+          --info:       #185FA5;
+          --info-bg:    #E6F1FB;
+          --warn:       #854F0B;
+          --warn-bg:    #FAEEDA;
+          --purple:     #534AB7;
+          --purple-bg:  #EEEDFE;
+          --grade-a:    #0F6E56; --grade-a-bg: #E1F5EE;
+          --grade-b:    #185FA5; --grade-b-bg: #E6F1FB;
+          --grade-c:    #854F0B; --grade-c-bg: #FAEEDA;
+          --grade-d:    #991F1F; --grade-d-bg: #FCEBEB;
+          --radius-sm:  6px;
+          --radius-md:  8px;
+          --radius-lg:  12px;
+          --shadow-1:   0 1px 2px rgba(29,29,29,0.04);
+          --shadow-2:   0 2px 8px rgba(29,29,29,0.08);
         }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; background: var(--bg); }
+        body {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          background: var(--bg); color: var(--ink); font-size: 14px; line-height: 1.5;
+        }
+        button { font-family: inherit; cursor: pointer; transition: all 0.12s ease; }
+        input, select, textarea { font-family: inherit; font-size: 14px; transition: all 0.12s ease; }
+        a { color: inherit; text-decoration: none; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 999px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
+        ::selection { background: #FEECEC; color: var(--ink); }
       `}</style>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       <Sidebar />
       <div style={{ flex: 1, overflowY: "auto", zoom: 0.9 }}>
-        <div style={{ maxWidth: 1500, margin: "0 auto", padding: "24px 36px 60px" }}>
+        <div style={{ padding: "28px 40px 60px" }}>
           <Outlet />
         </div>
       </div>
@@ -752,7 +838,7 @@ export default function App() {
     setDeals(null);
   }
 
-  const isManagerRole = user !== null && (user.role === "Admin" || user.role === "Manager");
+  const isManagerRole = user !== null && (user.role === "Admin" || user.role === "Manager" || user.role === "Sales Lead Mid-Market" || user.role === "Sales Lead Enterprise");
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [search, setSearch] = useState("");
@@ -828,13 +914,13 @@ export default function App() {
   const canLogDemo = user ? ["Admin", "Manager", "Sales rep"].includes(user.role) : false;
 
   const HEALTH_CARDS = [
-    { key: "all",        label: "All deals",       count: scopedDeals.length },
     { key: "inbox",      label: "Inbox",           count: inboxCount },
     { key: "conducted",  label: "Conducted",       count: conductedCount },
     { key: "upcoming",   label: "Upcoming",        count: upcomingDemoCount },
     { key: "logged",     label: "Demo logged",     count: loggedCount },
-    { key: "not_logged", label: "Demo not logged", count: notLoggedCount },
+    { key: "not_logged", label: "Not logged",      count: notLoggedCount },
     { key: "won",        label: "Won",             count: wonCount },
+    { key: "all",        label: "All deals",       count: scopedDeals.length },
   ];
 
   const clearAllFilters = () => {

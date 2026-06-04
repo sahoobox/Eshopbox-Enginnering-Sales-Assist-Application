@@ -81,9 +81,29 @@ const HEALTH_CARD_LABELS = {
   conducted: 'Conducted',
   upcoming: 'Upcoming',
   logged: 'Demo logged',
-  not_logged: 'Demo not logged',
+  not_logged: 'Not logged',
   won: 'Won',
   all: 'All deals',
+};
+
+const CARD_SUBTITLES = {
+  inbox: "Needs your attention today",
+  conducted: "Demo done, sequence running",
+  upcoming: "Scheduled, not yet done",
+  logged: "Form filled, drafts ready",
+  not_logged: "Form pending, drafts blocked",
+  won: "Closed and payment confirmed",
+  all: "Every deal across all stages",
+};
+
+const CARD_TOOLTIPS = {
+  inbox: "Active deals in a conducted or upcoming stage that need action — your working pipeline.",
+  conducted: "Deals where the demo has been completed and the follow-up email sequence is in progress.",
+  upcoming: "Deals with a demo scheduled but not yet marked done.",
+  logged: "Deals where the demo form has been submitted and AI email drafts have been generated.",
+  not_logged: "Conducted deals where the demo form hasn't been filled yet — drafts are blocked until logged.",
+  won: "Deals closed and confirmed with payment received.",
+  all: "Every deal in your pipeline, regardless of stage or status.",
 };
 
 // ── Shared sub-components ────────────────────────────────────────────────────
@@ -98,9 +118,13 @@ function GradeChip({ grade }) {
 }
 
 function StagePill({ stage }) {
-  const c = STAGE_PILL_CFG[stage] || { bg: V2.surface2, text: V2.ink3 };
+  const isWon = stage === "Won/Payment Received";
+  const isLost = stage === "Lost/Dropped" || stage === "Deal lost";
+  const bg = isWon ? 'var(--ok-bg)' : isLost ? 'var(--danger-bg)' : 'var(--surface-2)';
+  const color = isWon ? 'var(--ok)' : isLost ? 'var(--danger)' : 'var(--ink-2)';
+  const border = isWon || isLost ? 'none' : '1px solid var(--line-2)';
   return (
-    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600, background: c.bg, color: c.text, whiteSpace: "nowrap" }}>
+    <span style={{ fontSize: 12, padding: "2px 10px", borderRadius: 999, fontWeight: 500, background: bg, color, border, whiteSpace: "nowrap" }}>
       {STAGE_SHORT[stage] || stage}
     </span>
   );
@@ -135,11 +159,33 @@ function topFlag(flags) {
   return [...flags].sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3))[0];
 }
 
+const AVATAR_COLORS = [
+  { bg: 'var(--ok-bg)',     color: 'var(--ok)'     },
+  { bg: 'var(--info-bg)',   color: 'var(--info)'   },
+  { bg: 'var(--warn-bg)',   color: 'var(--warn)'   },
+  { bg: 'var(--purple-bg)', color: 'var(--purple)' },
+];
+
+function RepAvatar({ repName }) {
+  const name = repName || '';
+  const parts = name.split(' ');
+  const initials = ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || '?';
+  const { bg, color } = AVATAR_COLORS[(name.charCodeAt(0) || 0) % 4];
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ width: 24, height: 24, borderRadius: '50%', background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, flexShrink: 0 }}>
+        {initials}
+      </div>
+      <span style={{ fontSize: '13.5px', color: 'var(--ink-2)' }}>{parts[0] || '—'}</span>
+    </div>
+  );
+}
+
 // ── Table header helper ──────────────────────────────────────────────────────
 
 function TH({ children }) {
   return (
-    <th style={{ padding: "7px 12px", textAlign: "left", fontSize: 10.5, fontWeight: 700, color: V2.ink3, letterSpacing: "0.04em", textTransform: "uppercase", borderBottom: `1px solid ${V2.line}`, whiteSpace: "nowrap" }}>
+    <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 11.5, fontWeight: 500, color: 'var(--ink-3)', letterSpacing: "0.05em", textTransform: "uppercase", borderBottom: `1px solid ${V2.line}`, whiteSpace: "nowrap" }}>
       {children}
     </th>
   );
@@ -149,10 +195,10 @@ function TH({ children }) {
 
 function HealthTable({ deals, onOpen }) {
   return (
-    <div style={{ background: V2.surface, border: `1px solid ${V2.line}`, borderRadius: 10, overflowX: 'auto' }}>
-      <table style={{ width: "100%", minWidth: 900, borderCollapse: "collapse", fontSize: 12.5 }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', overflowX: 'auto', boxShadow: 'var(--shadow-1)' }}>
+      <table style={{ width: "100%", minWidth: 900, borderCollapse: "collapse", fontSize: 13.5 }}>
         <thead>
-          <tr style={{ background: V2.surface2 }}>
+          <tr style={{ background: 'var(--surface-2)' }}>
             <TH>Grade</TH><TH>Brand</TH><TH>Rep</TH><TH>Stage</TH>
             <TH>Demo date</TH><TH>Days in stage</TH><TH>Flags</TH>
             <TH>Solution</TH><TH>Volume</TH>
@@ -168,16 +214,15 @@ function HealthTable({ deals, onOpen }) {
               <tr
                 key={d.id}
                 onClick={() => onOpen(d.id)}
-                style={{ borderBottom: i < deals.length - 1 ? `1px solid ${V2.line}` : "none", cursor: "pointer" }}
-                onMouseEnter={e => e.currentTarget.style.background = V2.surface2}
+                style={{ borderBottom: '1px solid var(--line)', cursor: "pointer" }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}
               >
-                <td style={{ padding: "8px 12px" }}>
+                <td style={{ padding: "14px 14px" }}>
                   {d.stage === "Qualified To Buy" || d.stage === "Demo Call Scheduled" ? (
-                    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600,
-                      background: d.stage === "Demo Call Scheduled" ? "#E6F1FB" : "#FAEEDA",
-                      color: d.stage === "Demo Call Scheduled" ? "#185FA5" : "#854F0B",
-                      whiteSpace: "nowrap"
+                    <span style={{ fontSize: 12, padding: "2px 10px", borderRadius: 999, fontWeight: 500,
+                      background: 'var(--surface-2)', color: 'var(--ink-2)',
+                      border: '1px solid var(--line-2)', whiteSpace: "nowrap"
                     }}>
                       {d.stage === "Demo Call Scheduled" ? "Scheduled" : "Qualified"}
                     </span>
@@ -185,24 +230,31 @@ function HealthTable({ deals, onOpen }) {
                     <GradeChip grade={d.grade} />
                   )}
                 </td>
-                <td style={{ padding: "8px 12px", fontWeight: 600, color: V2.ink, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {d.brandName}
-                  {d.manuallyLogged && (
-                    <span
-                      title="Visible because this deal was manually logged in Sales Assist. It falls outside the standard criteria (post Jan 2026, 3000+ orders/month)."
-                      style={{ color: "var(--ink-3)", fontSize: 11, marginLeft: 4, cursor: "help" }}
-                    >*</span>
-                  )}
+                <td style={{ padding: "14px 14px" }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
+                      {d.brandName}
+                      {d.manuallyLogged && (
+                        <span
+                          title="Visible because this deal was manually logged in Sales Assist. It falls outside the standard criteria (post Jan 2026, 3000+ orders/month)."
+                          style={{ color: "var(--ink-3)", fontSize: 11, marginLeft: 4, cursor: "help" }}
+                        >*</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: 'var(--ink-3)', marginTop: 1 }}>
+                      {SOL_LABELS[d.solutionInterest] || d.solutionInterest || '—'}
+                    </div>
+                  </div>
                 </td>
-                <td style={{ padding: "8px 12px", color: V2.ink3, whiteSpace: "nowrap" }}>{d.repName?.split(" ")[0] || "—"}</td>
-                <td style={{ padding: "8px 12px" }}><StagePill stage={d.stage} /></td>
-                <td style={{ padding: "8px 12px", color: V2.ink2, whiteSpace: "nowrap" }}>{fmtDate(d.demoDate)}</td>
-                <td style={{ padding: "8px 12px", whiteSpace: "nowrap", fontWeight: days > 7 ? 600 : 400, color: days > 7 ? V2.warn : V2.ink2 }}>
+                <td style={{ padding: "14px 14px" }}><RepAvatar repName={d.repName} /></td>
+                <td style={{ padding: "14px 14px" }}><StagePill stage={d.stage} /></td>
+                <td style={{ padding: "14px 14px", color: V2.ink2, whiteSpace: "nowrap" }}>{fmtDate(d.demoDate)}</td>
+                <td style={{ padding: "14px 14px", whiteSpace: "nowrap", fontWeight: days > 7 ? 600 : 400, color: days > 7 ? V2.warn : V2.ink2 }}>
                   {days !== null ? `${days}d` : "—"}
                 </td>
-                <td style={{ padding: "8px 12px" }}><FlagPill level={d.attentionLevel} count={d.flags.length} /></td>
-                <td style={{ padding: "8px 12px", color: V2.ink3, whiteSpace: "nowrap" }}>{SOL_LABELS[d.solutionInterest] || "—"}</td>
-                <td style={{ padding: "8px 12px", color: V2.ink3, whiteSpace: "nowrap", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis" }}>{d.orderVolume || "—"}</td>
+                <td style={{ padding: "14px 14px" }}><FlagPill level={d.attentionLevel} count={d.flags.length} /></td>
+                <td style={{ padding: "14px 14px", color: V2.ink3, whiteSpace: "nowrap" }}>{SOL_LABELS[d.solutionInterest] || "—"}</td>
+                <td style={{ padding: "14px 14px", color: V2.ink3, whiteSpace: "nowrap", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis" }}>{d.orderVolume || "—"}</td>
                 <td style={{ padding: "8px 8px", textAlign: "center" }} onClick={e => e.stopPropagation()}>
                   <a
                     href={`https://crmplus.zoho.com/zoho10446/index.do/cxapp/crm/eshopbox/tab/Potentials/${d.id}`}
@@ -232,17 +284,20 @@ function PipelineBoard({ deals, onOpen, onLogDemo, canLogDemo }) {
         const colDeals = deals.filter(d =>
           col.stages ? col.stages.includes(d.stage) : d.stage === col.key
         );
-        const isWon = col.key === "Won/Payment Received";
-        const isLost = col.key === "Lost/Dropped";
-        const headerBg = isWon ? V2.okBg : isLost ? V2.dangerBg : V2.surface2;
-        const headerBorder = isWon ? `${V2.ok}40` : isLost ? `${V2.danger}30` : V2.line;
-        const headerText = isWon ? V2.ok : isLost ? V2.danger : V2.ink2;
+        const dotColors = {
+          upcoming: 'var(--ink-3)', 'Demo Done': 'var(--info)',
+          'Proposal Sent': 'var(--warn)', 'Follow up Meeting Done': 'var(--purple)',
+          'Deal Approved': 'var(--ok)', 'Won/Payment Received': 'var(--ok)', 'Lost/Dropped': 'var(--danger)',
+        };
+        const dotColor = dotColors[col.key] || 'var(--ink-3)';
         return (
-          <div key={col.key} style={{ minWidth: 220, maxWidth: 260, flexShrink: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, padding: "8px 10px", background: headerBg, borderRadius: 8, border: `1px solid ${headerBorder}` }}>
-              <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: headerText }}>{col.label}</span>
-              <span style={{ fontSize: 11, fontWeight: 700, background: V2.surface, color: V2.ink3, padding: "1px 7px", borderRadius: 20 }}>{colDeals.length}</span>
+          <div key={col.key} style={{ minWidth: 220, maxWidth: 260, flexShrink: 0, background: 'var(--surface-2)', borderRadius: 'var(--radius-md)', border: '1px solid var(--line)', overflow: 'hidden' }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: '14px 16px 10px', borderBottom: '1px solid var(--line)' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0, display: 'inline-block' }} />
+              <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{col.label}</span>
+              <span style={{ fontSize: 12, color: 'var(--ink-3)', background: 'var(--surface)', borderRadius: '999px', padding: '1px 8px' }}>{colDeals.length}</span>
             </div>
+            <div style={{ padding: 8 }}>
             {colDeals.length === 0 ? (
               <div style={{ padding: "16px 10px", textAlign: "center", color: V2.ink3, fontSize: 12, background: V2.surface2, borderRadius: 8, border: `1px dashed ${V2.line}` }}>
                 No deals
@@ -253,16 +308,15 @@ function PipelineBoard({ deals, onOpen, onLogDemo, canLogDemo }) {
                 <div
                   key={d.id}
                   onClick={() => onOpen(d.id)}
-                  style={{ background: V2.surface, border: `1px solid ${d.attentionLevel === "high" ? `${V2.brand}60` : V2.line}`, borderRadius: 8, padding: "10px 12px", marginBottom: 8, cursor: "pointer" }}
-                  onMouseEnter={e => e.currentTarget.style.background = V2.surface2}
-                  onMouseLeave={e => e.currentTarget.style.background = V2.surface}
+                  style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: '14px 16px', marginBottom: 8, cursor: 'pointer', boxShadow: 'var(--shadow-1)', transition: 'all 0.12s ease' }}
+                  onMouseEnter={e => { e.currentTarget.style.boxShadow = 'var(--shadow-2)'; e.currentTarget.style.borderColor = 'var(--line-2)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--shadow-1)'; e.currentTarget.style.borderColor = 'var(--line)'; }}
                 >
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
                     {col.key === "upcoming" ? (
-                      <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600,
-                        background: d.stage === "Demo Call Scheduled" ? "#E6F1FB" : "#FAEEDA",
-                        color: d.stage === "Demo Call Scheduled" ? "#185FA5" : "#854F0B",
-                        whiteSpace: "nowrap", flexShrink: 0
+                      <span style={{ fontSize: 12, padding: "2px 10px", borderRadius: 999, fontWeight: 500,
+                        background: 'var(--surface-2)', color: 'var(--ink-2)',
+                        border: '1px solid var(--line-2)', whiteSpace: "nowrap", flexShrink: 0
                       }}>
                         {d.stage === "Demo Call Scheduled" ? "Scheduled" : "Qualified"}
                       </span>
@@ -273,7 +327,7 @@ function PipelineBoard({ deals, onOpen, onLogDemo, canLogDemo }) {
                       <div style={{ fontSize: 13, fontWeight: 600, color: V2.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.brandName}</div>
                       <div style={{ fontSize: 11, color: V2.ink3, marginTop: 1 }}>{d.repName?.split(" ")[0] || "—"}</div>
                     </div>
-                    {d.flags.length > 0 && <FlagPill level={d.attentionLevel} count={d.flags.length} />}
+                    {d.flags.length > 0 && <span style={{ background: 'var(--danger-bg)', color: 'var(--danger)', borderRadius: '999px', padding: '2px 10px', fontSize: 11.5, fontWeight: 500 }}>{d.flags.length}</span>}
                   </div>
                   <div style={{ fontSize: 11, color: V2.ink3 }}>
                     {days !== null ? `${days}d in stage` : fmtDate(d.demoDate)}
@@ -296,6 +350,7 @@ function PipelineBoard({ deals, onOpen, onLogDemo, canLogDemo }) {
                 </div>
               );
             })}
+            </div>
           </div>
         );
       })}
@@ -317,55 +372,52 @@ function AttentionTable({ deals, onOpen }) {
   }, [deals]);
 
   return (
-    <div style={{ background: V2.surface, border: `1px solid ${V2.line}`, borderRadius: 10, overflowX: 'auto' }}>
-      <table style={{ width: "100%", minWidth: 900, borderCollapse: "collapse", fontSize: 12.5 }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', overflowX: 'auto', boxShadow: 'var(--shadow-1)' }}>
+      <table style={{ width: "100%", minWidth: 900, borderCollapse: "collapse", fontSize: 13.5 }}>
         <thead>
-          <tr style={{ background: V2.surface2 }}>
+          <tr style={{ background: 'var(--surface-2)' }}>
             <TH>Grade</TH><TH>Brand</TH><TH>Rep</TH><TH>Stage</TH>
-            <TH>Top flag</TH><TH>Days in stage</TH><TH></TH>
+            <TH>Flags</TH><TH>Days in stage</TH>
             <th style={{ width: 40, padding: "7px 8px", borderBottom: `1px solid ${V2.line}` }}></th>
           </tr>
         </thead>
         <tbody>
           {sorted.length === 0 ? (
-            <tr><td colSpan={8} style={{ padding: 32, textAlign: "center", color: V2.ok, fontWeight: 600 }}>No open flags — all deals are on track.</td></tr>
+            <tr><td colSpan={7} style={{ padding: 32, textAlign: "center", color: V2.ok, fontWeight: 600 }}>No open flags — all deals are on track.</td></tr>
           ) : sorted.map((d, i) => {
-            const top = topFlag(d.flags);
-            const flagCfg = top ? (SEV_PILL_CFG[top.severity] || SEV_PILL_CFG.info) : null;
-            const extraFlags = d.flags.length - 1;
             const days = daysInStage(d);
             return (
               <tr
                 key={d.id}
                 onClick={() => onOpen(d.id)}
-                style={{ borderBottom: i < sorted.length - 1 ? `1px solid ${V2.line}` : "none", cursor: "pointer" }}
-                onMouseEnter={e => e.currentTarget.style.background = V2.surface2}
+                style={{ borderBottom: '1px solid var(--line)', cursor: "pointer" }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}
               >
-                <td style={{ padding: "8px 12px" }}><GradeChip grade={d.grade} /></td>
-                <td style={{ padding: "8px 12px", fontWeight: 600, color: V2.ink, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.brandName}</td>
-                <td style={{ padding: "8px 12px", color: V2.ink3, whiteSpace: "nowrap" }}>{d.repName?.split(" ")[0] || "—"}</td>
-                <td style={{ padding: "8px 12px" }}><StagePill stage={d.stage} /></td>
-                <td style={{ padding: "8px 12px" }}>
-                  {top ? (
-                    <div>
-                      <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600, background: flagCfg.bg, color: flagCfg.text, whiteSpace: "nowrap" }}>
-                        {top.title}
-                      </span>
-                      {extraFlags > 0 && (
-                        <div style={{ fontSize: 11, color: V2.ink3, marginTop: 3 }}>+{extraFlags} more</div>
-                      )}
+                <td style={{ padding: "14px 14px" }}><GradeChip grade={d.grade} /></td>
+                <td style={{ padding: "14px 14px" }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
+                      {d.brandName}
                     </div>
-                  ) : null}
+                    <div style={{ fontSize: '11.5px', color: 'var(--ink-3)', marginTop: 1 }}>
+                      {SOL_LABELS[d.solutionInterest] || d.solutionInterest || '—'}
+                    </div>
+                  </div>
                 </td>
-                <td style={{ padding: "8px 12px", whiteSpace: "nowrap", fontWeight: days > 7 ? 600 : 400, color: days > 7 ? V2.warn : V2.ink2 }}>
+                <td style={{ padding: "14px 14px" }}><RepAvatar repName={d.repName} /></td>
+                <td style={{ padding: "14px 14px" }}><StagePill stage={d.stage} /></td>
+                <td style={{ padding: "14px 14px" }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {d.flags.map((flag, fi) => (
+                      <span key={fi} style={{ background: 'var(--danger-bg)', color: 'var(--danger)', borderRadius: '999px', padding: '3px 10px', fontSize: '12px', fontWeight: 500, display: 'inline-block', whiteSpace: 'nowrap' }}>
+                        {flag.title}
+                      </span>
+                    ))}
+                  </div>
+                </td>
+                <td style={{ padding: "14px 14px", whiteSpace: "nowrap", fontWeight: days > 7 ? 600 : 400, color: days > 7 ? V2.warn : V2.ink2 }}>
                   {days !== null ? `${days}d` : "—"}
-                </td>
-                <td style={{ padding: "8px 12px" }}>
-                  <button
-                    onClick={e => { e.stopPropagation(); onOpen(d.id); }}
-                    style={{ fontSize: 12, fontWeight: 600, color: V2.ink2, background: "none", border: `1px solid ${V2.line}`, borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
-                  >Open →</button>
                 </td>
                 <td style={{ padding: "8px 8px", textAlign: "center" }} onClick={e => e.stopPropagation()}>
                   <a
@@ -391,7 +443,7 @@ function AttentionTable({ deals, onOpen }) {
 
 export default function DealsList() {
   const {
-    canLogDemo, isManagerRole,
+    user, canLogDemo, isManagerRole,
     search, setSearch,
     filterStage, setFilterStage, filterGrade, setFilterGrade,
     filterRep, setFilterRep, filterSolution, setFilterSolution,
@@ -405,6 +457,7 @@ export default function DealsList() {
   const [view, setView] = useState("health");
   const [healthView, setHealthView] = useState("list");
   const [sortBy, setSortBy] = useState('daysInStage');
+  const [hoveredCard, setHoveredCard] = useState(null);
   const [sortOpen, setSortOpen] = useState(false);
   const [sortDir, setSortDir] = useState('desc');
 
@@ -552,9 +605,18 @@ export default function DealsList() {
         <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div>
             <h1 style={{ fontSize: 26, fontWeight: 800, color: V2.ink, margin: '0 0 4px', letterSpacing: '-0.02em' }}>
-              {isManager ? 'All deals' : 'My deals'}
+              {user?.role === 'Sales Lead Mid-Market' ? 'Mid-Market Pipeline'
+                : user?.role === 'Sales Lead Enterprise' ? 'Enterprise Pipeline'
+                : isManagerRole ? 'All deals' : 'My deals'}
             </h1>
             <div style={{ fontSize: 13, color: V2.ink3 }}>{VIEW_SUBTITLES[view]}</div>
+            {(user?.role === 'Sales Lead Mid-Market' || user?.role === 'Sales Lead Enterprise') && (
+              <div style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 2 }}>
+                {user?.role === 'Sales Lead Mid-Market'
+                  ? 'Showing deals · Shipping only'
+                  : 'Showing deals · Warehousing · Shipping + Warehousing'}
+              </div>
+            )}
           </div>
           {canLogDemo && (
             <button
@@ -573,10 +635,17 @@ export default function DealsList() {
               <div
                 key={key}
                 onClick={() => setHealthCard(key)}
-                style={{ flex: 1, minWidth: 100, background: healthCard === key ? '#fff' : 'var(--surface)', border: healthCard === key ? '1.5px solid var(--ink)' : '1px solid var(--line)', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', transition: 'all 0.15s ease', boxShadow: healthCard === key ? '0 2px 8px rgba(0,0,0,0.08)' : 'none' }}
+                onMouseEnter={() => setHoveredCard(key)}
+                onMouseLeave={() => setHoveredCard(null)}
+                style={{ position: 'relative', overflow: 'visible', flex: 1, minWidth: 100, background: 'var(--surface)', border: healthCard === key ? '2px solid var(--ink)' : '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: '14px 18px', cursor: 'pointer', transition: 'all 0.15s ease', boxShadow: healthCard === key ? 'var(--shadow-2)' : 'var(--shadow-1)' }}
               >
-                <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: healthCard === key ? 'var(--ink-2)' : 'var(--ink-3)', marginBottom: 4 }}>{label}</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: healthCard === key ? 'var(--ink)' : 'var(--ink-2)', lineHeight: 1 }}>{count}</div>
+                <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', width: 'max-content', maxWidth: 240, background: 'var(--ink)', color: '#FFFFFF', fontSize: '12.5px', lineHeight: 1.5, padding: '10px 14px', borderRadius: 'var(--radius-md)', textAlign: 'left', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 1000, pointerEvents: 'none', whiteSpace: 'normal', opacity: hoveredCard === key ? 1 : 0, transition: 'opacity 0.15s ease', visibility: hoveredCard === key ? 'visible' : 'hidden' }}>
+                  {CARD_TOOLTIPS[key]}
+                  <div style={{ position: 'absolute', top: -6, left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderBottom: '6px solid var(--ink)', borderTop: 'none' }} />
+                </div>
+                <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink-3)', marginBottom: 6 }}>{label}</div>
+                <div style={{ fontSize: '28px', fontWeight: 600, color: 'var(--ink)', lineHeight: 1, letterSpacing: '-0.01em' }}>{count}</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4, fontWeight: 400, lineHeight: 1.3 }}>{CARD_SUBTITLES[key]}</div>
               </div>
             ))}
           </div>

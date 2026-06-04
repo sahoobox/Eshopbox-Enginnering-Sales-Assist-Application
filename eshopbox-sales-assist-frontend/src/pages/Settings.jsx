@@ -3,23 +3,27 @@ import { C } from "../components/ui";
 import { useAppContext } from "../AppContext";
 import { apiFetch } from "../api.js";
 
-const ROLES = ["Admin", "Manager", "Sales rep"];
+const ROLES = ["Admin", "Manager", "Sales Lead Mid-Market", "Sales Lead Enterprise", "Sales rep"];
 const ROLE_DESC = {
   "Admin": "Full access. Can invite team members, assign roles, and see all settings.",
   "Manager": "Can see all deals across the team, manager overview, rep performance, and log demos.",
+  "Sales Lead Mid-Market": "Manages the mid-market team. Sees all Shipping deals across the team.",
+  "Sales Lead Enterprise": "Manages the enterprise team. Sees all Warehousing and Full-stack deals across the team.",
   "Sales rep": "Can only see their own deals, their own overview, and log new demos.",
 };
 
 const ROLE_COLORS = {
-  "Admin": { bg: C.dangerLight, text: C.danger },
-  "Manager": { bg: C.warnLight, text: C.warn },
-  "Sales rep": { bg: C.infoLight, text: C.info },
+  "Admin":                  { bg: 'var(--danger-bg)',  text: 'var(--danger)'  },
+  "Manager":                { bg: 'var(--warn-bg)',    text: 'var(--warn)'    },
+  "Sales Lead Mid-Market":  { bg: 'var(--warn-bg)',    text: 'var(--warn)'    },
+  "Sales Lead Enterprise":  { bg: 'var(--purple-bg)',  text: 'var(--purple)'  },
+  "Sales rep":              { bg: 'var(--info-bg)',    text: 'var(--info)'    },
 };
 
 function RolePill({ role }) {
-  const c = ROLE_COLORS[role] || { bg: C.paperDark, text: C.muted };
+  const c = ROLE_COLORS[role] || { bg: 'var(--surface-2)', text: 'var(--ink-3)' };
   return (
-    <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, fontWeight: 700, background: c.bg, color: c.text, whiteSpace: "nowrap" }}>
+    <span style={{ fontSize: '13px', padding: '4px 12px', borderRadius: 999, fontWeight: 600, background: c.bg, color: c.text, whiteSpace: 'nowrap' }}>
       {role}
     </span>
   );
@@ -27,25 +31,25 @@ function RolePill({ role }) {
 
 function SeverityPill({ severity }) {
   const cfg = {
-    critical: { bg: C.dangerLight, text: C.danger },
-    warning:  { bg: C.warnLight,  text: C.warn   },
-    info:     { bg: C.infoLight,  text: C.info   },
+    critical: { bg: 'var(--danger-bg)', text: 'var(--danger)' },
+    warning:  { bg: 'var(--warn-bg)',   text: 'var(--warn)'   },
+    info:     { bg: 'var(--info-bg)',   text: 'var(--info)'   },
   };
   const c = cfg[severity] || cfg.info;
   return (
-    <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, fontWeight: 700, background: c.bg, color: c.text, whiteSpace: "nowrap" }}>
+    <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 999, fontWeight: 500, background: c.bg, color: c.text, whiteSpace: 'nowrap' }}>
       {severity}
     </span>
   );
 }
 
-function Avatar({ name, size = 36 }) {
+function Avatar({ name, size = 40 }) {
   const safeName = name || "?";
   const initials = safeName.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "?";
   const colors = ["#0B6B5A", "#1A5FA0", "#E8440A", "#534AB7", "#B05C00"];
   const color = colors[safeName.charCodeAt(0) % colors.length];
   return (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: color + "20", border: `1.5px solid ${color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.33, fontWeight: 700, color, flexShrink: 0 }}>
+    <div style={{ width: size, height: size, borderRadius: "50%", background: color + "20", border: `1.5px solid ${color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: Math.round(size * 0.36), fontWeight: 700, color, flexShrink: 0 }}>
       {initials}
     </div>
   );
@@ -208,7 +212,7 @@ const API = "https://eshopbox-sales-assist-backend.satyanarayan-sahoo.workers.de
 const SETTINGS_TABS = ["Team", "Sequence", "Zoho sync", "Rules engine", "Account"];
 
 export default function Settings() {
-  const { user: currentUser } = useAppContext();
+  const { user: currentUser, scopedDeals } = useAppContext();
   const currentUserRole = currentUser?.role || "Admin";
   const onInvite = (email, role) => apiFetch('/auth/invite', { method: 'POST', body: JSON.stringify({ email, role }) });
   const [activeTab, setActiveTab] = useState(currentUserRole === "Admin" || currentUserRole === "Manager" ? "Team" : "Account");
@@ -495,19 +499,26 @@ const handleResend = async (member) => {
 
   const removingTarget = removingId ? allMembers.find(m => m.id === removingId) : null;
 
-  return (
-    <div style={{ maxWidth: 860, margin: "0 auto", padding: "28px 20px 60px" }}>
+  const dealCountByEmail = {};
+  (scopedDeals || []).forEach(d => {
+    if (d.repEmail) dealCountByEmail[d.repEmail] = (dealCountByEmail[d.repEmail] || 0) + 1;
+  });
 
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: C.ink, margin: "0 0 4px", letterSpacing: "-0.02em" }}>{currentUserRole === "Admin" ? "Settings" : currentUserRole === "Manager" ? "Team settings" : "Account settings"}</h1>
-        <div style={{ fontSize: 13, color: C.muted }}>Manage your team, sequences, and integrations.</div>
+  return (
+    <div>
+
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink)', margin: "0 0 4px", letterSpacing: "-0.02em" }}>{currentUserRole === "Admin" ? "Settings" : currentUserRole === "Manager" ? "Team settings" : "Account settings"}</h1>
+        <div style={{ fontSize: 14, color: 'var(--ink-3)' }}>Manage your team, sequences, and integrations.</div>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.border}`, marginBottom: 24 }}>
+      <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--line)', marginBottom: 28, flexWrap: 'wrap' }}>
         {(currentUserRole === "Admin" ? SETTINGS_TABS : currentUserRole === "Manager" ? ["Team", "Account"] : ["Account"]).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            style={{ padding: "8px 16px", border: "none", borderBottom: `2.5px solid ${activeTab === tab ? C.accent : "transparent"}`, background: "transparent", fontSize: 13, fontWeight: activeTab === tab ? 700 : 400, color: activeTab === tab ? C.accent : C.muted, cursor: "pointer", fontFamily: "inherit", marginBottom: -1, transition: "all 0.15s" }}>
+            onMouseEnter={e => { if (activeTab !== tab) e.currentTarget.style.color = 'var(--ink-2)'; }}
+            onMouseLeave={e => { if (activeTab !== tab) e.currentTarget.style.color = 'var(--ink-3)'; }}
+            style={{ padding: '12px 18px', border: 'none', borderBottom: activeTab === tab ? '2px solid var(--brand)' : '2px solid transparent', background: 'transparent', fontSize: '15px', fontWeight: 500, color: activeTab === tab ? 'var(--ink)' : 'var(--ink-3)', cursor: 'pointer', fontFamily: 'inherit', marginBottom: -1, transition: 'all 0.12s ease' }}>
             {tab}
           </button>
         ))}
@@ -518,12 +529,12 @@ const handleResend = async (member) => {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 2 }}>Team members</div>
-              <div style={{ fontSize: 13, color: C.muted }}>{allMembers.length} member{allMembers.length !== 1 ? "s" : ""}</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>Team members</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>{allMembers.length} member{allMembers.length !== 1 ? "s" : ""}</div>
             </div>
             {(isAdmin || isManager) && (
               <button onClick={() => setShowInvite(true)}
-                style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: C.accent, fontSize: 13, fontWeight: 700, color: C.white, cursor: "pointer", fontFamily: "inherit" }}>
+                style={{ padding: "8px 18px", borderRadius: 'var(--radius-sm)', border: "none", background: 'var(--brand)', fontSize: 13, fontWeight: 600, color: '#fff', cursor: "pointer", fontFamily: "inherit" }}>
                 + Invite member
               </button>
             )}
@@ -534,51 +545,67 @@ const handleResend = async (member) => {
             {ROLES.map(r => (
               <div key={r} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <RolePill role={r} />
-                <span style={{ fontSize: 12, color: C.muted }}>{ROLE_DESC[r]}</span>
+                <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{ROLE_DESC[r]}</span>
               </div>
             ))}
           </div>
 
           {loadingTeam ? (
-            <div style={{ fontSize: 13, color: C.muted, padding: "20px 0" }}>Loading team…</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-3)', padding: "20px 0" }}>Loading team…</div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {allMembers.map(member => (
-                <div key={member.id} style={{ background: C.white, border: `0.5px solid ${C.border}`, borderRadius: 10, padding: "13px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: 'var(--shadow-1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)' }}>
+                <div style={{ width: 40, flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: '12px', fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Member</span>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', width: 80, textAlign: 'right', flexShrink: 0 }}>Deals</span>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', width: 120, textAlign: 'center', flexShrink: 0 }}>Role</span>
+                <div style={{ width: 200, flexShrink: 0 }} />
+              </div>
+              {allMembers.map((member, mi) => (
+                <div key={member.id} style={{ padding: '18px 20px', fontSize: '13.5px', display: "flex", alignItems: "center", gap: 12, borderBottom: mi < allMembers.length - 1 ? '1px solid var(--line)' : 'none' }}>
                   <Avatar name={member.name || member.email} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: C.ink }}>{member.name || member.email.split("@")[0]}</span>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>{member.name || member.email.split("@")[0]}</span>
                       {member.status === "invited" && (
-                        <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: 20, background: C.warnLight, color: C.warn, fontWeight: 600 }}>Invite pending</span>
+                        <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: 999, background: 'var(--warn-bg)', color: 'var(--warn)', fontWeight: 500 }}>Invite pending</span>
                       )}
                     </div>
-                    <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+                    <div style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 2 }}>
                       {member.email}
                       {member.created_at && ` · Joined ${new Date(member.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`}
                     </div>
                   </div>
-                  <RolePill role={member.role} />
-                  {member.email !== currentUser?.email && (isAdmin || (isManager && member.status === "invited")) && (
-                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                      {isAdmin && (
-                        <button onClick={() => setChangingRole(member)}
-                          style={{ fontSize: 12, padding: "5px 10px", borderRadius: 6, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, cursor: "pointer", fontFamily: "inherit" }}>
-                          Change role
+                  <div style={{ width: 80, textAlign: 'right', fontSize: 14, fontWeight: 600, color: 'var(--ink)', flexShrink: 0 }}>
+                    {dealCountByEmail[member.email] || 0}
+                  </div>
+                  <div style={{ width: 120, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+                    <RolePill role={member.role} />
+                  </div>
+                  <div style={{ width: 200, flexShrink: 0, display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                    {member.email !== currentUser?.email && (isAdmin || (isManager && member.status === "invited")) && (
+                      <>
+                        {isAdmin && (
+                          <button onClick={() => setChangingRole(member)}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--ink-3)'; e.currentTarget.style.background = 'var(--surface-2)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line-2)'; e.currentTarget.style.background = 'transparent'; }}
+                            style={{ fontSize: 13, padding: '8px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--ink-2)', cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}>
+                            Change role
+                          </button>
+                        )}
+                        {member.status === "invited" && (
+                          <button onClick={() => handleResend(member)}
+                            style={{ fontSize: 13, padding: '8px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--line-2)', background: 'transparent', color: 'var(--info)', cursor: "pointer", fontFamily: "inherit" }}>
+                            Resend
+                          </button>
+                        )}
+                        <button onClick={() => setRemovingId(member.id)}
+                          style={{ fontSize: 13, padding: '8px 14px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'var(--danger-bg)', color: 'var(--danger)', cursor: "pointer", fontFamily: "inherit" }}>
+                          Remove
                         </button>
-                      )}
-                      {member.status === "invited" && (
-                        <button onClick={() => handleResend(member)}
-                          style={{ fontSize: 12, padding: "5px 10px", borderRadius: 6, border: `1px solid ${C.border}`, background: "transparent", color: C.info, cursor: "pointer", fontFamily: "inherit" }}>
-                          Resend
-                        </button>
-                      )}
-                      <button onClick={() => setRemovingId(member.id)}
-                        style={{ fontSize: 12, padding: "5px 10px", borderRadius: 6, border: `1px solid ${C.border}`, background: "transparent", color: C.danger, cursor: "pointer", fontFamily: "inherit" }}>
-                        Remove
-                      </button>
-                    </div>
-                  )}
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -586,17 +613,17 @@ const handleResend = async (member) => {
 
           {deactivatedMembers.length > 0 && (
             <div style={{ marginTop: 24 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>Deactivated</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {deactivatedMembers.map(member => (
-                  <div key={member.id} style={{ background: C.white, border: `0.5px solid ${C.border}`, borderRadius: 10, padding: "13px 16px", display: "flex", alignItems: "center", gap: 12, opacity: 0.6 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>Deactivated</div>
+              <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: 'var(--shadow-1)' }}>
+                {deactivatedMembers.map((member, mi) => (
+                  <div key={member.id} style={{ padding: '14px 16px', display: "flex", alignItems: "center", gap: 12, opacity: 0.6, borderBottom: mi < deactivatedMembers.length - 1 ? '1px solid var(--line)' : 'none' }}>
                     <Avatar name={member.name || member.email} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: C.ink }}>{member.name || member.email.split("@")[0]}</span>
-                        <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: 20, background: C.paperDark, color: C.muted, fontWeight: 600 }}>Deactivated</span>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{member.name || member.email.split("@")[0]}</span>
+                        <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: 999, background: 'var(--surface-2)', color: 'var(--ink-3)', fontWeight: 500 }}>Deactivated</span>
                       </div>
-                      <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{member.email}</div>
+                      <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{member.email}</div>
                     </div>
                     <RolePill role={member.role} />
                   </div>
@@ -610,22 +637,22 @@ const handleResend = async (member) => {
       {/* Sequence tab */}
       {activeTab === "Sequence" && (
         <div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 4 }}>Follow-up sequence settings</div>
-          <div style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>Configure the timing of automated emails in the post-demo sequence. Editable steps accept a day offset.</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>Follow-up sequence settings</div>
+          <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 20 }}>Configure the timing of automated emails in the post-demo sequence. Editable steps accept a day offset.</div>
           {sequenceLoading ? (
-            <div style={{ fontSize: 13, color: C.muted, padding: "20px 0" }}>Loading sequence…</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-3)', padding: "20px 0" }}>Loading sequence…</div>
           ) : (
-            <div style={{ background: C.white, border: `0.5px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 100px", padding: "8px 16px", background: C.paperDark, borderBottom: `0.5px solid ${C.border}` }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em" }}>Step</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>Day offset</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>Mode</span>
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: 'var(--shadow-1)' }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 100px", padding: "10px 16px", background: 'var(--surface-2)', borderBottom: '1px solid var(--line)' }}>
+                <span style={{ fontSize: '11.5px', fontWeight: 500, color: 'var(--ink-3)', textTransform: "uppercase", letterSpacing: "0.05em" }}>Step</span>
+                <span style={{ fontSize: '11.5px', fontWeight: 500, color: 'var(--ink-3)', textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>Day offset</span>
+                <span style={{ fontSize: '11.5px', fontWeight: 500, color: 'var(--ink-3)', textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>Mode</span>
               </div>
               {sequence.map((step, i) => (
-                <div key={step.id} style={{ display: "grid", gridTemplateColumns: "1fr 120px 100px", padding: "13px 16px", borderBottom: i < sequence.length - 1 ? `0.5px solid ${C.border}` : "none", alignItems: "center" }}>
+                <div key={step.id} style={{ display: "grid", gridTemplateColumns: "1fr 120px 100px", padding: "14px 16px", borderBottom: i < sequence.length - 1 ? '1px solid var(--line)' : "none", alignItems: "center" }}>
                   <div>
-                    <div style={{ fontSize: 13.5, fontWeight: 500, color: C.ink }}>{step.name}</div>
-                    <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{step.desc}</div>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>{step.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{step.desc}</div>
                   </div>
                   <div style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                     {step.editable ? (
@@ -635,21 +662,21 @@ const handleResend = async (member) => {
                           type="number"
                           defaultValue={step.days}
                           min={1}
-                          style={{ width: 55, padding: "4px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12, fontFamily: "inherit", textAlign: "center" }}
+                          style={{ width: 60, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--line-2)', fontSize: '12.5px', fontFamily: "inherit", textAlign: "center" }}
                           onBlur={e => handleSeqDaysSave(step, e.target.value)}
                         />
-                        {seqSaveStatus[step.id] === 'saving' && <span style={{ fontSize: 11, color: C.muted }}>saving…</span>}
-                        {seqSaveStatus[step.id] === 'saved' && <span style={{ fontSize: 11, color: C.teal, fontWeight: 600 }}>Saved ✓</span>}
-                        {seqSaveStatus[step.id] === 'error' && <span style={{ fontSize: 11, color: C.danger }}>Error</span>}
+                        {seqSaveStatus[step.id] === 'saving' && <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>saving…</span>}
+                        {seqSaveStatus[step.id] === 'saved' && <span style={{ fontSize: 11, color: 'var(--ok)', fontWeight: 600 }}>Saved ✓</span>}
+                        {seqSaveStatus[step.id] === 'error' && <span style={{ fontSize: 11, color: 'var(--danger)' }}>Error</span>}
                       </>
                     ) : (
-                      <span style={{ fontSize: 13, color: C.muted }}>—</span>
+                      <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>—</span>
                     )}
                   </div>
                   <div style={{ textAlign: "center" }}>
                     {step.mode === 'auto'
-                      ? <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: C.tealLight, color: C.teal, fontWeight: 600 }}>Auto</span>
-                      : <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: C.paperDark, color: C.muted, fontWeight: 600 }}>Manual</span>}
+                      ? <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 999, background: 'var(--info-bg)', color: 'var(--info)', fontWeight: 500 }}>Auto</span>
+                      : <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 999, background: 'var(--surface-2)', color: 'var(--ink-2)', fontWeight: 500 }}>Manual</span>}
                   </div>
                 </div>
               ))}
@@ -661,75 +688,77 @@ const handleResend = async (member) => {
       {/* Zoho sync tab */}
       {activeTab === "Zoho sync" && (
         <div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 4 }}>Zoho CRM integration</div>
-          <div style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>Manage your personal Zoho connection and view the organisation-level CRM sync status.</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>Zoho CRM integration</div>
+          <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 20 }}>Manage your personal Zoho connection and view the organisation-level CRM sync status.</div>
 
           {/* Personal Zoho connection */}
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Your personal Zoho connection</div>
-          <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>Required to send emails from your Zoho account. Connect once — stays active across sessions.</div>
-          <div style={{ background: C.white, border: `0.5px solid ${C.border}`, borderRadius: 10, padding: "16px", marginBottom: 20 }}>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Your personal Zoho connection</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 12 }}>Required to send emails from your Zoho account. Connect once — stays active across sessions.</div>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: "16px", marginBottom: 20, boxShadow: 'var(--shadow-1)' }}>
             {zohoConnected === null ? (
-              <div style={{ fontSize: 12, color: C.muted }}>Checking connection…</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Checking connection…</div>
             ) : zohoConnected ? (
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 12, padding: "4px 12px", borderRadius: 20, background: C.tealLight, color: C.teal, fontWeight: 700 }}>✓ Zoho connected</span>
+                <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 999, background: 'var(--ok-bg)', color: 'var(--ok)', fontWeight: 600 }}>✓ Zoho connected</span>
                 <button onClick={handleZohoConnect} disabled={zohoConnecting}
-                  style={{ fontSize: 12, padding: "5px 12px", borderRadius: 6, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, cursor: zohoConnecting ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                  style={{ fontSize: 12, padding: "4px 10px", borderRadius: 'var(--radius-sm)', border: '1px solid var(--line-2)', background: "transparent", color: 'var(--ink-3)', cursor: zohoConnecting ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
                   {zohoConnecting ? "Redirecting…" : "Reconnect"}
                 </button>
               </div>
             ) : (
               <div>
-                <div style={{ background: C.warnLight, border: `0.5px solid ${C.warn}30`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.warn, marginBottom: 12 }}>
+                <div style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-bg)', borderRadius: 'var(--radius-sm)', padding: "10px 14px", fontSize: 12, color: 'var(--warn)', marginBottom: 12 }}>
                   ⚠ Your Zoho account is not connected. Connect it to send emails from your Zoho account.
                 </div>
                 <button onClick={handleZohoConnect} disabled={zohoConnecting}
-                  style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: zohoConnecting ? C.border : C.accent, color: C.white, fontSize: 13, fontWeight: 700, cursor: zohoConnecting ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                  style={{ padding: "8px 16px", borderRadius: 'var(--radius-sm)', border: "none", background: zohoConnecting ? 'var(--line)' : 'var(--brand)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: zohoConnecting ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
                   {zohoConnecting ? "Redirecting…" : "Connect Zoho →"}
                 </button>
               </div>
             )}
           </div>
 
-          <div style={{ borderTop: `0.5px solid ${C.border}`, marginBottom: 20 }} />
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Organisation connection</div>
+          <div style={{ borderTop: '1px solid var(--line)', marginBottom: 20 }} />
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Organisation connection</div>
 
-          <div style={{ background: C.tealLight, border: `0.5px solid ${C.teal}30`, borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: C.teal, marginBottom: 4 }}>✓ Backend connected</div>
-            <div style={{ fontSize: 12, color: C.teal }}>Zoho CRM is connected and syncing live data. Deals, tasks and activities are fetched in real time.</div>
+          <div style={{ background: 'var(--ok-bg)', border: '1px solid var(--ok-bg)', borderRadius: 'var(--radius-md)', padding: "14px 16px", marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ok)', marginBottom: 4 }}>✓ Backend connected</div>
+            <div style={{ fontSize: 12, color: 'var(--ok)' }}>Zoho CRM is connected and syncing live data. Deals, tasks and activities are fetched in real time.</div>
           </div>
-          {[
-            { label: "Data Centre", value: "Global (.com)" },
-            { label: "API Base URL", value: "https://www.zohoapis.com/crm/v2" },
-            { label: "Pipelines", value: "Ship, SME 2.0, Enterprise 2.0" },
-            { label: "Deals from", value: "Jan 1, 2026 onwards" },
-          ].map((row, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: C.white, border: `0.5px solid ${C.border}`, borderRadius: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 13, color: C.muted }}>{row.label}</span>
-              <span style={{ fontSize: 13, fontWeight: 500, color: C.ink }}>{row.value}</span>
-            </div>
-          ))}
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: 'var(--shadow-1)', marginBottom: 16 }}>
+            {[
+              { label: "Data Centre", value: "Global (.com)" },
+              { label: "API Base URL", value: "https://www.zohoapis.com/crm/v2" },
+              { label: "Pipelines", value: "Ship, SME 2.0, Enterprise 2.0" },
+              { label: "Deals from", value: "Jan 1, 2026 onwards" },
+            ].map((row, i, arr) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: i < arr.length - 1 ? '1px solid var(--line)' : 'none', fontSize: '13.5px' }}>
+                <span style={{ color: 'var(--ink-3)' }}>{row.label}</span>
+                <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{row.value}</span>
+              </div>
+            ))}
+          </div>
 
           {isAdmin && (
             <>
-              <div style={{ borderTop: `0.5px solid ${C.border}`, margin: "24px 0 20px" }} />
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Sequence task backfill</div>
-              <div style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>
+              <div style={{ borderTop: '1px solid var(--line)', margin: "24px 0 20px" }} />
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Sequence task backfill</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 14 }}>
                 Create missing Day 1, Day 3, Day 4 Zoho tasks for deals that were logged before these tasks were added. Safe to run multiple times — skips deals that already have all 7 tasks.
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                 <button
                   onClick={handleBackfill}
                   disabled={backfillLoading}
-                  style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: backfillLoading ? C.border : C.accent, color: C.white, fontSize: 13, fontWeight: 700, cursor: backfillLoading ? "not-allowed" : "pointer", fontFamily: "inherit" }}
+                  style={{ padding: "8px 16px", borderRadius: 'var(--radius-sm)', border: "none", background: backfillLoading ? 'var(--line)' : 'var(--brand)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: backfillLoading ? "not-allowed" : "pointer", fontFamily: "inherit" }}
                 >
                   {backfillLoading ? "Running…" : "Run backfill →"}
                 </button>
                 {backfillResult && (
-                  <span style={{ fontSize: 13, fontWeight: 600, color: C.teal }}>{backfillResult}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ok)' }}>{backfillResult}</span>
                 )}
                 {backfillError && (
-                  <span style={{ fontSize: 13, color: C.danger }}>{backfillError}</span>
+                  <span style={{ fontSize: 13, color: 'var(--danger)' }}>{backfillError}</span>
                 )}
               </div>
             </>
@@ -740,29 +769,29 @@ const handleResend = async (member) => {
       {/* Rules engine tab */}
       {activeTab === "Rules engine" && isAdmin && (
         <div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 4 }}>Rules engine</div>
-          <div style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>Configure which attention rules are active. Inactive rules won't generate flags for deals.</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>Rules engine</div>
+          <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 20 }}>Configure which attention rules are active. Inactive rules won't generate flags for deals.</div>
           {rulesLoading ? (
-            <div style={{ fontSize: 13, color: C.muted, padding: "20px 0" }}>Loading rules…</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-3)', padding: "20px 0" }}>Loading rules…</div>
           ) : rulesError ? (
             <div>
-              <div style={{ fontSize: 13, color: C.danger, marginBottom: 10, padding: "10px 14px", background: C.dangerLight, borderRadius: 8 }}>{rulesError}</div>
-              <button onClick={fetchRules} style={{ padding: "7px 16px", borderRadius: 7, border: `1px solid ${C.border}`, background: "transparent", fontSize: 13, color: C.muted, cursor: "pointer", fontFamily: "inherit" }}>
+              <div style={{ fontSize: 13, color: 'var(--danger)', marginBottom: 10, padding: "10px 14px", background: 'var(--danger-bg)', borderRadius: 'var(--radius-sm)' }}>{rulesError}</div>
+              <button onClick={fetchRules} style={{ padding: "7px 16px", borderRadius: 'var(--radius-sm)', border: '1px solid var(--line)', background: "transparent", fontSize: 13, color: 'var(--ink-3)', cursor: "pointer", fontFamily: "inherit" }}>
                 Retry
               </button>
             </div>
           ) : (
-            <div style={{ background: C.white, border: `0.5px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 16, padding: "8px 16px", background: C.paperDark, borderBottom: `0.5px solid ${C.border}` }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em" }}>Rule</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>Severity</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>Active</span>
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: 'var(--shadow-1)' }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 16, padding: "10px 16px", background: 'var(--surface-2)', borderBottom: '1px solid var(--line)' }}>
+                <span style={{ fontSize: '11.5px', fontWeight: 500, color: 'var(--ink-3)', textTransform: "uppercase", letterSpacing: "0.05em" }}>Rule</span>
+                <span style={{ fontSize: '11.5px', fontWeight: 500, color: 'var(--ink-3)', textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>Severity</span>
+                <span style={{ fontSize: '11.5px', fontWeight: 500, color: 'var(--ink-3)', textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>Active</span>
               </div>
               {rules.map((rule, i) => (
-                <div key={rule.id} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 16, padding: "13px 16px", borderBottom: i < rules.length - 1 ? `0.5px solid ${C.border}` : "none", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontSize: 13.5, fontWeight: 500, color: C.ink }}>{rule.name}</div>
-                    <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{rule.desc}</div>
+                <div key={rule.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderBottom: i < rules.length - 1 ? '1px solid var(--line)' : "none" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>{rule.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{rule.desc}</div>
                     {rule.threshold !== null && rule.threshold !== undefined && (
                       <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}>
                         <input
@@ -770,27 +799,27 @@ const handleResend = async (member) => {
                           type="number"
                           defaultValue={rule.threshold}
                           min={1}
-                          style={{ width: 50, padding: "3px 7px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12, fontFamily: "inherit" }}
+                          style={{ width: 50, padding: "3px 7px", borderRadius: 6, border: '1px solid var(--line-2)', fontSize: 12, fontFamily: "inherit" }}
                           onBlur={e => handleThresholdSave(rule, e.target.value)}
                         />
-                        <span style={{ fontSize: 12, color: C.muted }}>days</span>
+                        <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>days</span>
                         {savedThresholdId === rule.id && (
-                          <span style={{ fontSize: 11, color: C.teal, fontWeight: 600 }}>Saved ✓</span>
+                          <span style={{ fontSize: 11, color: 'var(--ok)', fontWeight: 600 }}>Saved ✓</span>
                         )}
                       </div>
                     )}
                   </div>
-                  <div style={{ textAlign: "center" }}>
+                  <div style={{ textAlign: "center", flexShrink: 0 }}>
                     <SeverityPill severity={rule.severity} />
                   </div>
-                  <div style={{ textAlign: "center" }}>
+                  <div style={{ textAlign: "center", flexShrink: 0 }}>
                     <button
                       onClick={() => handleToggleRule(rule)}
                       disabled={togglingRule === rule.id}
                       style={{
-                        fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 700,
-                        background: rule.active ? C.tealLight : C.paperDark,
-                        color: rule.active ? C.teal : C.muted,
+                        fontSize: 12, padding: '2px 10px', borderRadius: 999, fontWeight: 600,
+                        background: rule.active ? 'var(--ok-bg)' : 'var(--surface-2)',
+                        color: rule.active ? 'var(--ok)' : 'var(--ink-3)',
                         border: "none", cursor: togglingRule === rule.id ? "not-allowed" : "pointer",
                         fontFamily: "inherit", opacity: togglingRule === rule.id ? 0.6 : 1,
                         transition: "all 0.15s",
@@ -809,43 +838,43 @@ const handleResend = async (member) => {
       {/* Account tab */}
       {activeTab === "Account" && (
         <div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 16 }}>Account settings</div>
-          <div style={{ background: C.white, border: `0.5px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginBottom: 16 }}>Account settings</div>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', overflow: "hidden", marginBottom: 20, boxShadow: 'var(--shadow-1)' }}>
             {[
               { label: "App name", value: "Eshopbox Sales Assist" },
               { label: "Your name", value: currentUser?.name || "—" },
               { label: "Your email", value: currentUser?.email || "—" },
               { label: "Your role", value: currentUser?.role || "—" },
             ].map((row, i, arr) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 16px", borderBottom: i < arr.length - 1 ? `0.5px solid ${C.border}` : "none" }}>
-                <span style={{ fontSize: 13, color: C.muted }}>{row.label}</span>
-                <span style={{ fontSize: 13, fontWeight: 500, color: C.ink }}>{row.value}</span>
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: i < arr.length - 1 ? '1px solid var(--line)' : "none" }}>
+                <span style={{ fontSize: 13, color: 'var(--ink-3)', fontWeight: 500 }}>{row.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>{row.value}</span>
               </div>
             ))}
           </div>
 
           {/* Zoho connection — only for non-admin roles */}
           {currentUserRole !== "Admin" && (
-          <div style={{ background: C.white, border: `0.5px solid ${C.border}`, borderRadius: 10, padding: "16px" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 4 }}>Zoho connection</div>
-            <div style={{ fontSize: 12, color: C.muted, marginBottom: 14 }}>Connect your personal Zoho account to create email drafts directly in Zoho CRM.</div>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: "16px", boxShadow: 'var(--shadow-1)' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>Zoho connection</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 14 }}>Connect your personal Zoho account to create email drafts directly in Zoho CRM.</div>
             {zohoConnected === null ? (
-              <div style={{ fontSize: 12, color: C.muted }}>Checking connection…</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Checking connection…</div>
             ) : zohoConnected ? (
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 12, padding: "4px 12px", borderRadius: 20, background: C.tealLight, color: C.teal, fontWeight: 700 }}>✓ Zoho connected</span>
+                <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 999, background: 'var(--ok-bg)', color: 'var(--ok)', fontWeight: 600 }}>✓ Zoho connected</span>
                 <button onClick={handleZohoConnect} disabled={zohoConnecting}
-                  style={{ fontSize: 12, padding: "5px 12px", borderRadius: 6, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, cursor: zohoConnecting ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                  style={{ fontSize: 12, padding: "4px 10px", borderRadius: 'var(--radius-sm)', border: '1px solid var(--line-2)', background: "transparent", color: 'var(--ink-3)', cursor: zohoConnecting ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
                   {zohoConnecting ? "Redirecting…" : "Reconnect"}
                 </button>
               </div>
             ) : (
               <div>
-                <div style={{ background: C.warnLight, border: `0.5px solid ${C.warn}30`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.warn, marginBottom: 12 }}>
+                <div style={{ background: 'var(--warn-bg)', borderRadius: 'var(--radius-sm)', padding: "10px 14px", fontSize: 12, color: 'var(--warn)', marginBottom: 12 }}>
                   ⚠ Your Zoho account is not connected. Connect it to send emails from your Zoho account.
                 </div>
                 <button onClick={handleZohoConnect} disabled={zohoConnecting}
-                  style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: zohoConnecting ? C.border : C.accent, color: C.white, fontSize: 13, fontWeight: 700, cursor: zohoConnecting ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                  style={{ padding: "8px 16px", borderRadius: 'var(--radius-sm)', border: "none", background: zohoConnecting ? 'var(--line)' : 'var(--brand)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: zohoConnecting ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
                   {zohoConnecting ? "Redirecting…" : "Connect Zoho →"}
                 </button>
               </div>
@@ -854,22 +883,22 @@ const handleResend = async (member) => {
           )}
 
           {/* Gmail connection — all roles */}
-          <div style={{ background: C.white, border: `0.5px solid ${C.border}`, borderRadius: 10, padding: "16px", marginTop: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 4 }}>Gmail connection</div>
-            <div style={{ fontSize: 12, color: C.muted, marginBottom: 14 }}>Connect your Gmail account to send follow-up emails directly from Sales Assist.</div>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: "16px", marginTop: 16, boxShadow: 'var(--shadow-1)' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>Gmail connection</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 14 }}>Connect your Gmail account to send follow-up emails directly from Sales Assist.</div>
             {gmailConnected === null ? (
-              <div style={{ fontSize: 12, color: C.muted }}>Checking connection…</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Checking connection…</div>
             ) : gmailConnected ? (
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 12, padding: "4px 12px", borderRadius: 20, background: C.tealLight, color: C.teal, fontWeight: 700 }}>✓ Gmail connected</span>
+                <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 999, background: 'var(--ok-bg)', color: 'var(--ok)', fontWeight: 600 }}>✓ Gmail connected</span>
                 <button onClick={handleGmailConnect} disabled={gmailConnecting}
-                  style={{ fontSize: 12, padding: "5px 12px", borderRadius: 6, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, cursor: gmailConnecting ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                  style={{ fontSize: 12, padding: "4px 10px", borderRadius: 'var(--radius-sm)', border: '1px solid var(--line-2)', background: "transparent", color: 'var(--ink-3)', cursor: gmailConnecting ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
                   {gmailConnecting ? "Redirecting…" : "Reconnect"}
                 </button>
               </div>
             ) : (
               <button onClick={handleGmailConnect} disabled={gmailConnecting}
-                style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: gmailConnecting ? C.border : "#EA4335", color: "#fff", fontSize: 13, fontWeight: 700, cursor: gmailConnecting ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                style={{ padding: "8px 16px", borderRadius: 'var(--radius-sm)', border: "none", background: gmailConnecting ? 'var(--line)' : "#EA4335", color: "#fff", fontSize: 13, fontWeight: 600, cursor: gmailConnecting ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
                 {gmailConnecting ? "Redirecting…" : "Connect Gmail →"}
               </button>
             )}

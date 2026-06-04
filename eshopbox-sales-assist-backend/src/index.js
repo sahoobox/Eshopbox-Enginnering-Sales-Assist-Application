@@ -250,8 +250,8 @@ app.post('/auth/invite', requireAuth, async (c) => {
       await c.env.DB.prepare('DELETE FROM users WHERE email = ? AND is_active = 0').bind(email).run();
     }
 
-    const managerAllowed = ['Sales rep', 'Manager'];
-    const adminAllowed = ['Sales rep', 'Manager', 'Admin'];
+    const managerAllowed = ['Sales rep', 'Manager', 'Sales Lead Mid-Market', 'Sales Lead Enterprise'];
+    const adminAllowed = ['Sales rep', 'Manager', 'Admin', 'Sales Lead Mid-Market', 'Sales Lead Enterprise'];
     const assignedRole = user?.role === 'Manager'
       ? (managerAllowed.includes(role) ? role : 'Sales rep')
       : (adminAllowed.includes(role) ? role : 'Sales rep');
@@ -407,47 +407,159 @@ app.get('/auth/zoho/config', requireAuth, async (c) => {
   });
 });
 
+app.post('/auth/forgot-password', async (c) => {
+  try {
+    const { email } = await c.req.json();
+    if (!email?.endsWith('@eshopbox.com')) return c.json({ success: true });
+    const user = await getUserByEmail(c.env.DB, email);
+    if (!user) return c.json({ success: true });
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await c.env.DB.prepare(
+      'DELETE FROM password_reset_otps WHERE email = ? AND used = 0'
+    ).bind(email).run();
+    await c.env.DB.prepare(
+      'INSERT INTO password_reset_otps (id, email, otp, expires_at) VALUES (?, ?, ?, ?)'
+    ).bind(crypto.randomUUID(), email, otp, Date.now() + 10 * 60 * 1000).run();
+    try {
+      const accessToken = await getSenderAccessToken(c.env);
+      await sendGmailEmailWithToken(accessToken, {
+        fromEmail: 'nitiksha@eshopbox.com',
+        fromName: 'Eshopbox Sales Assist',
+        toEmail: email,
+        subject: 'Your password reset OTP',
+        htmlBody: `
+          <div style="font-family: Inter, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+            <h2 style="font-size: 20px; color: #1D1D1D; margin-bottom: 8px;">Reset your password</h2>
+            <p style="color: #4A4A46; font-size: 14px; margin-bottom: 24px;">
+              Use the OTP below to reset your Sales Assist password.
+              It expires in 10 minutes.
+            </p>
+            <div style="background: #F4F2EC; border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 24px;">
+              <span style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #F95253;">${otp}</span>
+            </div>
+            <p style="color: #8A8A85; font-size: 12px;">
+              If you didn't request this, ignore this email.
+              Your password will not change.
+            </p>
+          </div>
+        `,
+      });
+    } catch (e) {
+      console.error('OTP email send failed:', e.message);
+    }
+    return c.json({ success: true });
+  } catch (err) {
+    return c.json({ success: true });
+  }
+});
+
+app.post('/auth/verify-otp', async (c) => {
+  try {
+    const { email, otp } = await c.req.json();
+    const row = await c.env.DB.prepare(
+      'SELECT * FROM password_reset_otps WHERE email = ? AND otp = ? AND used = 0'
+    ).bind(email, otp).first();
+    if (!row) return c.json({ error: 'Invalid OTP' }, 400);
+    if (row.expires_at < Date.now()) return c.json({ error: 'OTP expired' }, 400);
+    return c.json({ success: true, resetToken: `${otp}_${email}_${Date.now()}` });
+  } catch (err) {
+    return c.json({ error: 'Verification failed', details: err.message }, 500);
+  }
+});
+
+app.post('/auth/reset-password', async (c) => {
+  try {
+    const { email, otp, password } = await c.req.json();
+    const row = await c.env.DB.prepare(
+      'SELECT * FROM password_reset_otps WHERE email = ? AND otp = ? AND used = 0'
+    ).bind(email, otp).first();
+    if (!row) return c.json({ error: 'Invalid OTP' }, 400);
+    if (row.expires_at < Date.now()) return c.json({ error: 'OTP expired' }, 400);
+    if (!password || password.length < 8) return c.json({ error: 'Password must be at least 8 characters' }, 400);
+    const user = await c.env.DB.prepare(
+      'SELECT password_hash FROM users WHERE email = ?'
+    ).bind(email).first();
+    if (user?.password_hash) {
+      const isSame = await verifyPassword(password, user.password_hash);
+      if (isSame) return c.json({ error: 'Please enter a different password from your current one' }, 400);
+    }
+    const passwordHash = await hashPassword(password);
+    await c.env.DB.prepare(
+      'UPDATE users SET password_hash = ? WHERE email = ?'
+    ).bind(passwordHash, email).run();
+    await c.env.DB.prepare(
+      'UPDATE password_reset_otps SET used = 1 WHERE email = ? AND otp = ?'
+    ).bind(email, otp).run();
+    return c.json({ success: true });
+  } catch (err) {
+    return c.json({ error: 'Reset failed', details: err.message }, 500);
+  }
+});
+
 // ─── DEALS ROUTES ───────────────────────────────────────
 app.get('/api/deals', requireAuth, async (c) => {
   try {
     const user = c.get('user');
-    if (user.role !== 'Sales rep') {
+    const useSharedCache = ['Admin', 'Manager', 'Developer'].includes(user.role);
+    if (useSharedCache) {
       const cached = await c.env.TOKEN_CACHE.get('deals_cache');
       if (cached) return c.json(JSON.parse(cached));
     }
     const zohoResponse = await getDeals(c.env);
     if (!zohoResponse?.data) return c.json({ deals: [], total: 0 });
-    const VALID_VOLUMES = [ '3,001 - 10,000 orders/month','More than 10,000 orders/month',];
+    const VALID_VOLUMES = ['501 - 3,000 orders/month', '3,001 - 10,000 orders/month', 'More than 10,000 orders/month'];
 
   let dealsList = zohoResponse.data
   .filter(d => VALID_STAGES.includes(d.Stage))
   .filter(d => VALID_VOLUMES.includes(d.How_many_orders_do_you_ship_in_a_month) || d.Stage === 'Won/Payment Received')
   .map(mapZohoDeal);
 
-    if (user.role === 'Sales rep') dealsList = dealsList.filter(d => d.repEmail === user.email);
+    if (user.role === 'Sales rep') {
+      dealsList = dealsList.filter(d => d.repEmail === user.email);
+    } else if (user.role === 'Sales Lead Mid-Market') {
+      dealsList = dealsList.filter(d => d.solutionInterest?.toLowerCase() === 'shipping');
+    } else if (user.role === 'Sales Lead Enterprise') {
+      dealsList = dealsList.filter(d => ['warehousing', 'both'].includes(d.solutionInterest?.toLowerCase()));
+    } else if (user.role === 'Sales Rep Mid-Market') {
+      dealsList = dealsList.filter(d => d.repEmail === user.email && d.solutionInterest?.toLowerCase() === 'shipping');
+    } else if (user.role === 'Sales Rep Enterprise') {
+      dealsList = dealsList.filter(d => d.repEmail === user.email && ['warehousing', 'both'].includes(d.solutionInterest?.toLowerCase()));
+    }
 
     // Secondary fetch: SA_Logged=true deals excluded by stage/volume filters
     const existingIds = new Set(dealsList.map(d => d.id));
     let saLoggedDeals = [];
     try {
-      const saLoggedRes = await zohoAPI(c.env, 'GET',
-        `/Deals?fields=${DEAL_FIELDS}&per_page=200&criteria=(SA_Logged:equals:true)`
-      );
-      const rawSALogged = saLoggedRes?.data || [];
+      const rawSALogged = [];
+      let saPage = 1;
+      while (true) {
+        const saLoggedRes = await zohoAPI(c.env, 'GET',
+          `/Deals?fields=${DEAL_FIELDS}&per_page=200&page=${saPage}&sort_by=Modified_Time&sort_order=desc&criteria=(SA_Logged:equals:true)`
+        );
+        const pageData = saLoggedRes?.data || [];
+        rawSALogged.push(...pageData);
+        if (!saLoggedRes?.info?.more_records || saPage >= 15) break;
+        saPage++;
+      }
       saLoggedDeals = rawSALogged
         .map(d => mapZohoDeal(d))
         .filter(d => !existingIds.has(d.id))
         .filter(d =>
-          VALID_STAGES.includes(d.stage) &&
-          (
-            d.orderVolume === '3,001 - 10,000 orders/month' ||
-            d.orderVolume === 'More than 10,000 orders/month' ||
-            d.stage === 'Won/Payment Received'
-          )
+          d.saLogged === true ||
+          VALID_VOLUMES.includes(d.orderVolume) ||
+          d.stage === 'Won/Payment Received'
         );
       saLoggedDeals.forEach(d => { d.manuallyLogged = true; });
       if (user.role === 'Sales rep') {
         saLoggedDeals = saLoggedDeals.filter(d => d.repEmail === user.email);
+      } else if (user.role === 'Sales Lead Mid-Market') {
+        saLoggedDeals = saLoggedDeals.filter(d => d.solutionInterest?.toLowerCase() === 'shipping');
+      } else if (user.role === 'Sales Lead Enterprise') {
+        saLoggedDeals = saLoggedDeals.filter(d => ['warehousing', 'both'].includes(d.solutionInterest?.toLowerCase()));
+      } else if (user.role === 'Sales Rep Mid-Market') {
+        saLoggedDeals = saLoggedDeals.filter(d => d.repEmail === user.email && d.solutionInterest?.toLowerCase() === 'shipping');
+      } else if (user.role === 'Sales Rep Enterprise') {
+        saLoggedDeals = saLoggedDeals.filter(d => d.repEmail === user.email && ['warehousing', 'both'].includes(d.solutionInterest?.toLowerCase()));
       }
       console.log(`Secondary SA_Logged fetch: ${saLoggedDeals.length} additional deals found`);
     } catch (e) {
@@ -504,7 +616,7 @@ const dealsWithFlags = dealsList.map(deal => {
 
     dealsWithFlags.sort((a, b) => ({ high: 0, medium: 1, info: 2, ok: 3 }[a.attentionLevel] - { high: 0, medium: 1, info: 2, ok: 3 }[b.attentionLevel]));
     const dealsResponse = { deals: dealsWithFlags, total: dealsWithFlags.length };
-    if (user.role !== 'Sales rep') {
+    if (useSharedCache) {
       await c.env.TOKEN_CACHE.put('deals_cache', JSON.stringify(dealsResponse), { expirationTtl: 300 });
     }
     return c.json(dealsResponse);
@@ -777,21 +889,7 @@ const dealPayload = {
       // Non-blocking — D1 already saved, deal is logged locally
     }
 
-console.log('Creating Day 2 task for deal:', dealId);
-let day2TaskResult = null;
-try {
-  day2TaskResult = await createTask(c.env, dealId, {
-    Subject: 'Day 2 — Send pricing proposal',
-    Due_Date: addDays(demoDate, 2),
-    Status: 'Not Started',
-    Priority: 'High',
-    Description: 'Send the pricing proposal to the prospect via email or WhatsApp.',
-  });
-  console.log('Day 2 task creation result:', JSON.stringify(day2TaskResult));
-} catch (e) {
-  console.error('Day 2 task creation failed:', e.message);
-}
-console.log('Day 2 task ID:', day2TaskResult?.data?.[0]?.details?.id || null);
+const dealOwner = existingDeal?.data?.[0]?.Owner;
 
 try {
   await Promise.all([
@@ -801,6 +899,7 @@ try {
       Status: 'Not Started',
       Priority: 'High',
       Description: 'Schedule and conduct the follow-up meeting with the prospect.',
+      Owner: dealOwner ? { id: dealOwner.id } : undefined,
     }),
   ]);
 } catch (e) {
@@ -816,6 +915,52 @@ try {
     return c.json({ success: true, dealId, grade, score, zohoSynced: zohoUpdateSuccess });
   } catch (err) {
     return c.json({ error: 'Sync failed', details: err.message }, 500);
+  }
+});
+
+app.post('/api/deals/:id/mark-proposal-sent', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id');
+    const user = c.get('user');
+    const now = new Date().toISOString();
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
+    ).bind(dealId, 'day2').first();
+    if (existing) {
+      await c.env.DB.prepare(
+        `UPDATE deal_emails SET status = 'sent', sent_at = ?, updated_at = ? WHERE deal_id = ? AND email_type = ?`
+      ).bind(now, now, dealId, 'day2').run();
+    } else {
+      await c.env.DB.prepare(
+        `INSERT INTO deal_emails (id, deal_id, email_type, subject, body, status, scheduled_for, sent_at, rep_email, created_at, updated_at)
+         VALUES (?, ?, 'day2', '', '', 'sent', ?, ?, ?, ?, ?)`
+      ).bind(crypto.randomUUID(), dealId, new Date().toISOString().split('T')[0], now, user.email, now, now).run();
+    }
+    return c.json({ success: true });
+  } catch (err) {
+    return c.json({ error: 'Failed to mark proposal as sent', details: err.message }, 500);
+  }
+});
+
+app.post('/api/deals/:id/day2/mark-sent', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id');
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
+    ).bind(dealId, 'day2').first();
+    if (existing) {
+      await c.env.DB.prepare(
+        `UPDATE deal_emails SET status = 'sent', sent_at = datetime('now') WHERE deal_id = ? AND email_type = ?`
+      ).bind(dealId, 'day2').run();
+    } else {
+      await c.env.DB.prepare(
+        `INSERT INTO deal_emails (id, deal_id, email_type, status, sent_at, created_at, updated_at)
+         VALUES (?, ?, 'day2', 'sent', datetime('now'), datetime('now'), datetime('now'))`
+      ).bind(crypto.randomUUID(), dealId).run();
+    }
+    return c.json({ success: true });
+  } catch (err) {
+    return c.json({ error: 'Failed to mark day2 as sent', details: err.message }, 500);
   }
 });
 
@@ -1128,6 +1273,8 @@ app.post('/api/deals/:id/emails/:emailType/mark-sent', requireAuth, async (c) =>
       'SELECT gmail_draft_id, gmail_message_id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
     ).bind(dealId, emailType).first();
 
+    console.log('mark-sent: emailRow =', JSON.stringify(emailRow));
+
     if (!emailRow?.gmail_draft_id) {
       return c.json({ success: true, sent: false });
     }
@@ -1144,14 +1291,17 @@ app.post('/api/deals/:id/emails/:emailType/mark-sent', requireAuth, async (c) =>
     );
 
     if (sent) {
-      const realMessageId = await getRealMessageId(
+      const realResult = await getRealMessageId(
         accessToken, loggedInUser.email,
         emailRow.gmail_draft_id, emailRow.gmail_message_id
       );
+      const realMessageId = realResult?.messageId || null;
+      const realThreadId = realResult?.threadId || null;
+      console.log('mark-sent: realMessageId =', realMessageId);
       const now = new Date().toISOString();
       await c.env.DB.prepare(
-        `UPDATE deal_emails SET status = 'sent', sent_at = ?, updated_at = ?, thread_message_id = COALESCE(?, thread_message_id) WHERE deal_id = ? AND email_type = ?`
-      ).bind(now, now, realMessageId, dealId, emailType).run();
+        `UPDATE deal_emails SET status = 'sent', sent_at = ?, updated_at = ?, thread_message_id = COALESCE(?, thread_message_id), gmail_thread_id = COALESCE(?, gmail_thread_id) WHERE deal_id = ? AND email_type = ?`
+      ).bind(now, now, realMessageId, realThreadId, dealId, emailType).run();
       return c.json({ success: true, sent: true, sent_at: now });
     }
 
@@ -1203,16 +1353,22 @@ app.post('/api/deals/:id/emails/:emailType/create-draft', requireAuth, async (c)
     // For non-day1 emails, thread onto day1 if its message ID is available
     let inReplyTo = null;
     let references = null;
+    let day1ThreadId = null;
     if (emailType !== 'day1') {
       const day1Row = await c.env.DB.prepare(
-        'SELECT thread_message_id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
+        'SELECT thread_message_id, gmail_message_id, gmail_thread_id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
       ).bind(dealId, 'day1').first();
       if (day1Row?.thread_message_id) {
         inReplyTo = day1Row.thread_message_id;
         references = day1Row.thread_message_id;
         if (!subject.startsWith('Re: ')) subject = `Re: ${subject}`;
       }
+      console.log('create-draft: day1Row =', JSON.stringify(day1Row));
+      day1ThreadId = day1Row?.gmail_thread_id || null;
     }
+
+    console.log('create-draft threading:', emailType, '| inReplyTo:', inReplyTo, '| references:', references);
+    console.log('create-draft: day1ThreadId =', day1ThreadId, '| from D1 directly');
 
     const htmlBody = emailRow.body.replace(/\n/g, '<br>');
 
@@ -1231,7 +1387,10 @@ app.post('/api/deals/:id/emails/:emailType/create-draft', requireAuth, async (c)
       htmlBody,
       inReplyTo,
       references,
+      threadId: day1ThreadId,
     });
+
+    console.log('create-draft result: draftId =', result.draftId, '| messageId =', result.messageId, '| gmailMessageId =', result.gmailMessageId);
 
     const now = new Date().toISOString();
     await c.env.DB.prepare(
@@ -1984,6 +2143,22 @@ app.post('/api/admin/backfill-tasks', requireAuth, async (c) => {
 
 // ─── GMAIL OAUTH HELPER ──────────────────────────────────────────────────────
 
+async function getSenderAccessToken(env) {
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: env.GOOGLE_CLIENT_ID,
+      client_secret: env.GOOGLE_CLIENT_SECRET,
+      refresh_token: env.GMAIL_SENDER_REFRESH_TOKEN,
+      grant_type: 'refresh_token',
+    }),
+  });
+  const data = await res.json();
+  if (!data.access_token) throw new Error('Failed to get sender access token: ' + JSON.stringify(data));
+  return data.access_token;
+}
+
 async function getGmailAccessToken(env, userId) {
   const row = await env.DB.prepare(
     'SELECT gmail_access_token, gmail_refresh_token, gmail_token_expiry FROM users WHERE id = ?'
@@ -2104,6 +2279,21 @@ export default {
       } catch (_) {}
       try {
         await env.DB.prepare('ALTER TABLE deal_emails ADD COLUMN gmail_message_id TEXT').run();
+      } catch (_) {}
+      try {
+        await env.DB.prepare('ALTER TABLE deal_emails ADD COLUMN gmail_thread_id TEXT').run();
+      } catch (_) {}
+      try {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS password_reset_otps (
+            id TEXT PRIMARY KEY,
+            email TEXT NOT NULL,
+            otp TEXT NOT NULL,
+            expires_at INTEGER NOT NULL,
+            used INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+          )
+        `).run();
       } catch (_) {}
       dbMigrated = true;
     }

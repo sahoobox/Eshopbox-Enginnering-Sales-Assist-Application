@@ -368,7 +368,7 @@ function SequenceChecklist({ emails, dealId, deal }) {
 
 // ─── Merged Sequence View ────────────────────────────────────────────────────
 
-function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, regenerating, handleRegenerateEmails, regenError, prospectEmail }) {
+function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, autoGenerating, autoGenError, prospectEmail, repEmail, fetchEmails }) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const [expanded, setExpanded] = useState({});
   const [creating, setCreating] = useState({});
@@ -378,6 +378,9 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, re
   const [sendErrors, setSendErrors] = useState({});
   const [localSent, setLocalSent] = useState({});
   const pollTimersRef = useRef({});
+  const [proposalModal, setProposalModal] = useState(false);
+  const [proposalLoading, setProposalLoading] = useState(false);
+  const [proposalError, setProposalError] = useState('');
 
   useEffect(() => {
     const timers = pollTimersRef.current;
@@ -408,7 +411,7 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, re
 
   const steps = [
     { key: 'day1',     label: 'Day 1',   name: 'Recap email',            auto: false, emailKey: 'day1',  expandable: true  },
-    { key: 'day2',     label: 'Day 2',   name: 'Pricing proposal',       auto: false, emailKey: null,    expandable: false, zohoTask: true, prefix: null },
+    { key: 'day2',     label: 'Day 2',   name: 'Pricing proposal',       auto: false, emailKey: 'day2',  expandable: false },
     { key: 'day3',     label: 'Day 3',   name: 'ROI value email',        auto: false, emailKey: 'day3',  expandable: true  },
     { key: 'day4',     label: 'Day 4',   name: 'Objection email',        auto: false, emailKey: 'day4',  expandable: true  },
     { key: 'meeting',  label: 'Meeting', name: 'Follow-up mtg',          auto: false, emailKey: null,    expandable: false, zohoTask: true, prefix: 'Meeting —' },
@@ -463,7 +466,7 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, re
     setCreating(p => ({ ...p, [emailType]: false }));
 
     // Navigate the pre-opened window to the Gmail draft
-    gmailWindow.location.href = `https://mail.google.com/mail/#drafts/${draftId}`;
+    gmailWindow.location.href = `https://mail.google.com/mail/u/0/#drafts/${draftId}`;
 
     // Show the "draft created" status message
     setDraftReady(p => ({ ...p, [emailType]: true }));
@@ -503,6 +506,31 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, re
     pollTimersRef.current[emailType] = interval;
   };
 
+  const handleMarkProposalSent = async () => {
+    setProposalLoading(true);
+    setProposalError('');
+    try {
+      const token = localStorage.getItem('auth_token');
+      const res = await fetch(`${API}/api/deals/${dealId}/mark-proposal-sent`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      let data;
+      try { data = await res.json(); } catch { data = {}; }
+      if (!data.success) {
+        setProposalError(data.details || data.error || `Server error ${res.status}`);
+        setProposalLoading(false);
+        return;
+      }
+      setProposalModal(false);
+      setProposalLoading(false);
+      fetchEmails();
+    } catch (err) {
+      setProposalError(err.message || 'Network error. Please try again.');
+      setProposalLoading(false);
+    }
+  };
+
   if (!deal.saLogged) {
     return (
       <Section title="Sequence">
@@ -522,6 +550,7 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, re
   }
 
   return (
+    <>
     <Section title="Sequence">
       {steps.map((step, i) => {
         const email = step.emailKey ? emailMap[step.emailKey] : null;
@@ -577,6 +606,18 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, re
           }
         }
 
+        if (step.key === 'day2') {
+          const day2Sent = email?.status === 'sent' && email?.sent_at != null;
+          if (day2Sent) {
+            dotBg = C.teal; dotBorder = C.teal; dotSymbol = '✓'; dotColor = C.white; strikethrough = true;
+            pillLabel = 'Done'; pillBg = C.tealLight; pillText = C.teal;
+            descLine = email.sent_at ? `Sent ${fmt(email.sent_at)}` : 'Sent';
+          } else {
+            pillLabel = 'Pending'; pillBg = C.paperDark; pillText = C.muted;
+            descLine = '';
+          }
+        }
+
         const canExpand = step.expandable && !!email;
         const isExpanded = expanded[step.key];
 
@@ -600,6 +641,14 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, re
               <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, fontWeight: 700, background: pillBg, color: pillText, whiteSpace: 'nowrap', flexShrink: 0 }}>
                 {pillLabel}
               </span>
+              {step.key === 'day2' && !(email?.status === 'sent' && email?.sent_at != null) && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setProposalModal(true); }}
+                  style={{ padding: '6px 14px', fontSize: 13, fontWeight: 500, background: 'var(--brand)', color: 'white', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  Mark as sent →
+                </button>
+              )}
               {canExpand && (
                 <span style={{ fontSize: 14, color: C.muted, transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}>▾</span>
               )}
@@ -648,7 +697,7 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, re
                   </div>
                 </div>
                 {draftReady[step.emailKey] && !localSent[step.emailKey] && !isSent && (
-                  <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>📨 Draft created in Gmail — send it when ready</div>
+                  <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>📨 Draft created — if Gmail opens in the wrong account, make your Eshopbox account the default in your browser.</div>
                 )}
                 {pollingExhausted[step.emailKey] && (
                   <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>Email not detected as sent. Click "Send via Gmail →" to try again.</div>
@@ -668,18 +717,36 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, re
 
       {!hasEmails && deal.saLogged && (
         <div style={{ textAlign: 'center', padding: '16px 0 8px' }}>
-          <div style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Email drafts not generated yet.</div>
-          <button
-            onClick={handleRegenerateEmails}
-            disabled={regenerating}
-            style={{ padding: '8px 16px', borderRadius: 6, fontSize: 13, fontWeight: 600, background: C.accent, color: '#fff', border: 'none', cursor: regenerating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}
-          >
-            {regenerating ? 'Generating...' : '↺ Generate email drafts'}
-          </button>
-          {regenError && <div style={{ color: C.danger, fontSize: 12, marginTop: 8 }}>{regenError}</div>}
+          {autoGenerating
+            ? <div style={{ fontSize: 13, color: C.muted }}>Preparing your email drafts…</div>
+            : autoGenError
+              ? <div style={{ fontSize: 12, color: C.danger }}>{autoGenError}</div>
+              : null
+          }
         </div>
       )}
     </Section>
+    {proposalModal && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: 'white', borderRadius: 'var(--radius-lg)', padding: '28px 32px', maxWidth: 400, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+          <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>Mark proposal as sent?</div>
+          <div style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 24 }}>Once marked as sent, this cannot be undone.</div>
+          {proposalError && <div style={{ fontSize: 13, color: 'var(--danger)', marginBottom: 12 }}>{proposalError}</div>}
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => setProposalModal(false)}
+              style={{ padding: '8px 18px', fontSize: 13, fontWeight: 500, background: 'transparent', color: 'var(--ink-2)', border: '1px solid var(--line-2)', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}
+            >Cancel</button>
+            <button
+              onClick={handleMarkProposalSent}
+              disabled={proposalLoading}
+              style={{ padding: '8px 18px', fontSize: 13, fontWeight: 500, background: 'var(--brand)', color: 'white', border: 'none', borderRadius: 'var(--radius-sm)', cursor: proposalLoading ? 'not-allowed' : 'pointer', opacity: proposalLoading ? 0.7 : 1 }}
+            >Yes, mark as sent</button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -1096,12 +1163,12 @@ function Toast({ msg, ok }) {
 export default function DealDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { deals, canLogDemo, fetchDeals } = useAppContext();
+  const { user, deals, canLogDemo, fetchDeals } = useAppContext();
   const localDeal = deals.find(d => d.id === id) || null;
   const [emails, setEmails] = useState([]);
   const [emailsLoading, setEmailsLoading] = useState(true);
-  const [regenerating, setRegenerating] = useState(false);
-  const [regenError, setRegenError] = useState(null);
+  const [autoGenerating, setAutoGenerating] = useState(false);
+  const [autoGenError, setAutoGenError] = useState(null);
   const [formRecord, setFormRecord] = useState(null);
   const [analysisData, setAnalysisData] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(true);
@@ -1151,26 +1218,36 @@ export default function DealDetail() {
       .finally(() => setEmailsLoading(false));
   };
 
-  const handleRegenerateEmails = async () => {
-    setRegenerating(true);
-    setRegenError(null);
-    try {
-      await apiFetch(`/api/deals/${id}/generate-content`, { method: 'POST' });
-      fetchEmails();
-    } catch (e) {
-      setRegenError(
-        e.message.includes('429')
-          ? 'Claude is busy — please try again in a minute'
-          : 'Generation failed — please try again'
-      );
-    } finally {
-      setRegenerating(false);
-    }
-  };
-
   useEffect(() => {
     if (!id) return;
-    fetchEmails();
+    const token = localStorage.getItem("auth_token");
+    setEmailsLoading(true);
+    fetch(`${API}/api/deals/${id}/emails`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(async data => {
+        const fetched = data.emails || [];
+        setEmails(fetched);
+        if (fetched.length === 0 && localDeal?.saLogged) {
+          setAutoGenerating(true);
+          setAutoGenError(null);
+          try {
+            await apiFetch(`/api/deals/${id}/generate-content`, { method: 'POST' });
+            const r2 = await fetch(`${API}/api/deals/${id}/emails`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const d2 = await r2.json();
+            setEmails(d2.emails || []);
+          } catch {
+            setAutoGenError('Could not generate drafts — refresh to retry');
+          } finally {
+            setAutoGenerating(false);
+          }
+        }
+      })
+      .catch(console.error)
+      .finally(() => setEmailsLoading(false));
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -1363,7 +1440,6 @@ export default function DealDetail() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto', flexWrap: 'wrap' }}>
           {isPreDemo ? (
             <>
-              <button onClick={() => showToast('Reschedule coming soon')} style={btnStyle}>Reschedule demo</button>
               <button onClick={() => navigate(`/form?dealId=${localDeal.id}`)} style={btnPrimaryStyle}>+ Log demo (after call)</button>
             </>
           ) : (
@@ -1676,10 +1752,11 @@ export default function DealDetail() {
             deal={localDeal}
             emailsLoading={emailsLoading}
             hasEmails={hasEmails}
-            regenerating={regenerating}
-            handleRegenerateEmails={handleRegenerateEmails}
-            regenError={regenError}
+            autoGenerating={autoGenerating}
+            autoGenError={autoGenError}
             prospectEmail={formRecord?.prospect_email}
+            repEmail={user?.email}
+            fetchEmails={fetchEmails}
           />
           <ReEngagementGenerator deal={localDeal} dealId={localDeal.id} onReengage={handleReengage} />
           {localDeal.lostReason && (

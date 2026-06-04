@@ -113,7 +113,7 @@ function buildEmailMessage({ from, fromName, to, subject,
 // Create a Gmail draft using a pre-obtained personal OAuth access token
 export async function createGmailDraft(accessToken, {
   fromEmail, fromName, toEmail, subject,
-  htmlBody, inReplyTo, references
+  htmlBody, inReplyTo, references, threadId
 }) {
   const { raw, messageId } = buildEmailMessage({
     from: fromEmail,
@@ -125,6 +125,9 @@ export async function createGmailDraft(accessToken, {
     references
   });
 
+  const messageBody = { raw };
+  if (threadId) messageBody.threadId = threadId;
+
   const res = await fetch(
     `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/drafts`,
     {
@@ -133,7 +136,7 @@ export async function createGmailDraft(accessToken, {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ message: { raw } })
+      body: JSON.stringify({ message: messageBody })
     }
   );
 
@@ -260,7 +263,9 @@ export async function getRealMessageId(accessToken, fromEmail, draftId, gmailMes
       const midHeader = headers.find(h =>
         h.name === 'Message-ID' || h.name === 'Message-Id'
       );
-      if (midHeader?.value) return midHeader.value;
+      if (midHeader?.value) {
+        return { messageId: midHeader.value, threadId: msg.threadId || null };
+      }
     }
   }
 

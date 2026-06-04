@@ -8,9 +8,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         inlineDynamicImports: true,
-        entryFileNames: 'bundle.js',
-        chunkFileNames: 'bundle.js',
-        assetFileNames: 'bundle.[ext]'
+        entryFileNames: 'bundle.[hash].js',
+        chunkFileNames: 'bundle.[hash].js',
+        assetFileNames: '[name].[hash][extname]'
       }
     }
   }

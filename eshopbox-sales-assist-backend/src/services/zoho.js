@@ -121,7 +121,7 @@ export async function updateDeal(env, dealId, dealData) {
 }
 
 export async function getDealTasks(env, dealId) {
-  return zohoAPI(env, 'GET', `/Deals/${dealId}/Activities_Tasks`);
+  return zohoAPI(env, 'GET', `/Tasks/search?criteria=(What_Id:equals:${dealId})`);
 }
 
 export async function createTask(env, dealId, taskData) {
@@ -141,6 +141,7 @@ export async function createTask(env, dealId, taskData) {
         Description: taskData.Description,
         What_Id: dealId,
         '$se_module': 'Deals',
+        ...(taskData.Owner ? { Owner: taskData.Owner } : {}),
       }]
     }),
   });
