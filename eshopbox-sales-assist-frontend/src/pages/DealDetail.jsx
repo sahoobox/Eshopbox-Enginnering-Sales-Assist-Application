@@ -368,7 +368,7 @@ function SequenceChecklist({ emails, dealId, deal }) {
 
 // ─── Merged Sequence View ────────────────────────────────────────────────────
 
-function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, autoGenerating, autoGenError, prospectEmail, repEmail, fetchEmails }) {
+function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, autoGenerating, autoGenError, prospectEmail, repEmail, fetchEmails, onLogDemo }) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const [expanded, setExpanded] = useState({});
   const [creating, setCreating] = useState({});
@@ -720,7 +720,13 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, au
           {autoGenerating
             ? <div style={{ fontSize: 13, color: C.muted }}>Preparing your email drafts…</div>
             : autoGenError
-              ? <div style={{ fontSize: 12, color: C.danger }}>{autoGenError}</div>
+              ? autoGenError.includes('Demo not logged through Sales Assist yet')
+                ? <div style={{ fontSize: 12, color: C.danger }}>
+                    Demo was logged before Sales Assist was active. Click{' '}
+                    <button onClick={onLogDemo} style={{ color: '#F95253', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline', padding: 0 }}>+ Log demo</button>
+                    {' '}to submit the form and generate email drafts.
+                  </div>
+                : <div style={{ fontSize: 12, color: C.danger }}>{autoGenError}</div>
               : null
           }
         </div>
@@ -1773,6 +1779,7 @@ export default function DealDetail() {
             prospectEmail={formRecord?.prospect_email}
             repEmail={user?.email}
             fetchEmails={fetchEmails}
+            onLogDemo={() => navigate(`/form?dealId=${localDeal.id}`)}
           />
           <ReEngagementGenerator deal={localDeal} dealId={localDeal.id} onReengage={handleReengage} />
           {localDeal.lostReason && (
