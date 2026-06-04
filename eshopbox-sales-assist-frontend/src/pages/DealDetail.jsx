@@ -23,6 +23,43 @@ const EMAIL_META = {
   nudge: { label: "Meeting+7 — Decision nudge",    day: "M+7",  type: "Rep sends", editable: true },
 };
 
+function formatGmailDate(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const now = new Date();
+
+  const isToday = date.toDateString() === now.toDateString();
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday = date.toDateString() === yesterday.toDateString();
+
+  const isSameYear = date.getFullYear() === now.getFullYear();
+
+  if (isToday) {
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  }
+
+  if (isYesterday) return 'Yesterday';
+
+  if (isSameYear) {
+    return date.toLocaleDateString('en-US', {
+      day: 'numeric',
+      month: 'short'
+    });
+  }
+
+  return date.toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  });
+}
+
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function Section({ title, children }) {
@@ -291,21 +328,7 @@ function SequenceChecklist({ emails, dealId, deal }) {
 
   const getZohoTask = (prefix) => deal?.tasks?.find(t => (t.Subject || t.subject || '').startsWith(prefix));
 
-  const fmt = (dateStr) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    const t = new Date(); t.setHours(0,0,0,0); d.setHours(0,0,0,0);
-    const diff = Math.floor((t - d) / 86400000);
-    const dd = String(d.getDate()).padStart(2,'0');
-    const mm = String(d.getMonth()+1).padStart(2,'0');
-    const yy = String(d.getFullYear()).slice(2);
-    const f = `${dd}-${mm}-${yy}`;
-    if (diff === 0) return `Today · ${f}`;
-    if (diff === 1) return `Yesterday · ${f}`;
-    if (diff === -1) return `Tomorrow · ${f}`;
-    if (diff < 0) return `In ${Math.abs(diff)}d · ${f}`;
-    return f;
-  };
+  const fmt = formatGmailDate;
 
   return (
     <Section title="Sequence checklist">
@@ -393,21 +416,7 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, au
   const getTask = (prefix) => deal?.tasks?.find(t => (t.Subject || t.subject || '').startsWith(prefix));
   const toDate = (s) => { if (!s) return null; const d = new Date(s); d.setHours(0, 0, 0, 0); return d; };
 
-  const fmt = (dateStr) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    const t = new Date(); t.setHours(0, 0, 0, 0); d.setHours(0, 0, 0, 0);
-    const diff = Math.floor((t - d) / 86400000);
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yy = String(d.getFullYear()).slice(2);
-    const f = `${dd}-${mm}-${yy}`;
-    if (diff === 0) return `Today · ${f}`;
-    if (diff === 1) return `Yesterday · ${f}`;
-    if (diff === -1) return `Tomorrow · ${f}`;
-    if (diff < 0) return `In ${Math.abs(diff)}d · ${f}`;
-    return f;
-  };
+  const fmt = formatGmailDate;
 
   const steps = [
     { key: 'day1',     label: 'Day 1',   name: 'Recap email',            auto: false, emailKey: 'day1',  expandable: true  },
@@ -665,18 +674,10 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, au
                   <div style={{ background: C.paperDark, borderRadius: 8, padding: '12px 14px', fontSize: 13, color: C.ink, lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'inherit', maxHeight: 220, overflowY: 'auto' }}>{email.body}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <button
-                    onClick={() => {
-                      const tmp = document.createElement('div');
-                      tmp.innerHTML = email.body;
-                      navigator.clipboard.writeText(`Subject: ${email.subject}\n\n${tmp.textContent || tmp.innerText || ''}`);
-                    }}
-                    style={{ fontSize: 12, color: C.info, fontWeight: 600, background: 'transparent', border: `1px solid ${C.info}`, borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit' }}
-                  >Copy</button>
                   <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
                     {(isSent || localSent[step.emailKey]) ? (
                       <span style={{ fontSize: 12, color: C.teal, fontWeight: 600 }}>
-                        ✓ Sent {email.sent_at ? new Date(email.sent_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''}
+                        ✓ Sent {email.sent_at ? formatGmailDate(email.sent_at) : ''}
                       </span>
                     ) : creating[step.emailKey] ? (
                       <button disabled style={{ fontSize: 12, color: '#fff', fontWeight: 700, background: C.border, border: 'none', borderRadius: 6, padding: '5px 14px', cursor: 'not-allowed', fontFamily: 'inherit' }}>
