@@ -526,6 +526,11 @@ app.get('/api/deals', requireAuth, async (c) => {
       }
     }
     const isImpersonating = effectiveUser !== user;
+    console.log('impersonation: effectiveUser =', JSON.stringify({
+      email: effectiveUser.email,
+      role: effectiveUser.role,
+      viewAsHeader: c.req.header('x-view-as-email'),
+    }));
     const useSharedCache = !isImpersonating && ['Admin', 'Manager', 'Developer'].includes(effectiveUser.role);
     if (useSharedCache) {
       const cached = await c.env.TOKEN_CACHE.get('deals_cache');

@@ -220,7 +220,7 @@ function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const {
-    user, deals, handleLogout, sidebarCollapsed, setSidebarCollapsed,
+    user, viewAsUser, deals, handleLogout, sidebarCollapsed, setSidebarCollapsed,
     search, setSearch, filterStage, setFilterStage, filterGrade, setFilterGrade,
     filterRep, setFilterRep, filterSolution, setFilterSolution, filterVolume, setFilterVolume,
     filterFlags, setFilterFlags, filterDays, setFilterDays,
@@ -235,7 +235,8 @@ function Sidebar() {
 
   const highFlagsCount = deals.filter(d => d.attentionLevel === "high").length;
   const totalDeals = deals.length;
-  const role = user?.role;
+  const displayUser = viewAsUser || user;
+  const effectiveRole = viewAsUser?.role || user?.role;
 
   const adminSections = [
     {
@@ -314,17 +315,17 @@ function Sidebar() {
     ],
   };
 
-  const sections = navSections[role] || navSections["Sales rep"];
+  const sections = navSections[effectiveRole] || navSections["Sales rep"];
   const isActive = (path) => path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
-  const initials = user?.name?.split(" ").map(w => w[0]).slice(0, 2).join("") || "?";
-  const isRepOrManager = role === "Sales rep" || role === "Manager";
+  const initials = displayUser?.name?.split(" ").map(w => w[0]).slice(0, 2).join("") || "?";
+  const isRepOrManager = effectiveRole === "Sales rep" || effectiveRole === "Manager";
 
   useEffect(() => {
     if (!isRepOrManager) return;
     apiFetch('/auth/zoho/status')
       .then(data => setZohoConnected(data.connected ?? false))
       .catch(() => {});
-  }, [role]);
+  }, [effectiveRole]);
 
   const handleZohoConnect = async () => {
     setZohoConnecting(true);
@@ -570,7 +571,7 @@ function Sidebar() {
               justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
             }}
             onClick={() => !sidebarCollapsed && setShowSignOut(s => !s)}
-            title={sidebarCollapsed ? (user?.name || '') : undefined}
+            title={sidebarCollapsed ? (displayUser?.name || '') : undefined}
           >
             <div style={{ width: 36, height: 36, borderRadius: "50%", background: V2.brand + "20", border: `1.5px solid ${V2.brand}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: V2.brand, flexShrink: 0 }}>
               {initials}
@@ -579,9 +580,9 @@ function Sidebar() {
               <>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 500, color: V2.ink, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {user?.name?.split(" ")[0]}
+                    {displayUser?.name?.split(" ")[0]}
                   </div>
-                  <div style={{ fontSize: 12, color: V2.ink3, lineHeight: 1.2 }}>{user?.role}</div>
+                  <div style={{ fontSize: 12, color: V2.ink3, lineHeight: 1.2 }}>{effectiveRole}</div>
                 </div>
                 <span style={{ fontSize: 11, color: V2.ink3, userSelect: "none" }}>⌄</span>
               </>
