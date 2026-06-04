@@ -14,7 +14,7 @@ const app = new Hono();
 app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
+  allowHeaders: ['Content-Type', 'Authorization', 'x-view-as-email'],
 }));
 
 app.get('/', (c) => c.json({ status: 'ok', app: 'Eshopbox Sales Assist Backend' }));
