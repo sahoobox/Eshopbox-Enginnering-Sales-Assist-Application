@@ -576,6 +576,10 @@ app.get('/api/deals', requireAuth, async (c) => {
         .map(d => mapZohoDeal(d))
         .filter(d => !existingIds.has(d.id))
         .filter(d =>
+          VALID_STAGES.includes(d.stage) ||
+          (d.stage === 'Lost/Dropped' && d.saLogged === true)
+        )
+        .filter(d =>
           d.saLogged === true ||
           VALID_VOLUMES.includes(d.orderVolume) ||
           d.stage === 'Won/Payment Received'
