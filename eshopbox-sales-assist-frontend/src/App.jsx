@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Routes, Route, Navigate, Outlet, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { C } from "./components/ui";
 import Overview from "./pages/Overview";
@@ -163,47 +163,95 @@ function daysInStageApp(deal) {
   return Math.max(0, Math.floor((today - d) / 86400000));
 }
 
-function FilterSection({ label, isActive, children, collapsed, onToggle }) {
+function FilterSection({ label, filter, onToggleValue, onToggleMode, options, isActive, collapsed, onToggle, children }) {
+  const ref = useRef(null);
+  const active = filter ? filter.values.length > 0 : !!isActive;
+
+  useEffect(() => {
+    if (!collapsed && ref.current) {
+      ref.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [collapsed]);
+
   return (
-    <div>
+    <div ref={ref}>
       <div
         onClick={onToggle}
         style={{
-          padding: '8px 12px 4px',
+          padding: '8px 12px',
           fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase',
           letterSpacing: '0.07em',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          color: isActive ? 'var(--brand)' : 'var(--ink-2)',
-          cursor: onToggle ? 'pointer' : 'default',
+          color: active ? 'var(--brand)' : 'var(--ink-2)',
+          cursor: 'pointer',
           background: 'var(--surface-2)',
           borderTop: '1px solid var(--line)',
+          borderLeft: active ? '3px solid var(--brand)' : '3px solid transparent',
         }}
       >
-        <span>{label}</span>
-        {onToggle && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand)' }}>{collapsed ? '▸' : '▾'}</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span>{label}</span>
+          {filter && filter.values.length > 0 && (
+            <span style={{
+              width: 16, height: 16, borderRadius: '50%',
+              background: 'var(--brand)', color: 'white',
+              fontSize: 10, fontWeight: 700,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            }}>{filter.values.length}</span>
+          )}
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand)' }}>{collapsed ? '▸' : '▾'}</span>
       </div>
-      {!collapsed && children}
-    </div>
-  );
-}
-
-function FilterOption({ label, count, selected, onSelect }) {
-  return (
-    <div
-      onClick={onSelect}
-      style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '4px 12px 4px 18px', fontSize: 12, cursor: 'pointer',
-        borderLeft: selected ? '2px solid var(--brand)' : '2px solid transparent',
-        background: selected ? 'var(--surface-2)' : 'transparent',
-        color: selected ? 'var(--ink)' : 'var(--ink-2)',
-        fontWeight: selected ? 600 : 400,
-      }}
-      onMouseEnter={e => { if (!selected) e.currentTarget.style.background = 'var(--surface-2)'; }}
-      onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent'; }}
-    >
-      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: 8 }}>{label}</span>
-      <span style={{ color: 'var(--ink-3)', fontSize: 11, flexShrink: 0 }}>{count || 0}</span>
+      {!collapsed && (
+        <div style={{ padding: options ? '6px 10px 8px' : '0' }}>
+          {filter && filter.values.length > 0 && onToggleMode && (
+            <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+              {['is', 'is not'].map(m => (
+                <button
+                  key={m}
+                  onClick={e => { e.stopPropagation(); onToggleMode(); }}
+                  style={{
+                    padding: '3px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 600,
+                    border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                    background: filter.mode === m ? '#F95253' : 'var(--surface-2)',
+                    color: filter.mode === m ? 'white' : 'var(--ink-2)',
+                    transition: 'all 0.12s ease',
+                  }}
+                >{m}</button>
+              ))}
+            </div>
+          )}
+          {options ? options.map(opt => {
+            const checked = filter.values.includes(opt.value);
+            return (
+              <div
+                key={opt.value}
+                onClick={() => onToggleValue(opt.value)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '7px 10px', borderRadius: 6, cursor: 'pointer',
+                  background: 'transparent',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <div style={{
+                  width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                  border: checked ? '1.5px solid #F95253' : '1.5px solid var(--line-2)',
+                  background: checked ? '#F95253' : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {checked && <span style={{ color: 'white', fontSize: 10, fontWeight: 700, lineHeight: 1 }}>✓</span>}
+                </div>
+                <span style={{ flex: 1, fontSize: 13, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opt.label}</span>
+                {opt.count != null && (
+                  <span style={{ fontSize: 11, color: 'var(--ink-3)', background: 'var(--surface-2)', borderRadius: 999, padding: '2px 7px', flexShrink: 0 }}>{opt.count}</span>
+                )}
+              </div>
+            );
+          }) : children}
+        </div>
+      )}
     </div>
   );
 }
@@ -465,54 +513,95 @@ function Sidebar() {
                 Filters
               </div>
 
-              <FilterSection label="Stage" isActive={filterStage !== "All stages"} collapsed={!!collapsedSections.stage} onToggle={() => setCollapsedSections(s => ({ ...s, stage: !s.stage }))}>
-                {PANEL_STAGES.map(s => (
-                  <FilterOption key={s} label={s} count={panelCounts?.stage[s] || 0} selected={filterStage === s} onSelect={() => setFilterStage(filterStage === s ? "All stages" : s)} />
-                ))}
-              </FilterSection>
+              <FilterSection
+                label="Stage"
+                filter={filterStage}
+                onToggleValue={v => setFilterStage(p => ({ ...p, values: p.values.includes(v) ? p.values.filter(x => x !== v) : [...p.values, v] }))}
+                onToggleMode={() => setFilterStage(p => ({ ...p, mode: p.mode === 'is' ? 'is not' : 'is' }))}
+                options={PANEL_STAGES.map(s => ({ value: s, label: s, count: panelCounts?.stage[s] || 0 }))}
+                collapsed={!!collapsedSections.stage}
+                onToggle={() => setCollapsedSections(s => ({ ...s, stage: !s.stage }))}
+              />
 
-              <FilterSection label="Grade" isActive={filterGrade !== "All grades"} collapsed={!!collapsedSections.grade} onToggle={() => setCollapsedSections(s => ({ ...s, grade: !s.grade }))}>
-                {["A", "B", "C", "D"].map(g => (
-                  <FilterOption key={g} label={`Grade ${g}`} count={panelCounts?.grade[g] || 0} selected={filterGrade === g} onSelect={() => setFilterGrade(filterGrade === g ? "All grades" : g)} />
-                ))}
-              </FilterSection>
+              <FilterSection
+                label="Grade"
+                filter={filterGrade}
+                onToggleValue={v => setFilterGrade(p => ({ ...p, values: p.values.includes(v) ? p.values.filter(x => x !== v) : [...p.values, v] }))}
+                onToggleMode={() => setFilterGrade(p => ({ ...p, mode: p.mode === 'is' ? 'is not' : 'is' }))}
+                options={["A", "B", "C", "D"].map(g => ({ value: g, label: `Grade ${g}`, count: panelCounts?.grade[g] || 0 }))}
+                collapsed={!!collapsedSections.grade}
+                onToggle={() => setCollapsedSections(s => ({ ...s, grade: !s.grade }))}
+              />
 
               {isManagerRole && (
-                <FilterSection label="Rep" isActive={filterRep !== "All reps"} collapsed={!!collapsedSections.rep} onToggle={() => setCollapsedSections(s => ({ ...s, rep: !s.rep }))}>
-                  {repList.filter(r => r !== "All reps").map(r => (
-                    <FilterOption key={r} label={r} count={panelCounts?.rep[r] || 0} selected={filterRep === r} onSelect={() => setFilterRep(filterRep === r ? "All reps" : r)} />
-                  ))}
-                </FilterSection>
+                <FilterSection
+                  label="Rep"
+                  filter={filterRep}
+                  onToggleValue={v => setFilterRep(p => ({ ...p, values: p.values.includes(v) ? p.values.filter(x => x !== v) : [...p.values, v] }))}
+                  onToggleMode={() => setFilterRep(p => ({ ...p, mode: p.mode === 'is' ? 'is not' : 'is' }))}
+                  options={repList.filter(r => r !== "All reps").map(r => ({ value: r, label: r, count: panelCounts?.rep[r] || 0 }))}
+                  collapsed={!!collapsedSections.rep}
+                  onToggle={() => setCollapsedSections(s => ({ ...s, rep: !s.rep }))}
+                />
               )}
 
-              <FilterSection label="Solution" isActive={filterSolution !== "all"} collapsed={!!collapsedSections.solution} onToggle={() => setCollapsedSections(s => ({ ...s, solution: !s.solution }))}>
-                {[{ value: "shipping", label: "Shipping" }, { value: "warehousing", label: "Warehousing" }, { value: "both", label: "Full-stack" }].map(({ value, label }) => (
-                  <FilterOption key={value} label={label} count={panelCounts?.solution[value] || 0} selected={filterSolution === value} onSelect={() => setFilterSolution(filterSolution === value ? "all" : value)} />
-                ))}
-              </FilterSection>
+              <FilterSection
+                label="Solution"
+                filter={filterSolution}
+                onToggleValue={v => setFilterSolution(p => ({ ...p, values: p.values.includes(v) ? p.values.filter(x => x !== v) : [...p.values, v] }))}
+                onToggleMode={() => setFilterSolution(p => ({ ...p, mode: p.mode === 'is' ? 'is not' : 'is' }))}
+                options={[
+                  { value: "shipping",    label: "Shipping" },
+                  { value: "warehousing", label: "Warehousing" },
+                  { value: "both",        label: "Full-stack" },
+                ].map(o => ({ ...o, count: panelCounts?.solution[o.value] || 0 }))}
+                collapsed={!!collapsedSections.solution}
+                onToggle={() => setCollapsedSections(s => ({ ...s, solution: !s.solution }))}
+              />
 
-              <FilterSection label="Volume" isActive={filterVolume !== "all"} collapsed={!!collapsedSections.volume} onToggle={() => setCollapsedSections(s => ({ ...s, volume: !s.volume }))}>
-                {[
+              <FilterSection
+                label="Volume"
+                filter={filterVolume}
+                onToggleValue={v => setFilterVolume(p => ({ ...p, values: p.values.includes(v) ? p.values.filter(x => x !== v) : [...p.values, v] }))}
+                onToggleMode={() => setFilterVolume(p => ({ ...p, mode: p.mode === 'is' ? 'is not' : 'is' }))}
+                options={[
                   { value: "New store / not shipping orders yet", label: "New store" },
                   { value: "1 - 500 orders/month",               label: "1–500/mo" },
                   { value: "501 - 3,000 orders/month",            label: "501–3,000/mo" },
                   { value: "3,001 - 10,000 orders/month",         label: "3,001–10,000/mo" },
                   { value: "More than 10,000 orders/month",       label: "10,000+/mo" },
-                ].map(({ value, label }) => (
-                  <FilterOption key={value} label={label} count={panelCounts?.volume[value] || 0} selected={filterVolume === value} onSelect={() => setFilterVolume(filterVolume === value ? "all" : value)} />
-                ))}
-              </FilterSection>
+                ].map(o => ({ ...o, count: panelCounts?.volume[o.value] || 0 }))}
+                collapsed={!!collapsedSections.volume}
+                onToggle={() => setCollapsedSections(s => ({ ...s, volume: !s.volume }))}
+              />
 
-              <FilterSection label="Flags" isActive={filterFlags !== "all"} collapsed={!!collapsedSections.flags} onToggle={() => setCollapsedSections(s => ({ ...s, flags: !s.flags }))}>
-                <FilterOption label="Has flags" count={panelCounts?.hasFlags} selected={filterFlags === "has"} onSelect={() => setFilterFlags(filterFlags === "has" ? "all" : "has")} />
-                <FilterOption label="No flags" count={panelCounts?.noFlags} selected={filterFlags === "none"} onSelect={() => setFilterFlags(filterFlags === "none" ? "all" : "none")} />
-              </FilterSection>
+              <FilterSection
+                label="Flags"
+                filter={filterFlags}
+                onToggleValue={v => setFilterFlags(p => ({ ...p, values: p.values.includes(v) ? p.values.filter(x => x !== v) : [...p.values, v] }))}
+                onToggleMode={() => setFilterFlags(p => ({ ...p, mode: p.mode === 'is' ? 'is not' : 'is' }))}
+                options={[
+                  { value: "has",  label: "Has flags", count: panelCounts?.hasFlags },
+                  { value: "none", label: "No flags",  count: panelCounts?.noFlags },
+                ]}
+                collapsed={!!collapsedSections.flags}
+                onToggle={() => setCollapsedSections(s => ({ ...s, flags: !s.flags }))}
+              />
 
-              <FilterSection label="Days in stage" isActive={filterDays !== "all"} collapsed={!!collapsedSections.days} onToggle={() => setCollapsedSections(s => ({ ...s, days: !s.days }))}>
-                {[{ value: "0-3", label: "0–3 days" }, { value: "4-7", label: "4–7 days" }, { value: "8-14", label: "8–14 days" }, { value: "14+", label: "14+ days" }].map(({ value, label }) => (
-                  <FilterOption key={value} label={label} count={panelCounts?.days[value] || 0} selected={filterDays === value} onSelect={() => setFilterDays(filterDays === value ? "all" : value)} />
-                ))}
-              </FilterSection>
+              <FilterSection
+                label="Days in stage"
+                filter={filterDays}
+                onToggleValue={v => setFilterDays(p => ({ ...p, values: p.values.includes(v) ? p.values.filter(x => x !== v) : [...p.values, v] }))}
+                onToggleMode={() => setFilterDays(p => ({ ...p, mode: p.mode === 'is' ? 'is not' : 'is' }))}
+                options={[
+                  { value: "0-3",  label: "0–3 days",  count: panelCounts?.days?.['0-3']  || 0 },
+                  { value: "4-7",  label: "4–7 days",  count: panelCounts?.days?.['4-7']  || 0 },
+                  { value: "8-14", label: "8–14 days", count: panelCounts?.days?.['8-14'] || 0 },
+                  { value: "14+",  label: "14+ days",  count: panelCounts?.days?.['14+']  || 0 },
+                ]}
+                collapsed={!!collapsedSections.days}
+                onToggle={() => setCollapsedSections(s => ({ ...s, days: !s.days }))}
+              />
 
               <FilterSection label="Demo date" isActive={!!(dateFrom || dateTo)} collapsed={!!collapsedSections.demoDate} onToggle={() => setCollapsedSections(s => ({ ...s, demoDate: !s.demoDate }))}>
                 <div style={{ padding: '6px 14px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -967,13 +1056,13 @@ export default function App() {
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [search, setSearch] = useState("");
-  const [filterStage, setFilterStage] = useState("All stages");
-  const [filterGrade, setFilterGrade] = useState("All grades");
-  const [filterRep, setFilterRep] = useState("All reps");
-  const [filterSolution, setFilterSolution] = useState("all");
-  const [filterVolume, setFilterVolume] = useState("all");
-  const [filterFlags, setFilterFlags] = useState("all");
-  const [filterDays, setFilterDays] = useState("all");
+  const [filterStage, setFilterStage] = useState({ values: [], mode: 'is' });
+  const [filterGrade, setFilterGrade] = useState({ values: [], mode: 'is' });
+  const [filterRep, setFilterRep] = useState({ values: [], mode: 'is' });
+  const [filterSolution, setFilterSolution] = useState({ values: [], mode: 'is' });
+  const [filterVolume, setFilterVolume] = useState({ values: [], mode: 'is' });
+  const [filterFlags, setFilterFlags] = useState({ values: [], mode: 'is' });
+  const [filterDays, setFilterDays] = useState({ values: [], mode: 'is' });
   const [healthCard, setHealthCard] = useState("inbox");
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -1050,21 +1139,24 @@ export default function App() {
     { key: "all",        label: "All deals",       count: scopedDeals.length },
   ];
 
+  const EMPTY_FILTER = { values: [], mode: 'is' };
   const clearAllFilters = () => {
-    setSearch(""); setFilterStage("All stages"); setFilterGrade("All grades");
-    setFilterRep("All reps"); setFilterSolution("all"); setFilterVolume("all");
-    setFilterFlags("all"); setFilterDays("all"); setDateFrom(''); setDateTo('');
+    setSearch("");
+    setFilterStage(EMPTY_FILTER); setFilterGrade(EMPTY_FILTER);
+    setFilterRep(EMPTY_FILTER); setFilterSolution(EMPTY_FILTER);
+    setFilterVolume(EMPTY_FILTER); setFilterFlags(EMPTY_FILTER);
+    setFilterDays(EMPTY_FILTER); setDateFrom(''); setDateTo('');
   };
 
   const activeFilterCount = [
     search !== '',
-    filterStage !== "All stages",
-    filterGrade !== "All grades",
-    isManagerRole && filterRep !== "All reps",
-    filterSolution !== "all",
-    filterVolume !== "all",
-    filterFlags !== "all",
-    filterDays !== "all",
+    filterStage.values.length > 0,
+    filterGrade.values.length > 0,
+    isManagerRole && filterRep.values.length > 0,
+    filterSolution.values.length > 0,
+    filterVolume.values.length > 0,
+    filterFlags.values.length > 0,
+    filterDays.values.length > 0,
     dateFrom !== '',
     dateTo !== '',
   ].filter(Boolean).length;

@@ -475,21 +475,49 @@ export default function DealsList() {
 
   // Filtered subset (search + dropdown filters)
   const filtered = useMemo(() => scopedDeals
-    .filter(d => filterStage === "All stages" || d.stage === filterStage)
-    .filter(d => filterGrade === "All grades" || d.grade === filterGrade)
-    .filter(d => !isManager || filterRep === "All reps" || d.repName === filterRep)
-    .filter(d => filterSolution === "all" || d.solutionInterest === filterSolution)
-    .filter(d => filterVolume === "all" || d.orderVolume === filterVolume)
-    .filter(d => filterFlags === "all" || (filterFlags === "has" ? (d.flags?.length > 0) : (d.flags?.length === 0)))
     .filter(d => {
-      if (filterDays === "all") return true;
+      if (filterStage.values.length === 0) return true;
+      const match = filterStage.values.includes(d.stage);
+      return filterStage.mode === 'is' ? match : !match;
+    })
+    .filter(d => {
+      if (filterGrade.values.length === 0) return true;
+      const match = filterGrade.values.includes(d.grade);
+      return filterGrade.mode === 'is' ? match : !match;
+    })
+    .filter(d => {
+      if (!isManager || filterRep.values.length === 0) return true;
+      const match = filterRep.values.includes(d.repName);
+      return filterRep.mode === 'is' ? match : !match;
+    })
+    .filter(d => {
+      if (filterSolution.values.length === 0) return true;
+      const match = filterSolution.values.includes(d.solutionInterest);
+      return filterSolution.mode === 'is' ? match : !match;
+    })
+    .filter(d => {
+      if (filterVolume.values.length === 0) return true;
+      const match = filterVolume.values.includes(d.orderVolume);
+      return filterVolume.mode === 'is' ? match : !match;
+    })
+    .filter(d => {
+      if (filterFlags.values.length === 0) return true;
+      const hasFlags = (d.flags?.length || 0) > 0;
+      const match = filterFlags.values.some(v => v === 'has' ? hasFlags : !hasFlags);
+      return filterFlags.mode === 'is' ? match : !match;
+    })
+    .filter(d => {
+      if (filterDays.values.length === 0) return true;
       const days = daysInStage(d);
       if (days === null) return false;
-      if (filterDays === "0-3") return days <= 3;
-      if (filterDays === "4-7") return days >= 4 && days <= 7;
-      if (filterDays === "8-14") return days >= 8 && days <= 14;
-      if (filterDays === "14+") return days > 14;
-      return true;
+      const match = filterDays.values.some(bucket => {
+        if (bucket === "0-3")  return days <= 3;
+        if (bucket === "4-7")  return days >= 4 && days <= 7;
+        if (bucket === "8-14") return days >= 8 && days <= 14;
+        if (bucket === "14+")  return days > 14;
+        return false;
+      });
+      return filterDays.mode === 'is' ? match : !match;
     })
     .filter(d => !search ||
       d.brandName?.toLowerCase().includes(search.toLowerCase()) ||
@@ -548,16 +576,39 @@ export default function DealsList() {
 
   const activeFilters = useMemo(() => {
     const f = [];
+    const rem = (setter, v) => setter(p => ({ ...p, values: p.values.filter(x => x !== v) }));
     if (search) f.push({ label: `"${search}"`, clear: () => setSearch('') });
-    if (filterStage !== "All stages") f.push({ label: `Stage: ${filterStage}`, clear: () => setFilterStage("All stages") });
-    if (filterGrade !== "All grades") f.push({ label: `Grade: ${filterGrade}`, clear: () => setFilterGrade("All grades") });
-    if (isManager && filterRep !== "All reps") f.push({ label: `Rep: ${filterRep}`, clear: () => setFilterRep("All reps") });
-    if (filterSolution !== "all") f.push({ label: `Solution: ${SOL_LABELS[filterSolution] || filterSolution}`, clear: () => setFilterSolution("all") });
-    if (filterVolume !== "all") f.push({ label: `Volume: ${filterVolume}`, clear: () => setFilterVolume("all") });
-    if (filterFlags !== "all") f.push({ label: filterFlags === "has" ? "Has flags" : "No flags", clear: () => setFilterFlags("all") });
-    if (filterDays !== "all") f.push({ label: `Days: ${filterDays}`, clear: () => setFilterDays("all") });
+    filterStage.values.forEach(v => f.push({
+      label: `Stage ${filterStage.mode} ${v}`, isNot: filterStage.mode === 'is not',
+      clear: () => rem(setFilterStage, v),
+    }));
+    filterGrade.values.forEach(v => f.push({
+      label: `Grade ${filterGrade.mode} ${v}`, isNot: filterGrade.mode === 'is not',
+      clear: () => rem(setFilterGrade, v),
+    }));
+    if (isManager) filterRep.values.forEach(v => f.push({
+      label: `Rep ${filterRep.mode} ${v}`, isNot: filterRep.mode === 'is not',
+      clear: () => rem(setFilterRep, v),
+    }));
+    filterSolution.values.forEach(v => f.push({
+      label: `Solution ${filterSolution.mode} ${SOL_LABELS[v] || v}`, isNot: filterSolution.mode === 'is not',
+      clear: () => rem(setFilterSolution, v),
+    }));
+    filterVolume.values.forEach(v => f.push({
+      label: `Volume ${filterVolume.mode} ${v}`, isNot: filterVolume.mode === 'is not',
+      clear: () => rem(setFilterVolume, v),
+    }));
+    filterFlags.values.forEach(v => f.push({
+      label: `${filterFlags.mode === 'is' ? '' : 'Not: '}${v === 'has' ? 'Has flags' : 'No flags'}`,
+      isNot: filterFlags.mode === 'is not',
+      clear: () => rem(setFilterFlags, v),
+    }));
+    filterDays.values.forEach(v => f.push({
+      label: `Days ${filterDays.mode} ${v === '14+' ? '14+ days' : v + ' days'}`, isNot: filterDays.mode === 'is not',
+      clear: () => rem(setFilterDays, v),
+    }));
     if (dateFrom) f.push({ label: `From: ${dateFrom}`, clear: () => setDateFrom('') });
-    if (dateTo) f.push({ label: `To: ${dateTo}`, clear: () => setDateTo('') });
+    if (dateTo)   f.push({ label: `To: ${dateTo}`,     clear: () => setDateTo('') });
     return f;
   }, [search, filterStage, filterGrade, filterRep, filterSolution, filterVolume, filterFlags, filterDays, dateFrom, dateTo, isManager]);
 
@@ -718,7 +769,13 @@ export default function DealsList() {
         {activeFilters.length > 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
             {activeFilters.map((f, i) => (
-              <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 999, fontSize: 12, fontWeight: 500, color: 'var(--ink-2)' }}>
+              <span key={i} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px',
+                background: f.isNot ? 'var(--danger-bg)' : 'var(--surface-2)',
+                border: `1px solid ${f.isNot ? 'var(--danger)' : 'var(--line)'}`,
+                borderRadius: 999, fontSize: 12, fontWeight: 500,
+                color: f.isNot ? 'var(--danger)' : 'var(--ink-2)',
+              }}>
                 {f.label}
                 <span onClick={f.clear} style={{ cursor: 'pointer', color: 'var(--ink-3)', fontSize: 14, lineHeight: 1 }}>×</span>
               </span>
