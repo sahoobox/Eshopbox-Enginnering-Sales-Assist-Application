@@ -1270,7 +1270,7 @@ app.post('/api/deals/:id/emails/:emailType/mark-sent', requireAuth, async (c) =>
     const loggedInUser = c.get('user');
 
     const emailRow = await c.env.DB.prepare(
-      'SELECT gmail_draft_id, gmail_message_id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
+      'SELECT gmail_draft_id, gmail_message_id, gmail_thread_id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
     ).bind(dealId, emailType).first();
 
     console.log('mark-sent: emailRow =', JSON.stringify(emailRow));
@@ -1287,7 +1287,7 @@ app.post('/api/deals/:id/emails/:emailType/mark-sent', requireAuth, async (c) =>
     }
 
     const { sent } = await checkDraftSent(
-      accessToken, loggedInUser.email, emailRow.gmail_draft_id, emailRow.gmail_message_id
+      accessToken, loggedInUser.email, emailRow.gmail_draft_id, emailRow.gmail_message_id, emailRow.gmail_thread_id || null
     );
 
     if (sent) {
@@ -1392,10 +1392,22 @@ app.post('/api/deals/:id/emails/:emailType/create-draft', requireAuth, async (c)
 
     console.log('create-draft result: draftId =', result.draftId, '| messageId =', result.messageId, '| gmailMessageId =', result.gmailMessageId);
 
+    let draftThreadId = null;
+    try {
+      const threadFetchRes = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/${loggedInUser.email}/messages/${result.gmailMessageId}?format=minimal`,
+        { headers: { 'Authorization': `Bearer ${accessToken}` } }
+      );
+      if (threadFetchRes.ok) {
+        const threadFetchData = await threadFetchRes.json();
+        draftThreadId = threadFetchData.threadId || null;
+      }
+    } catch {}
+
     const now = new Date().toISOString();
     await c.env.DB.prepare(
-      `UPDATE deal_emails SET gmail_draft_id = ?, gmail_message_id = ?, thread_message_id = ?, updated_at = ? WHERE deal_id = ? AND email_type = ?`
-    ).bind(result.draftId, result.gmailMessageId, result.messageId, now, dealId, emailType).run();
+      `UPDATE deal_emails SET gmail_draft_id = ?, gmail_message_id = ?, thread_message_id = ?, gmail_thread_id = ?, updated_at = ? WHERE deal_id = ? AND email_type = ?`
+    ).bind(result.draftId, result.gmailMessageId, result.messageId, draftThreadId, now, dealId, emailType).run();
 
     return c.json({ success: true, draftId: result.draftId, messageId: result.messageId });
   } catch (err) {

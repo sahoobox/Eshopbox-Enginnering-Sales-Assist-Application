@@ -1233,7 +1233,23 @@ export default function DealDetail() {
           setAutoGenerating(true);
           setAutoGenError(null);
           try {
-            await apiFetch(`/api/deals/${id}/generate-content`, { method: 'POST' });
+            const res = await fetch(`${API}/api/deals/${id}/generate-content`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              if (res.status === 404) {
+                setAutoGenError('Demo not logged through Sales Assist yet. Log the demo first to generate email drafts.');
+              } else if (res.status === 429) {
+                setAutoGenError('Claude is busy — please refresh to try again in a minute.');
+              } else if (res.status === 503) {
+                setAutoGenError('Claude is temporarily overloaded — please refresh in a few minutes.');
+              } else {
+                setAutoGenError(data.error || 'Could not generate drafts — refresh to retry.');
+              }
+              return;
+            }
             const r2 = await fetch(`${API}/api/deals/${id}/emails`, {
               headers: { Authorization: `Bearer ${token}` },
             });

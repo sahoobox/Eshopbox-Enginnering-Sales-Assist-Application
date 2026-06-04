@@ -153,7 +153,23 @@ export async function createGmailDraft(accessToken, {
   };
 }
 
-export async function checkDraftSent(accessToken, fromEmail, draftId, gmailMessageId) {
+export async function checkDraftSent(accessToken, fromEmail, draftId, gmailMessageId, threadId = null) {
+  if (threadId) {
+    const threadRes = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/threads/${threadId}?format=minimal`,
+      { headers: { 'Authorization': `Bearer ${accessToken}` } }
+    );
+    if (threadRes.ok) {
+      const threadData = await threadRes.json();
+      const messages = threadData.messages || [];
+      for (const msg of messages) {
+        const labels = msg.labelIds || [];
+        if (labels.includes('SENT') && !labels.includes('TRASH')) {
+          return { sent: true };
+        }
+      }
+    }
+  }
   // Step 1: Get the draft to find its threadId before it disappears
   const draftRes = await fetch(
     `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/drafts/${draftId}?format=minimal`,
