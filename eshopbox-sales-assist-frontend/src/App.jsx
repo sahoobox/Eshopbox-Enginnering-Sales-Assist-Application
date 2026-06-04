@@ -148,7 +148,7 @@ const V2 = {
 const PANEL_STAGES = [
   "Qualified To Buy", "Demo Call Scheduled", "Demo Done",
   "Proposal Sent", "Follow up Meeting Done", "Deal Approved",
-  "Won/Payment Received", "Lost/Dropped",
+  "Won/Payment Received",
 ];
 
 const CONDUCTED_STAGES = ['Demo Done', 'Proposal Sent', 'Follow up Meeting Done', 'Deal Approved'];
