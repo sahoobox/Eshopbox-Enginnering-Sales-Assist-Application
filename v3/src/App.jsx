@@ -3,6 +3,7 @@ import { useAuth, ROLES } from './context/AuthContext'
 import Sidebar from './components/layout/Sidebar'
 import Login from './pages/Auth/Login'
 import Pipeline from './pages/Pipeline'
+import LeadDetail from './pages/LeadInbox/LeadDetail'
 import {
   MyDay, LeadInbox, Accounts,
   Tasks, Performance, Settings, NotFound,
@@ -42,7 +43,7 @@ function AppLayout() {
           <Route path="/pipeline" element={<Pipeline />} />
           <Route path="/pipeline/:dealId" element={<Pipeline />} />
           <Route path="/leads" element={<LeadInbox />} />
-          <Route path="/leads/:leadId" element={<LeadInbox />} />
+          <Route path="/leads/:leadId" element={<LeadDetail />} />
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/accounts/:accountId" element={<Accounts />} />
           <Route path="/tasks" element={<Tasks />} />

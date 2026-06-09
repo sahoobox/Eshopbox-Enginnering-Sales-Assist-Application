@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useLeads } from '../../hooks/useLeads'
 import { Topbar, Loading } from '../../components/ui'
@@ -21,6 +22,7 @@ const AE_EMAILS = [
 export default function LeadInbox() {
   const { role, user } = useAuth()
   const { leads, loading, error, refetch } = useLeads()
+  const navigate = useNavigate()
 
   const scopedLeads = useMemo(() => {
     if (role === ROLES.MDE || role === ROLES.AE) return leads.filter(l => l.ownerEmail === user?.email)
@@ -51,11 +53,10 @@ export default function LeadInbox() {
         actions={<button className="btn btn-sm" onClick={refetch}>↻ Refresh</button>}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
         <StatTile label="TODAY" value={leadsToday.length} sub="new leads" />
         <StatTile label="SLA BREACHED" value={slaBreached} sub="contact before 6pm" warn={slaBreached > 0} />
         <StatTile label="SAME-DAY DUE" value={sameDayDue.length} sub="still in New status" warn={sameDayDue.length > 0} />
-        <StatTile label="ROUND-ROBIN POOL" value="4 MDEs · 1 AE" sub="active reps" />
       </div>
 
       <div className="callout info" style={{ marginBottom: 16, fontSize: 12.5, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
@@ -96,7 +97,7 @@ export default function LeadInbox() {
                 : '—'
 
               return (
-                <tr key={lead.id}>
+                <tr key={lead.id} onClick={() => navigate(`/leads/${lead.id}`)} style={{ cursor: 'pointer' }}>
                   <td>
                     <b>{lead.companyName || lead.Company || `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || '—'}</b>
                     <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2 }}>{createdTime}</div>
