@@ -1,59 +1,63 @@
 // Stage definitions matching the existing backend Zoho stages
 
 export const SME_STAGES = [
-  'Qualified To Buy',
-  'Demo Call Scheduled',
+  'Upcoming Demo',
   'Demo Done',
   'Proposal Sent',
-  'Follow up Meeting Done',
-  'Deal Approved',
-  'Won/Payment Received',
+  'Account Setup In Progress',
+  'Awaiting First Shipment',
+  'First Shipment Done',
+  'Active',
+  'On Hold',
+  'Won',
+  'Lost',
 ]
 
 export const ENT_STAGES = [
-  'Qualified To Buy',
-  'Demo Call Scheduled',
+  'Upcoming Demo',
   'Demo Done',
   'Proposal Sent',
   'Follow up Meeting Done',
-  'Deal Approved',
-  'Won/Payment Received',
+  'On Hold',
+  'Won',
+  'Lost',
 ]
 
-export const TERMINAL_STAGES = ['Won/Payment Received', 'Lost/Dropped']
+export const TERMINAL_STAGES = ['Won', 'Lost']
 
 export const STAGE_DOT_CLASS = {
-  'Qualified To Buy':       'kdot-upcoming',
-  'Demo Call Scheduled':    'kdot-upcoming',
-  'Demo Done':              'kdot-demo',
-  'Proposal Sent':          'kdot-proposal',
-  'Follow up Meeting Done': 'kdot-meeting',
-  'Deal Approved':          'kdot-active',
-  'Won/Payment Received':   'kdot-won',
-  'Lost/Dropped':           'kdot-lost',
-  'Stalled':                'kdot-stalled',
-  'On Hold':                'kdot-on_hold',
+  'Upcoming Demo':              'kdot-upcoming',
+  'Demo Done':                  'kdot-demo',
+  'Proposal Sent':              'kdot-proposal',
+  'Account Setup In Progress':  'kdot-active',
+  'Awaiting First Shipment':    'kdot-active',
+  'First Shipment Done':        'kdot-meeting',
+  'Active':                     'kdot-won',
+  'Follow up Meeting Done':     'kdot-meeting',
+  'On Hold':                    'kdot-stalled',
+  'Won':                        'kdot-won',
+  'Lost':                       'kdot-lost',
 }
 
 export const STAGE_PILL = {
-  'Won/Payment Received':   'pill-ok',
-  'Lost/Dropped':           'pill-danger',
-  'Stalled':                'pill-warn',
-  'On Hold':                'pill-warn',
-  'Deal Approved':          'pill-ok',
+  'Won':     'pill-ok',
+  'Lost':    'pill-danger',
+  'On Hold': 'pill-warn',
+  'Active':  'pill-ok',
 }
 
 export const ALL_PIPELINE_STAGES = [
-  'Qualified To Buy',
-  'Demo Call Scheduled',
+  'Upcoming Demo',
   'Demo Done',
   'Proposal Sent',
+  'Account Setup In Progress',
+  'Awaiting First Shipment',
+  'First Shipment Done',
+  'Active',
   'Follow up Meeting Done',
-  'Deal Approved',
-  'Won/Payment Received',
-  'Lost/Dropped',
-  'Stalled',
   'On Hold',
+  'Won',
+  'Lost',
 ]
 
 export function getStagePill(stage) {
@@ -61,9 +65,9 @@ export function getStagePill(stage) {
 }
 
 export function stageColor(stage) {
-  if (stage === 'Won/Payment Received' || stage === 'Deal Approved') return 'ok'
-  if (stage === 'Lost/Dropped') return 'danger'
-  if (stage === 'Stalled' || stage === 'On Hold') return 'warn'
+  if (stage === 'Won' || stage === 'Active') return 'ok'
+  if (stage === 'Lost') return 'danger'
+  if (stage === 'On Hold') return 'warn'
   return 'info'
 }
 

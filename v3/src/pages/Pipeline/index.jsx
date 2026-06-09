@@ -6,7 +6,7 @@ import { Topbar, Loading, Empty, ToggleGroup, Pill } from '../../components/ui'
 import DealCard from '../../components/ui/DealCard'
 import DealDetail from './DealDetail'
 import {
-  ALL_PIPELINE_STAGES, SME_STAGES, getStagePill, stageColor, initials, formatDate, daysAgo
+  ALL_PIPELINE_STAGES, SME_STAGES, ENT_STAGES, getStagePill, stageColor, initials, formatDate, daysAgo
 } from '../../lib/stageConfig'
 
 const MDE_EMAILS = [
@@ -113,7 +113,7 @@ function PipelineList() {
       </div>
 
       {view === 'kanban'
-        ? <KanbanView deals={scopedDeals} />
+        ? <KanbanView deals={scopedDeals} pipelineFilter={pipelineFilter} />
         : <ListView deals={scopedDeals} onOpen={id => navigate(`/pipeline/${id}`)} />
       }
     </div>
@@ -121,8 +121,12 @@ function PipelineList() {
 }
 
 // ── Kanban view ───────────────────────────────────────────
-function KanbanView({ deals }) {
-  const stages = ALL_PIPELINE_STAGES
+function KanbanView({ deals, pipelineFilter }) {
+  const { isMDE, isAE } = useAuth()
+  const stages = isMDE ? SME_STAGES
+    : isAE ? ENT_STAGES
+    : pipelineFilter === 'enterprise' ? ENT_STAGES
+    : SME_STAGES
 
   return (
     <div className="kanban-wrap">
@@ -219,16 +223,17 @@ function ListView({ deals, onOpen }) {
 // helper — stage dot color
 function stageDotColor(stage) {
   const map = {
-    'Qualified To Buy': 'var(--ink-3)',
-    'Demo Call Scheduled': 'var(--ink-3)',
-    'Demo Done': 'var(--info)',
-    'Proposal Sent': 'var(--purple)',
-    'Follow up Meeting Done': 'var(--warn)',
-    'Deal Approved': 'var(--ok)',
-    'Won/Payment Received': 'var(--ok)',
-    'Lost/Dropped': 'var(--danger)',
-    'Stalled': '#b5a484',
-    'On Hold': 'var(--warn)',
+    'Upcoming Demo':             'var(--ink-3)',
+    'Demo Done':                 'var(--info)',
+    'Proposal Sent':             'var(--purple)',
+    'Account Setup In Progress': '#d27a4f',
+    'Awaiting First Shipment':   '#d27a4f',
+    'First Shipment Done':       'var(--warn)',
+    'Active':                    'var(--ok)',
+    'Follow up Meeting Done':    'var(--warn)',
+    'On Hold':                   '#b5a484',
+    'Won':                       'var(--ok)',
+    'Lost':                      'var(--danger)',
   }
   return map[stage] || 'var(--ink-3)'
 }

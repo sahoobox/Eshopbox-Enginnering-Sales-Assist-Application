@@ -19,7 +19,7 @@ export default function DealDetail({ dealId }) {
 
   const stages = SME_STAGES
   const currentIdx = stages.indexOf(deal.stage)
-  const isTerminal = ['Won/Payment Received', 'Lost/Dropped', 'Stalled', 'On Hold'].includes(deal.stage)
+  const isTerminal = ['Won', 'Lost', 'On Hold'].includes(deal.stage)
   const flagLevel = deal.attentionLevel || 'ok'
   const gradeColor = { A: 'ok', B: 'info', C: 'warn', D: 'danger' }[deal.grade] || 'neutral'
 
