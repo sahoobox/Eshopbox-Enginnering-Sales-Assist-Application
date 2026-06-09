@@ -99,7 +99,7 @@ export default function LeadInbox() {
               return (
                 <tr key={lead.id} onClick={() => navigate(`/leads/${lead.id}`)} style={{ cursor: 'pointer' }}>
                   <td>
-                    <b>{lead.companyName || lead.Company || `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || '—'}</b>
+                    <b>{lead.company || '—'}</b>
                     <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2 }}>{createdTime}</div>
                   </td>
                   <td>
