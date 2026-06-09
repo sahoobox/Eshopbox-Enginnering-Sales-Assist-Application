@@ -4,7 +4,7 @@ import { requireAuth } from './middleware/auth.js';
 import { sign, verify } from './middleware/jwt.js';
 import { getUserByEmail, createUser, createInvite, getInviteByToken, markInviteAccepted, getAllUsers, deactivateUser, updateUserRole, getPendingInvites } from './db/users.js';
 import { calculateGrade, scoreToGrade } from './services/grading.js';
-import { zohoAPI, createDeal, createTask, getDeals, getDeal, getDealTasks, getDealActivities, updateDeal, searchDeals, sendDealEmail, createDealEmailDraft, getAllowedFromAddresses, getAccessTokenForUser, getAccessToken, getDealSentEmails, getEmailContent, getTask } from './services/zoho.js';
+import { zohoAPI, createDeal, createTask, getDeals, getDeal, getDealTasks, getDealActivities, updateDeal, searchDeals, sendDealEmail, createDealEmailDraft, getAllowedFromAddresses, getAccessTokenForUser, getAccessToken, getDealSentEmails, getEmailContent, getTask, getLeads, getLead, updateLead, getLeadActivities, createLeadActivity, getLeadNotes, createLeadNote } from './services/zoho.js';
 import { generateEmailDrafts, generateReengagement, generateDealAnalysis, generateDealSummary } from './services/claude.js';
 import { computeAttentionFlags, getAttentionLevel } from './services/attentionRules.js';
 import { sendGmailEmail, sendGmailEmailWithToken, createGmailDraft, checkDraftSent, getRealMessageId } from './services/gmail.js';
@@ -19,6 +19,14 @@ app.use('*', cors({
 
 app.get('/', (c) => c.json({ status: 'ok', app: 'Eshopbox Sales Assist Backend' }));
 app.get('/test', (c) => c.json({ test: 'working' }));
+
+app.get('/api/debug/leads', requireAuth, async (c) => {
+  const user = c.get('user')
+  if (user.email !== 'satyanarayan.sahoo@eshopbox.com') return c.json({ error: 'Forbidden' }, 403)
+  const data = await zohoAPI(c.env, 'GET',
+    '/Leads?per_page=3&sort_by=Created_Time&sort_order=desc')
+  return c.json(data)
+})
 
 async function hashPassword(password) {
   const encoder = new TextEncoder();
@@ -2335,6 +2343,135 @@ app.get('/api/auth/gmail-status', requireAuth, async (c) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ── LEADS ────────────────────────────────────────────────
+
+const ACTIVE_LEAD_STATUSES = ['New', 'Pending Review', 'Connecting', 'Connected']
+
+const SYSTEM_EMAILS = ['shikhar.gupta@eshopbox.com']
+
+function mapZohoLead(l) {
+  return {
+    id: l.id,
+    fullName: l.Full_Name || `${l.First_Name || ''} ${l.Last_Name || ''}`.trim(),
+    firstName: l.First_Name || '',
+    lastName: l.Last_Name || '',
+    email: l.Email || '',
+    phone: l.Phone || '',
+    company: l.Company || '',
+    leadType: l.Lead_Type || '',
+    leadSource: l.Lead_Source || '',
+    originalLeadSource: l.Original_Lead_Source || '',
+    leadStatus: l.Lead_Status || '',
+    ownerName: l.Owner?.name || '',
+    ownerEmail: l.Owner?.email || '',
+    ownerId: l.Owner?.id || '',
+    orderVolume: l.How_many_orders_do_you_ship_in_a_month || l.Monthly_Order_Volume || l.Order_Volume || '',
+    utmSource: l.UTM_Source || '',
+    utmMedium: l.UTM_Medium || '',
+    utmCampaign: l.UTM_Campaign || '',
+    converted: l.$converted || false,
+    signup: l.Signup || '',
+    createdAt: l.Created_Time || '',
+    modifiedAt: l.Modified_Time || '',
+    lastActivityAt: l.Last_Activity_Time || '',
+    disqualifiedReason: l.Disqualified_reason || '',
+    description: l.Description || '',
+  }
+}
+
+app.get('/api/leads', requireAuth, async (c) => {
+  try {
+    const user = c.get('user')
+    const allLeads = []
+    let page = 1
+    while (true) {
+      const res = await getLeads(c.env, page)
+      if (!res?.data?.length) break
+      allLeads.push(...res.data)
+      if (!res.info?.more_records || page >= 10) break
+      page++
+    }
+    let leads = allLeads
+      .filter(l => !l.$converted)
+      .filter(l => l.Lead_Type === 'Inbound' || l.Lead_Type === 'Paid')
+      .filter(l => ACTIVE_LEAD_STATUSES.includes(l.Lead_Status))
+      .filter(l => !SYSTEM_EMAILS.includes(l.Owner?.email))
+      .map(mapZohoLead)
+    if (user.role === 'Sales rep') {
+      leads = leads.filter(l => l.ownerEmail === user.email)
+    }
+    return c.json({ leads, total: leads.length })
+  } catch (err) {
+    return c.json({ error: 'Failed to fetch leads', details: err.message }, 500)
+  }
+})
+
+app.get('/api/leads/:id', requireAuth, async (c) => {
+  try {
+    const leadId = c.req.param('id')
+    const [leadRes, activitiesRes, notesRes] = await Promise.all([
+      getLead(c.env, leadId),
+      getLeadActivities(c.env, leadId),
+      getLeadNotes(c.env, leadId),
+    ])
+    if (!leadRes?.data?.[0]) return c.json({ error: 'Lead not found' }, 404)
+    const lead = mapZohoLead(leadRes.data[0])
+    lead.activities = activitiesRes?.data || []
+    lead.notes = notesRes?.data || []
+    return c.json(lead)
+  } catch (err) {
+    return c.json({ error: 'Failed to fetch lead', details: err.message }, 500)
+  }
+})
+
+app.post('/api/leads/:id/disqualify', requireAuth, async (c) => {
+  try {
+    const leadId = c.req.param('id')
+    const { reason } = await c.req.json().catch(() => ({}))
+    await updateLead(c.env, leadId, {
+      Lead_Status: 'Disqualified',
+      ...(reason ? { Disqualified_reason: reason } : {})
+    })
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: 'Failed to disqualify lead', details: err.message }, 500)
+  }
+})
+
+app.post('/api/leads/:id/activity', requireAuth, async (c) => {
+  try {
+    const leadId = c.req.param('id')
+    const body = await c.req.json()
+    const result = await createLeadActivity(c.env, leadId, body)
+    return c.json({ success: true, result })
+  } catch (err) {
+    return c.json({ error: 'Failed to log activity', details: err.message }, 500)
+  }
+})
+
+app.post('/api/leads/:id/notes', requireAuth, async (c) => {
+  try {
+    const leadId = c.req.param('id')
+    const { content } = await c.req.json()
+    if (!content?.trim()) return c.json({ error: 'Note content required' }, 400)
+    const result = await createLeadNote(c.env, leadId, content)
+    return c.json({ success: true, result })
+  } catch (err) {
+    return c.json({ error: 'Failed to create note', details: err.message }, 500)
+  }
+})
+
+app.post('/api/leads/:id/convert', requireAuth, async (c) => {
+  try {
+    return c.json({
+      success: false,
+      error: 'Lead conversion via Deluge function not yet configured. Please convert in Zoho CRM directly for now.'
+    }, 501)
+  } catch (err) {
+    return c.json({ error: 'Failed to convert lead', details: err.message }, 500)
+  }
+})
 
 let dbMigrated = false;
 

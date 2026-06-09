@@ -255,9 +255,9 @@ function HorizontalSequence({ emails, deal }) {
     { key: 'day2',     label: 'Day 2',    name: 'Pricing proposal',      auto: false, type: 'email' },
     { key: 'day3',     label: 'Day 3',    name: 'ROI value',             auto: false, type: 'email' },
     { key: 'day4',     label: 'Day 4',    name: 'Objection email',       auto: true,  type: 'email' },
-    { key: 'meeting',  label: 'Meeting',  name: 'Follow-up mtg', auto: false, type: 'task', prefix: 'Meeting —' },
-    { key: 'meeting3', label: 'M+3',      name: 'Check-in',      auto: true,  type: 'task', prefix: 'Meeting+3' },
-    { key: 'meeting7', label: 'M+7',      name: 'Decision nudge', auto: true, type: 'task', prefix: 'Meeting+7' },
+    { key: 'meeting',  label: 'Meeting',  name: 'Follow-up mtg', auto: false, type: 'task', prefix: 'Meeting —',  noDate: true },
+    { key: 'meeting3', label: 'M+3',      name: 'Check-in',      auto: true,  type: 'task', prefix: 'Meeting+3',  noDate: true },
+    { key: 'meeting7', label: 'M+7',      name: 'Decision nudge', auto: true, type: 'task', prefix: 'Meeting+7', noDate: true },
   ];
 
   const getStatus = (step) => {
@@ -268,7 +268,9 @@ function HorizontalSequence({ emails, deal }) {
       if (e.status === 'draft_created') return 'draft';
       return 'pending';
     }
-    return taskStatus(getTask(step.prefix));
+    const status = taskStatus(getTask(step.prefix));
+    if (step.noDate && (status === 'overdue' || status === 'due-today')) return 'upcoming';
+    return status;
   };
 
   const stepCardStyle = (status) => {
@@ -418,14 +420,16 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, au
 
   const fmt = formatGmailDate;
 
+  const NO_DATE_STEPS = new Set(['meeting', 'meeting3', 'meeting7']);
+
   const steps = [
     { key: 'day1',     label: 'Day 1',   name: 'Recap email',            auto: false, emailKey: 'day1',  expandable: true  },
     { key: 'day2',     label: 'Day 2',   name: 'Pricing proposal',       auto: false, emailKey: 'day2',  expandable: false },
     { key: 'day3',     label: 'Day 3',   name: 'ROI value email',        auto: false, emailKey: 'day3',  expandable: true  },
     { key: 'day4',     label: 'Day 4',   name: 'Objection email',        auto: false, emailKey: 'day4',  expandable: true  },
-    { key: 'meeting',  label: 'Meeting', name: 'Follow-up mtg',          auto: false, emailKey: null,    expandable: false, zohoTask: true, prefix: 'Meeting —' },
-    { key: 'meeting3', label: 'M+3',     name: 'Check-in',               auto: true,  emailKey: null,    expandable: false, zohoTask: true, prefix: 'Meeting+3' },
-    { key: 'meeting7', label: 'M+7',     name: 'Decision nudge',         auto: true,  emailKey: 'nudge', expandable: true  },
+    { key: 'meeting',  label: 'Meeting', name: 'Follow-up mtg',          auto: false, emailKey: null,    expandable: false, zohoTask: true, prefix: 'Meeting —',  noDate: true },
+    { key: 'meeting3', label: 'M+3',     name: 'Check-in',               auto: true,  emailKey: null,    expandable: false, zohoTask: true, prefix: 'Meeting+3',  noDate: true },
+    { key: 'meeting7', label: 'M+7',     name: 'Decision nudge',         auto: true,  emailKey: 'nudge', expandable: true,                                         noDate: true },
   ];
 
   const handleSendEmail = async (emailType) => {
@@ -574,7 +578,7 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, au
 
         if (email) {
           const scheduledDate = toDate(email.scheduled_for);
-          const isOverdue = !!scheduledDate && scheduledDate < today && !isSent && email.status !== 'draft_created';
+          const isOverdue = !step.noDate && !!scheduledDate && scheduledDate < today && !isSent && email.status !== 'draft_created';
           if (isSent) {
             dotBg = C.teal; dotBorder = C.teal; dotSymbol = '✓'; dotColor = C.white; strikethrough = true;
             pillLabel = 'Sent'; pillBg = C.tealLight; pillText = C.teal;
@@ -589,16 +593,16 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, au
             descLine = `Overdue · ${fmt(email.scheduled_for)}`;
           } else if (email.status === 'scheduled') {
             pillLabel = 'Scheduled'; pillBg = C.infoLight; pillText = C.info;
-            descLine = `Scheduled · ${fmt(email.scheduled_for)}`;
+            descLine = step.noDate ? '' : `Scheduled · ${fmt(email.scheduled_for)}`;
           } else {
             pillLabel = 'Pending';
-            descLine = scheduledDate ? `Due · ${fmt(email.scheduled_for)}` : '';
+            descLine = (!step.noDate && scheduledDate) ? `Due · ${fmt(email.scheduled_for)}` : '';
           }
         } else if (step.zohoTask) {
           if (task) {
             const st = task.Status || task.status;
             const due = toDate(task.due_date || task.dueDate);
-            const isOverdue = !!(due && due < today && st !== 'Completed');
+            const isOverdue = !step.noDate && !!(due && due < today && st !== 'Completed');
             if (st === 'Completed') {
               dotBg = C.teal; dotBorder = C.teal; dotSymbol = '✓'; dotColor = C.white; strikethrough = true;
               pillLabel = 'Done'; pillBg = C.tealLight; pillText = C.teal; descLine = 'Completed';
@@ -608,7 +612,7 @@ function MergedSequenceView({ emails, dealId, deal, emailsLoading, hasEmails, au
               descLine = `Overdue · ${fmt(task.due_date || task.dueDate)}`;
             } else {
               pillLabel = 'Open';
-              descLine = due ? `Due · ${fmt(task.due_date || task.dueDate)}` : 'Open';
+              descLine = (!step.noDate && due) ? `Due · ${fmt(task.due_date || task.dueDate)}` : '';
             }
           } else {
             descLine = step.prefix ? 'Not yet created in Zoho' : 'Check Zoho Open Activities';

@@ -266,3 +266,77 @@ export async function sendDealEmail(env, dealId, subject, body, cc = '') {
     }]
   });
 }
+
+// ── Lead helpers ──────────────────────────────────────────
+
+const LEAD_FIELDS = [
+  'id', 'First_Name', 'Last_Name', 'Full_Name', 'Email', 'Phone', 'Company',
+  'Lead_Type', 'Lead_Source', 'Lead_Status', 'Owner', 'Created_Time',
+  'Modified_Time', 'Last_Activity_Time', 'How_many_orders_do_you_ship_in_a_month',
+  'Monthly_Order_Volume', 'Order_Volume', 'UTM_Source', 'UTM_Medium',
+  'UTM_Campaign', 'UTM_Content', '$converted', 'Signup', 'Original_Lead_Source',
+  'Disqualified_reason', 'Bad_Timing_Reason', 'Description'
+].join(',')
+
+export async function getLeads(env, page = 1) {
+  const path = `/Leads?fields=${LEAD_FIELDS}&per_page=100&page=${page}&sort_by=Created_Time&sort_order=desc&criteria=(Lead_Type:equals:Inbound)`
+  return zohoAPI(env, 'GET', path)
+}
+
+export async function getLead(env, leadId) {
+  const path = `/Leads/${leadId}?fields=${LEAD_FIELDS}`
+  return zohoAPI(env, 'GET', path)
+}
+
+export async function updateLead(env, leadId, data) {
+  return zohoAPI(env, 'PUT', `/Leads/${leadId}`, { data: [data] })
+}
+
+export async function getLeadActivities(env, leadId) {
+  return zohoAPI(env, 'GET', `/Leads/${leadId}/Activities_Events`)
+}
+
+export async function createLeadActivity(env, leadId, activityData) {
+  const endpoint = activityData.type === 'Call' ? '/Calls' :
+                   activityData.type === 'Meeting' ? '/Events' : '/Tasks'
+  const payload = activityData.type === 'Call' ? {
+    Subject: activityData.subject,
+    Description: activityData.description || '',
+    Call_Duration: activityData.duration || '00:05',
+    Call_Type: 'Outbound',
+    Call_Start_Time: new Date().toISOString(),
+    Who_Id: { id: leadId, module: 'Leads' },
+    '$se_module': 'Leads'
+  } : activityData.type === 'Task' ? {
+    Subject: activityData.subject,
+    Description: activityData.description || '',
+    Due_Date: activityData.due_date || new Date().toISOString().split('T')[0],
+    Status: 'Not Started',
+    Priority: 'Normal',
+    Who_Id: { id: leadId, module: 'Leads' },
+    '$se_module': 'Leads'
+  } : {
+    Event_Title: activityData.subject,
+    Description: activityData.description || '',
+    Start_DateTime: new Date().toISOString(),
+    End_DateTime: new Date(Date.now() + 3600000).toISOString(),
+    Who_Id: { id: leadId, module: 'Leads' },
+    '$se_module': 'Leads'
+  }
+  return zohoAPI(env, 'POST', endpoint, { data: [payload] })
+}
+
+export async function getLeadNotes(env, leadId) {
+  return zohoAPI(env, 'GET', `/Leads/${leadId}/Notes`)
+}
+
+export async function createLeadNote(env, leadId, noteContent) {
+  return zohoAPI(env, 'POST', `/Notes`, {
+    data: [{
+      Note_Title: 'Note',
+      Note_Content: noteContent,
+      Parent_Id: leadId,
+      '$se_module': 'Leads'
+    }]
+  })
+}

@@ -9,6 +9,21 @@ import {
   ALL_PIPELINE_STAGES, SME_STAGES, getStagePill, stageColor, initials, formatDate, daysAgo
 } from '../../lib/stageConfig'
 
+const MDE_EMAILS = [
+  'sriya.komal@eshopbox.com',
+  'mriganki.srivastava@eshopbox.com',
+  'shubham.kumar@eshopbox.com',
+  'umang.seth@eshopbox.com',
+]
+
+const AE_EMAILS = [
+  'taufeeq.ahmad@eshopbox.com',
+  'sunil.sethi@eshopbox.com',
+  'afzal.maknoo@eshopbox.com',
+  'raghwendra.kumar@eshopbox.com',
+  'gautam@eshopbox.com',
+]
+
 // ── Pipeline page ─────────────────────────────────────────
 export default function Pipeline() {
   const { dealId } = useParams()
@@ -27,6 +42,12 @@ function PipelineList() {
 
   const scopedDeals = useMemo(() => {
     let d = deals
+    // Pipeline filter (admin / lead roles only — reps see their own deals from backend)
+    if (pipelineFilter === 'midmarket') {
+      d = d.filter(deal => MDE_EMAILS.includes(deal.repEmail))
+    } else if (pipelineFilter === 'enterprise') {
+      d = d.filter(deal => AE_EMAILS.includes(deal.repEmail))
+    }
     if (search.trim()) {
       const q = search.toLowerCase()
       d = d.filter(deal =>
@@ -35,7 +56,9 @@ function PipelineList() {
       )
     }
     return d
-  }, [deals, search])
+  }, [deals, search, pipelineFilter])
+
+  console.log('pipelineFilter:', pipelineFilter, 'total:', deals.length, 'scoped:', scopedDeals.length, 'sample repEmail:', deals[0]?.repEmail, 'in MDE?', MDE_EMAILS.includes(deals[0]?.repEmail))
 
   const pageTitle = () => {
     if (isMDE) return 'My deals'
