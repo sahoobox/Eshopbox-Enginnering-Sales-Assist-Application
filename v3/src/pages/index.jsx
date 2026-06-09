@@ -7,15 +7,7 @@ export { default as MyDay } from './MyDay'
 export { default as LeadInbox } from './LeadInbox'
 
 // ── Accounts ─────────────────────────────────────────────
-export function Accounts() {
-  return (
-    <div className="main">
-      <Topbar title="Accounts" subtitle="Accounts with active deals" />
-      <Empty icon="🏢" title="Accounts — coming in Phase 4"
-        body="All accounts linked to your deals, with workspace created status." />
-    </div>
-  )
-}
+export { default as Accounts } from './Accounts'
 
 // ── Tasks ────────────────────────────────────────────────
 export { default as Tasks } from './Tasks'
