@@ -28,24 +28,6 @@ app.get('/api/debug/leads', requireAuth, async (c) => {
   return c.json(data)
 })
 
-app.get('/api/debug/lead/:id', requireAuth, async (c) => {
-  try {
-    const user = c.get('user')
-    if (user.email !== 'satyanarayan.sahoo@eshopbox.com') return c.json({ error: 'Forbidden' }, 403)
-    const leadId = c.req.param('id')
-    const [single, list] = await Promise.all([
-      zohoAPI(c.env, 'GET', `/Leads/${leadId}`),
-      zohoAPI(c.env, 'GET', `/Leads?per_page=3&sort_by=Created_Time&sort_order=desc&criteria=(Lead_Type:equals:Inbound)`)
-    ])
-    return c.json({
-      single_result: single,
-      list_ids: list?.data?.map(l => l.id),
-      list_first_id: list?.data?.[0]?.id
-    })
-  } catch (err) {
-    return c.json({ error: err.message })
-  }
-})
 
 async function hashPassword(password) {
   const encoder = new TextEncoder();
@@ -2429,15 +2411,16 @@ app.get('/api/leads', requireAuth, async (c) => {
 app.get('/api/leads/:id', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
-    const [leadRes, activitiesRes, notesRes] = await Promise.all([
+    const [leadRes, activitiesRes, notesRes] = await Promise.allSettled([
       getLead(c.env, leadId),
       getLeadActivities(c.env, leadId),
       getLeadNotes(c.env, leadId),
     ])
-    if (!leadRes?.data?.[0]) return c.json({ error: 'Lead not found' }, 404)
-    const lead = mapZohoLead(leadRes.data[0])
-    lead.activities = activitiesRes?.data || []
-    lead.notes = notesRes?.data || []
+    const leadData = leadRes.status === 'fulfilled' ? leadRes.value : null
+    if (!leadData?.data?.[0]) return c.json({ error: 'Lead not found' }, 404)
+    const lead = mapZohoLead(leadData.data[0])
+    lead.activities = activitiesRes.status === 'fulfilled' ? (activitiesRes.value?.data || []) : []
+    lead.notes = notesRes.status === 'fulfilled' ? (notesRes.value?.data || []) : []
     return c.json(lead)
   } catch (err) {
     return c.json({ error: 'Failed to fetch lead', details: err.message }, 500)
