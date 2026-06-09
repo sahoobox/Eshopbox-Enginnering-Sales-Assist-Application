@@ -6,6 +6,10 @@ on:
     paths:
       - 'v3/**'
 
+permissions:
+  contents: read
+  deployments: write
+
 jobs:
   deploy-v3:
     runs-on: ubuntu-latest
