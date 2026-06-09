@@ -60,13 +60,13 @@ const RULES = [
 ]
 
 const TEMPLATES = [
-  { name: 'Pre-Demo: Meeting confirmation + agenda', timing: 'Day 0',          type: 'Manual', body: 'Hi {FirstName}, confirming our demo on {Date} at {Time}. Here's what we'll cover: [Agenda]. Please let me know if you'd like to adjust anything.' },
-  { name: 'Pre-Demo: Pre-read',                      timing: 'Meeting day −2', type: 'Auto',   body: 'Hi {FirstName}, ahead of our call on {Date}, I've attached a quick overview of how Eshopbox works for brands like yours. Excited to show you the platform.' },
-  { name: 'Pre-Demo: Reminder',                      timing: 'Meeting day −1', type: 'Auto',   body: 'Hi {FirstName}, just a quick reminder about our demo tomorrow at {Time}. Here's the meeting link: {Link}. See you then!' },
-  { name: 'Post-Demo Day 1: Recap email',             timing: 'Day 1',          type: 'Manual', body: 'Hi {FirstName}, thank you for the time today! Here's a summary of what we discussed: [Key points]. Next step: {NextStep} by {Date}.' },
-  { name: 'Post-Demo Day 3: ROI email',               timing: 'Day 3',          type: 'Auto',   body: 'Hi {FirstName}, based on your volume of {Volume} orders/month, Eshopbox typically helps brands like yours reduce fulfillment cost by 15–20%. Happy to put together a custom ROI model.' },
-  { name: 'Post-Demo Day 4: Objection handler',       timing: 'Day 4',          type: 'Auto',   body: 'Hi {FirstName}, I know switching fulfillment partners feels like a big move. Here are the three concerns we hear most often — and how we address them: [Objections].' },
-  { name: 'Post-Demo Day 5+: Decision nudge',         timing: 'Day 5+',         type: 'Auto',   body: 'Hi {FirstName}, we'd love to get your account set up before the busy season. Can we lock in a go-live date this week? Happy to jump on a quick call.' },
+  { name: 'Pre-Demo: Meeting confirmation + agenda', timing: 'Day 0',          type: 'Manual', body: `Hi {FirstName}, confirming our demo on {Date} at {Time}. Here's what we'll cover: [Agenda]. Please let me know if you'd like to adjust anything.` },
+  { name: 'Pre-Demo: Pre-read',                      timing: 'Meeting day −2', type: 'Auto',   body: `Hi {FirstName}, ahead of our call on {Date}, I've attached a quick overview of how Eshopbox works for brands like yours. Excited to show you the platform.` },
+  { name: 'Pre-Demo: Reminder',                      timing: 'Meeting day −1', type: 'Auto',   body: `Hi {FirstName}, just a quick reminder about our demo tomorrow at {Time}. Here's the meeting link: {Link}. See you then!` },
+  { name: 'Post-Demo Day 1: Recap email',             timing: 'Day 1',          type: 'Manual', body: `Hi {FirstName}, thank you for the time today! Here's a summary of what we discussed: [Key points]. Next step: {NextStep} by {Date}.` },
+  { name: 'Post-Demo Day 3: ROI email',               timing: 'Day 3',          type: 'Auto',   body: `Hi {FirstName}, based on your volume of {Volume} orders/month, Eshopbox typically helps brands like yours reduce fulfillment cost by 15–20%. Happy to put together a custom ROI model.` },
+  { name: 'Post-Demo Day 4: Objection handler',       timing: 'Day 4',          type: 'Auto',   body: `Hi {FirstName}, I know switching fulfillment partners feels like a big move. Here are the three concerns we hear most often — and how we address them: [Objections].` },
+  { name: 'Post-Demo Day 5+: Decision nudge',         timing: 'Day 5+',         type: 'Auto',   body: `Hi {FirstName}, we'd love to get your account set up before the busy season. Can we lock in a go-live date this week? Happy to jump on a quick call.` },
 ]
 
 const INTEGRATIONS = [
