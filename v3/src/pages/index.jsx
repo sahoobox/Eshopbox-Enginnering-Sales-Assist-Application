@@ -1,4 +1,4 @@
-import { Topbar, Empty } from '../components/ui'
+import { Empty } from '../components/ui'
 
 // ── My Day ───────────────────────────────────────────────
 export { default as MyDay } from './MyDay'
@@ -16,15 +16,7 @@ export { default as Tasks } from './Tasks'
 export { default as Performance } from './Performance'
 
 // ── Settings ─────────────────────────────────────────────
-export function Settings() {
-  return (
-    <div className="main">
-      <Topbar title="Settings" subtitle="Team management · Rules · Templates" />
-      <Empty icon="⚙️" title="Settings — coming in Phase 6"
-        body="Invite users, manage MDE/AE groups, configure rules and email templates." />
-    </div>
-  )
-}
+export { default as Settings } from './Settings'
 
 // ── 404 ──────────────────────────────────────────────────
 export function NotFound() {
