@@ -232,8 +232,8 @@ function stageDotColor(stage) {
     'Active':                    'var(--ok)',
     'Follow up Meeting Done':    'var(--warn)',
     'On Hold':                   '#b5a484',
-    'Won':                       'var(--ok)',
-    'Lost':                      'var(--danger)',
+    'Won/Payment Received':      'var(--ok)',
+    'Lost/Dropped':              'var(--danger)',
   }
   return map[stage] || 'var(--ink-3)'
 }
