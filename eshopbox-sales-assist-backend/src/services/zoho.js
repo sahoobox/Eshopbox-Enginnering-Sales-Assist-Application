@@ -284,8 +284,7 @@ export async function getLeads(env, page = 1) {
 }
 
 export async function getLead(env, leadId) {
-  const path = `/Leads/${leadId}?fields=${LEAD_FIELDS}`
-  return zohoAPI(env, 'GET', path)
+  return zohoAPI(env, 'GET', `/Leads/${leadId}`)
 }
 
 export async function updateLead(env, leadId, data) {
