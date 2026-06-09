@@ -17,6 +17,7 @@ const AE_EMAILS = [
   'afzal.maknoo@eshopbox.com',
   'raghwendra.kumar@eshopbox.com',
   'gautam@eshopbox.com',
+  'jeevan.more@eshopbox.com',
 ]
 
 export default function LeadInbox() {

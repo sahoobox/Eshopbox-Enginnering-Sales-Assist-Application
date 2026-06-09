@@ -19,6 +19,7 @@ const AE_EMAILS = [
   'afzal.maknoo@eshopbox.com',
   'raghwendra.kumar@eshopbox.com',
   'gautam@eshopbox.com',
+  'jeevan.more@eshopbox.com',
 ]
 
 const TERMINAL_STAGES = ['Won/Payment Received', 'Lost/Dropped', 'On Hold']

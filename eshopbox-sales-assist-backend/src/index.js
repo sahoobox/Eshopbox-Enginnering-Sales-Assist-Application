@@ -2496,7 +2496,7 @@ function mapZohoTask(t) {
 }
 
 const TASK_MDE_EMAILS = ['sriya.komal@eshopbox.com','mriganki.srivastava@eshopbox.com','shubham.kumar@eshopbox.com','umang.seth@eshopbox.com']
-const TASK_AE_EMAILS = ['taufeeq.ahmad@eshopbox.com','sunil.sethi@eshopbox.com','afzal.maknoo@eshopbox.com','raghwendra.kumar@eshopbox.com','gautam@eshopbox.com']
+const TASK_AE_EMAILS = ['taufeeq.ahmad@eshopbox.com','sunil.sethi@eshopbox.com','afzal.maknoo@eshopbox.com','raghwendra.kumar@eshopbox.com','gautam@eshopbox.com','jeevan.more@eshopbox.com']
 
 app.get('/api/tasks', requireAuth, async (c) => {
   try {
