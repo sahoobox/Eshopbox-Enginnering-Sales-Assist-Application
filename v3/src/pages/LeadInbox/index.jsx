@@ -98,11 +98,11 @@ export default function LeadInbox() {
               return (
                 <tr key={lead.id}>
                   <td>
-                    <b>{lead.companyName || '—'}</b>
+                    <b>{lead.companyName || lead.Company || `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || '—'}</b>
                     <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2 }}>{createdTime}</div>
                   </td>
                   <td>
-                    <div>{lead.firstName} {lead.lastName}</div>
+                    <div>{`${lead.firstName || ''} ${lead.lastName || ''}`.trim() || '—'}</div>
                     <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2 }}>{lead.email}</div>
                   </td>
                   <td>{lead.orderVolume || '—'}</td>
