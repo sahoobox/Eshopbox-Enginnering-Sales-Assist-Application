@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDeal } from '../../hooks/useDeals'
+import { useAuth } from '../../context/AuthContext'
 import { Loading, Empty, Pill } from '../../components/ui'
 import { SME_STAGES, getStagePill, stageColor, initials, formatDate, daysAgo } from '../../lib/stageConfig'
+import { TaskModal } from '../Tasks'
 
 export default function DealDetail({ dealId }) {
   const navigate = useNavigate()
@@ -119,7 +121,7 @@ export default function DealDetail({ dealId }) {
 
           {tab === 'activity' && <ActivityTab deal={deal} />}
           {tab === 'emails' && <EmailsTab emails={emails} deal={deal} />}
-          {tab === 'tasks' && <TasksTab deal={deal} />}
+          {tab === 'tasks' && <TasksTab dealId={deal.id} />}
           {tab === 'flags' && <FlagsTab deal={deal} />}
         </div>
 
@@ -242,32 +244,91 @@ function EmailsTab({ emails, deal }) {
   )
 }
 
-function TasksTab({ deal }) {
-  const tasks = deal.tasks || []
-  if (tasks.length === 0) {
-    return (
-      <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>
-        No tasks on this deal.
-        <button className="btn btn-sm btn-primary" style={{ marginLeft: 8 }}>+ Add task</button>
-      </div>
-    )
+function TasksTab({ dealId }) {
+  const { authFetch } = useAuth()
+  const [tasks, setTasks] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const todayStr = new Date().toISOString().split('T')[0]
+
+  const fetchTasks = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await authFetch(`/api/deals/${dealId}/tasks`)
+      const data = await res.json()
+      setTasks(data.tasks || [])
+    } catch { /* ignore */ }
+    finally { setLoading(false) }
+  }, [dealId, authFetch])
+
+  useEffect(() => { fetchTasks() }, [fetchTasks])
+
+  async function completeTask(taskId) {
+    await authFetch(`/api/tasks/${taskId}/complete`, { method: 'PATCH' })
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, isComplete: true, status: 'Completed' } : t))
   }
+
+  async function reopenTask(taskId) {
+    await authFetch(`/api/tasks/${taskId}/reopen`, { method: 'PATCH' })
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, isComplete: false, status: 'Not Started' } : t))
+  }
+
+  if (loading) return <div className="card card-pad" style={{ color: 'var(--ink-3)' }}>Loading tasks…</div>
+
   return (
-    <div className="table-wrap">
-      <table className="t">
-        <thead><tr><th>Task</th><th>Due</th><th>Status</th><th>Priority</th></tr></thead>
-        <tbody>
-          {tasks.map(task => (
-            <tr key={task.id || task.Subject}>
-              <td><b>{task.Subject || task.subject}</b></td>
-              <td>{formatDate(task.Due_Date || task.due_date)}</td>
-              <td><span className={`pill ${task.Status === 'Completed' ? 'pill-ok' : 'pill-neutral'}`}>{task.Status || task.status}</span></td>
-              <td>{task.Priority || task.priority || '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <button className="btn btn-sm btn-primary" onClick={() => setShowModal(true)}>+ Add task</button>
+      </div>
+      {tasks.length === 0 ? (
+        <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>No tasks on this deal.</div>
+      ) : (
+        <div className="table-wrap">
+          <table className="t">
+            <thead><tr><th style={{ width: 32 }}></th><th>Task</th><th>Due</th><th>Priority</th><th></th></tr></thead>
+            <tbody>
+              {tasks.map(task => {
+                const isOverdue = task.dueDate && task.dueDate < todayStr && !task.isComplete
+                return (
+                  <tr key={task.id} style={{ opacity: task.isComplete ? 0.5 : 1 }}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={task.isComplete}
+                        onChange={() => task.isComplete ? reopenTask(task.id) : completeTask(task.id)}
+                        style={{ cursor: 'pointer', width: 16, height: 16 }}
+                      />
+                    </td>
+                    <td><b style={{ textDecoration: task.isComplete ? 'line-through' : 'none' }}>{task.subject}</b></td>
+                    <td style={{ color: isOverdue ? 'var(--danger)' : 'var(--ink-2)', fontWeight: isOverdue ? 600 : 400, fontSize: 13 }}>
+                      {task.dueDate ? formatDate(task.dueDate) : '—'}
+                    </td>
+                    <td>{task.priority || '—'}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      {!task.isComplete && (
+                        <button className="btn btn-sm" onClick={() => completeTask(task.id)}>Mark done</button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {showModal && (
+        <TaskModal
+          dealId={dealId}
+          onClose={() => setShowModal(false)}
+          onSubmit={async (data) => {
+            const res = await authFetch('/api/tasks', { method: 'POST', body: JSON.stringify(data) })
+            const json = await res.json()
+            if (json.success) { setShowModal(false); fetchTasks() }
+            else alert(json.error || 'Failed to create task')
+          }}
+        />
+      )}
+    </>
   )
 }
 

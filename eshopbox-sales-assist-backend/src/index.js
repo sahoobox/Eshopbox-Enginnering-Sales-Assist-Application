@@ -4,7 +4,7 @@ import { requireAuth } from './middleware/auth.js';
 import { sign, verify } from './middleware/jwt.js';
 import { getUserByEmail, createUser, createInvite, getInviteByToken, markInviteAccepted, getAllUsers, deactivateUser, updateUserRole, getPendingInvites } from './db/users.js';
 import { calculateGrade, scoreToGrade } from './services/grading.js';
-import { zohoAPI, createDeal, createTask, getDeals, getDeal, getDealTasks, getDealActivities, updateDeal, searchDeals, sendDealEmail, createDealEmailDraft, getAllowedFromAddresses, getAccessTokenForUser, getAccessToken, getDealSentEmails, getEmailContent, getTask, getLeads, getLead, updateLead, getLeadActivities, createLeadActivity, getLeadNotes, createLeadNote } from './services/zoho.js';
+import { zohoAPI, createDeal, createTask, getDeals, getDeal, getDealTasks, getDealActivities, updateDeal, searchDeals, sendDealEmail, createDealEmailDraft, getAllowedFromAddresses, getAccessTokenForUser, getAccessToken, getDealSentEmails, getEmailContent, getTask, getLeads, getLead, updateLead, getLeadActivities, createLeadActivity, getLeadNotes, createLeadNote, getTasks, createGenericTask, updateTaskStatus } from './services/zoho.js';
 import { generateEmailDrafts, generateReengagement, generateDealAnalysis, generateDealSummary } from './services/claude.js';
 import { computeAttentionFlags, getAttentionLevel } from './services/attentionRules.js';
 import { sendGmailEmail, sendGmailEmailWithToken, createGmailDraft, checkDraftSent, getRealMessageId } from './services/gmail.js';
@@ -2472,6 +2472,92 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
     }, 501)
   } catch (err) {
     return c.json({ error: 'Failed to convert lead', details: err.message }, 500)
+  }
+})
+
+// ── TASKS ─────────────────────────────────────────────────
+
+function mapZohoTask(t) {
+  return {
+    id: t.id,
+    subject: t.Subject || '',
+    status: t.Status || 'Not Started',
+    priority: t.Priority || 'Normal',
+    dueDate: t.Due_Date || '',
+    description: t.Description || '',
+    ownerName: t.Owner?.name || '',
+    ownerEmail: t.Owner?.email || '',
+    dealId: t.What_Id?.id || '',
+    dealName: t.What_Id?.name || '',
+    createdAt: t.Created_Time || '',
+    modifiedAt: t.Modified_Time || '',
+    isComplete: t.Status === 'Completed',
+  }
+}
+
+const TASK_MDE_EMAILS = ['sriya.komal@eshopbox.com','mriganki.srivastava@eshopbox.com','shubham.kumar@eshopbox.com','umang.seth@eshopbox.com']
+const TASK_AE_EMAILS = ['taufeeq.ahmad@eshopbox.com','sunil.sethi@eshopbox.com','afzal.maknoo@eshopbox.com','raghwendra.kumar@eshopbox.com','gautam@eshopbox.com']
+
+app.get('/api/tasks', requireAuth, async (c) => {
+  try {
+    const user = c.get('user')
+    const res = await getTasks(c.env)
+    if (!res?.data) return c.json({ tasks: [] })
+    let tasks = res.data.map(mapZohoTask)
+    if (user.role === 'Sales rep' || user.role === 'Manager') {
+      tasks = tasks.filter(t => t.ownerEmail === user.email)
+    } else if (user.role === 'Sales Lead Mid-Market') {
+      tasks = tasks.filter(t => TASK_MDE_EMAILS.includes(t.ownerEmail))
+    } else if (user.role === 'Sales Lead Enterprise') {
+      tasks = tasks.filter(t => TASK_AE_EMAILS.includes(t.ownerEmail))
+    }
+    return c.json({ tasks, total: tasks.length })
+  } catch (err) {
+    return c.json({ error: 'Failed to fetch tasks', details: err.message }, 500)
+  }
+})
+
+app.get('/api/deals/:id/tasks', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const res = await getTasks(c.env, { deal_id: dealId })
+    if (!res?.data) return c.json({ tasks: [] })
+    const tasks = res.data.map(mapZohoTask)
+    return c.json({ tasks, total: tasks.length })
+  } catch (err) {
+    return c.json({ error: 'Failed to fetch deal tasks', details: err.message }, 500)
+  }
+})
+
+app.post('/api/tasks', requireAuth, async (c) => {
+  try {
+    const body = await c.req.json()
+    if (!body.subject?.trim()) return c.json({ error: 'Subject required' }, 400)
+    const result = await createGenericTask(c.env, body)
+    if (!result?.data?.[0]?.details?.id) return c.json({ error: 'Failed to create task in Zoho' }, 500)
+    return c.json({ success: true, taskId: result.data[0].details.id })
+  } catch (err) {
+    return c.json({ error: 'Failed to create task', details: err.message }, 500)
+  }
+})
+
+app.patch('/api/tasks/:id/complete', requireAuth, async (c) => {
+  try {
+    const taskId = c.req.param('id')
+    await updateTaskStatus(c.env, taskId, 'Completed')
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: 'Failed to complete task', details: err.message }, 500)
+  }
+})
+
+app.patch('/api/tasks/:id/reopen', requireAuth, async (c) => {
+  try {
+    const taskId = c.req.param('id')
+    await updateTaskStatus(c.env, taskId, 'Not Started')
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: 'Failed to reopen task', details: err.message }, 500)
   }
 })
 

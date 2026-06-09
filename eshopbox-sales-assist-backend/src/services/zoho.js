@@ -339,3 +339,30 @@ export async function createLeadNote(env, leadId, noteContent) {
     }]
   })
 }
+
+// ── Task helpers ──────────────────────────────────────────
+
+export async function getTasks(env, filters = {}) {
+  if (filters.deal_id) {
+    return zohoAPI(env, 'GET', `/Deals/${filters.deal_id}/Tasks?fields=id,Subject,Status,Priority,Due_Date,Description,Who_Id,What_Id,Owner,Created_Time,Modified_Time&per_page=100`)
+  }
+  return zohoAPI(env, 'GET', '/Tasks?fields=id,Subject,Status,Priority,Due_Date,Description,Who_Id,What_Id,Owner,Created_Time,Modified_Time&per_page=100&sort_by=Due_Date&sort_order=asc')
+}
+
+export async function createGenericTask(env, taskData) {
+  const payload = {
+    Subject: taskData.subject,
+    Status: 'Not Started',
+    Priority: taskData.priority || 'Normal',
+    Due_Date: taskData.due_date || new Date().toISOString().split('T')[0],
+    Description: taskData.description || '',
+    '$se_module': taskData.deal_id ? 'Deals' : undefined,
+    What_Id: taskData.deal_id ? { id: taskData.deal_id, module: 'Deals' } : undefined,
+  }
+  Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k])
+  return zohoAPI(env, 'POST', '/Tasks', { data: [payload] })
+}
+
+export async function updateTaskStatus(env, taskId, status) {
+  return zohoAPI(env, 'PUT', `/Tasks/${taskId}`, { data: [{ Status: status }] })
+}

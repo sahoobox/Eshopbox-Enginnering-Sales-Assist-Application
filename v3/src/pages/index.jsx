@@ -18,15 +18,7 @@ export function Accounts() {
 }
 
 // ── Tasks ────────────────────────────────────────────────
-export function Tasks() {
-  return (
-    <div className="main">
-      <Topbar title="Tasks" subtitle="All open tasks across your deals" />
-      <Empty icon="✅" title="Tasks — coming in Phase 4"
-        body="Tasks from Zoho CRM across all your deals. Tick here to complete in Zoho." />
-    </div>
-  )
-}
+export { default as Tasks } from './Tasks'
 
 // ── Performance ──────────────────────────────────────────
 export function Performance() {
