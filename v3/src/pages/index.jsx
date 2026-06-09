@@ -17,15 +17,7 @@ export function MyDay() {
 }
 
 // ── Lead Inbox ───────────────────────────────────────────
-export function LeadInbox() {
-  return (
-    <div className="main">
-      <Topbar title="Lead Inbox" subtitle="Inbound leads with owner assigned · same-day contact SLA" />
-      <Empty icon="📥" title="Lead Inbox — coming in Phase 2"
-        body="Inbound leads from Zoho CRM with convert, disqualify, and activity logging." />
-    </div>
-  )
-}
+export { default as LeadInbox } from './LeadInbox'
 
 // ── Accounts ─────────────────────────────────────────────
 export function Accounts() {
