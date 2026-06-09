@@ -1,20 +1,7 @@
-import { Topbar, Empty, Loading } from '../components/ui'
-import { useAuth, ROLES } from '../context/AuthContext'
+import { Topbar, Empty } from '../components/ui'
 
 // ── My Day ───────────────────────────────────────────────
-export function MyDay() {
-  const { user } = useAuth()
-  return (
-    <div className="main">
-      <Topbar
-        title={`Good morning, ${user?.name?.split(' ')[0] || 'there'}`}
-        subtitle="Here's what needs your attention today."
-      />
-      <Empty icon="☀️" title="My Day — coming in Phase 3"
-        body="KPI tiles, attention flags, tasks, and upcoming demos will appear here." />
-    </div>
-  )
-}
+export { default as MyDay } from './MyDay'
 
 // ── Lead Inbox ───────────────────────────────────────────
 export { default as LeadInbox } from './LeadInbox'
