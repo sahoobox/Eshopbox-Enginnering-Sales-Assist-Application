@@ -13,15 +13,7 @@ export { default as Accounts } from './Accounts'
 export { default as Tasks } from './Tasks'
 
 // ── Performance ──────────────────────────────────────────
-export function Performance() {
-  return (
-    <div className="main">
-      <Topbar title="Performance" subtitle="Mid-Market and Enterprise pipeline health" />
-      <Empty icon="📊" title="Performance — coming in Phase 5"
-        body="Funnel, conversion rates, MDE/AE breakdown, and coaching mode." />
-    </div>
-  )
-}
+export { default as Performance } from './Performance'
 
 // ── Settings ─────────────────────────────────────────────
 export function Settings() {
