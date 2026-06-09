@@ -28,6 +28,24 @@ app.get('/api/debug/leads', requireAuth, async (c) => {
   return c.json(data)
 })
 
+app.get('/api/debug/lead/:id', requireAuth, async (c) => {
+  try {
+    const user = c.get('user')
+    if (user.email !== 'satyanarayan.sahoo@eshopbox.com') return c.json({ error: 'Forbidden' }, 403)
+
+    // Return raw first lead from list to check field names
+    const res = await zohoAPI(c.env, 'GET', '/Leads?per_page=2&sort_by=Created_Time&sort_order=desc')
+    const raw = res?.data?.[0]
+    return c.json({
+      keys: raw ? Object.keys(raw) : [],
+      id_field: raw?.id,
+      raw_first: raw
+    })
+  } catch (err) {
+    return c.json({ error: err.message })
+  }
+})
+
 async function hashPassword(password) {
   const encoder = new TextEncoder();
   const salt = crypto.getRandomValues(new Uint8Array(16));
