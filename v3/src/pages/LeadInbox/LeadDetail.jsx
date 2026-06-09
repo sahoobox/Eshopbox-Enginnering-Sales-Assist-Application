@@ -17,7 +17,11 @@ export default function LeadDetail() {
   useEffect(() => {
     authFetch(`/api/leads/${leadId}`)
       .then(r => r.json())
-      .then(data => { setLead(data.lead); setLoading(false) })
+      .then(data => {
+        if (data.error) { setError(data.error); setLoading(false); return }
+        setLead(data)
+        setLoading(false)
+      })
       .catch(err => { setError(err.message); setLoading(false) })
   }, [leadId, authFetch])
 
@@ -30,7 +34,7 @@ export default function LeadDetail() {
   )
 
   const fullName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || '—'
-  const company = lead.companyName || lead.Company || fullName
+  const company = lead.companyName || lead.company || fullName
 
   async function handleDisqualify() {
     if (!confirm(`Disqualify ${company}?`)) return
