@@ -32,14 +32,15 @@ app.get('/api/debug/lead/:id', requireAuth, async (c) => {
   try {
     const user = c.get('user')
     if (user.email !== 'satyanarayan.sahoo@eshopbox.com') return c.json({ error: 'Forbidden' }, 403)
-
-    // Return raw first lead from list to check field names
-    const res = await zohoAPI(c.env, 'GET', '/Leads?per_page=2&sort_by=Created_Time&sort_order=desc')
-    const raw = res?.data?.[0]
+    const leadId = c.req.param('id')
+    const [single, list] = await Promise.all([
+      zohoAPI(c.env, 'GET', `/Leads/${leadId}`),
+      zohoAPI(c.env, 'GET', `/Leads?per_page=3&sort_by=Created_Time&sort_order=desc&criteria=(Lead_Type:equals:Inbound)`)
+    ])
     return c.json({
-      keys: raw ? Object.keys(raw) : [],
-      id_field: raw?.id,
-      raw_first: raw
+      single_result: single,
+      list_ids: list?.data?.map(l => l.id),
+      list_first_id: list?.data?.[0]?.id
     })
   } catch (err) {
     return c.json({ error: err.message })
