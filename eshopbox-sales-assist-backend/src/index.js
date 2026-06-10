@@ -545,7 +545,8 @@ app.get('/api/deals', requireAuth, async (c) => {
       const cached = await c.env.TOKEN_CACHE.get('deals_cache');
       if (cached) return c.json(JSON.parse(cached));
     }
-    const zohoResponse = await getDeals(c.env);
+    const isV3 = c.req.header('x-app-version') === 'v3' || c.req.query('v') === '3';
+    const zohoResponse = await getDeals(c.env, { bothPipelines: isV3 });
     if (!zohoResponse?.data) return c.json({ deals: [], total: 0 });
     const VALID_VOLUMES = ['501 - 3,000 orders/month', '3,001 - 10,000 orders/month', 'More than 10,000 orders/month'];
 

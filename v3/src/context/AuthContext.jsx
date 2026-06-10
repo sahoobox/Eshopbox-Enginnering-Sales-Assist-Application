@@ -108,6 +108,7 @@ export function AuthProvider({ children }) {
         ...options,
         headers: {
           'Content-Type': 'application/json',
+          'x-app-version': 'v3',
           Authorization: `Bearer ${token}`,
           ...(options.headers || {}),
         },
