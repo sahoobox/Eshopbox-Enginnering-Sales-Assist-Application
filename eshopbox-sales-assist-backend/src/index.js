@@ -562,11 +562,16 @@ app.get('/api/deals', requireAuth, async (c) => {
   .filter(d => d.pipeline === 'Mid market' || d.pipeline === 'Enterprise 2.0');
 
     if (c.req.query('debug') === 'stages') {
+      const rawPipeline = zohoResponse.data.slice(0, 3).map(d => ({
+        dealName: d.Deal_Name,
+        rawPipeline: d.Pipeline,
+        pipelineType: typeof d.Pipeline,
+      }))
       const stageCounts = {}
       dealsList.forEach(d => {
         stageCounts[d.stage] = (stageCounts[d.stage] || 0) + 1
       })
-      return c.json({ stageCounts, total: dealsList.length })
+      return c.json({ rawPipeline, stageCounts, total: dealsList.length })
     }
 
     if (effectiveUser.role === 'Sales rep') {
