@@ -7,11 +7,12 @@ export function useDeals() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const fetchDeals = useCallback(async () => {
+  const fetchDeals = useCallback(async (forceRefresh = false) => {
     setLoading(true)
     setError(null)
     try {
-      const res = await authFetch('/api/deals')
+      const url = forceRefresh ? '/api/deals?refresh=true' : '/api/deals'
+      const res = await authFetch(url)
       const data = await res.json()
       setDeals(data.deals || [])
     } catch (err) {
@@ -23,7 +24,7 @@ export function useDeals() {
 
   useEffect(() => { fetchDeals() }, [fetchDeals])
 
-  return { deals, loading, error, refetch: fetchDeals }
+  return { deals, loading, error, refetch: () => fetchDeals(true) }
 }
 
 export function useDeal(dealId) {
