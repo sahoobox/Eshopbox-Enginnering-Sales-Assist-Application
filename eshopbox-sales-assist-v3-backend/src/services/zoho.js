@@ -64,40 +64,37 @@ export async function zohoAPI(env, method, path, body = null) {
 }
 
 const DEAL_FIELDS = [
-  'id', 'Deal_Name', 'Stage', 'Owner', 'Pipeline', 'Created_Time',
-  'Modified_Time', 'Deal_Grade', 'SA_Forecast_Probability', 'SA_Segment',
-  'SA_Solution_Interest', 'SA_Brand_Type', 'SA_Pain_Points', 'SA_OMS',
-  'SA_Shopping_Cart', 'SA_Current_Shipping', 'SA_Current_Warehousing',
-  'SA_Followup_Meeting_Date', 'SA_Pricing_Raised', 'SA_Demo_Format',
-  'SA_F2F_Count', 'SA_Logged', 'Lost_Reason', 'Demo_Date', 'Contact_Name',
-  'Account_Name', 'Description'
+  'id', 'Deal_Name', 'Stage', 'Owner', 'Layout', 'Created_Time',
+  'Modified_Time', 'Deal_Grade', 'SA_Forecast_Probability',
+  'Account_Name', 'How_many_orders_do_you_ship_in_a_month',
+  'SA_Pain_Points', 'SA_Solution_Interest', 'SA_Brand_Type',
+  'SA_Logged', 'Demo_Date', 'SA_Followup_Meeting_Date',
+  'SA_Pricing_Raised', 'SA_F2F_Count', 'Lost_Reason',
+  'SA_OMS', 'SA_Shopping_Cart', 'SA_Current_Warehousing',
+  'SA_Current_Shipping', 'SA_Demo_Format', 'SA_Segment',
+  'Contact_Name', 'Amount', 'On_Hold_Reason'
 ].join(',');
 
-export async function getDeals(env) {
-  const fields = [
-    'id', 'Deal_Name', 'Stage', 'Owner', 'Created_Time',
-    'Modified_Time', 'Deal_Grade', 'SA_Forecast_Probability',
-    'Account_Name', 'Description', 'How_many_orders_do_you_ship_in_a_month',
-    'SA_Pain_Points', 'SA_Solution_Interest', 'SA_Brand_Type',
-    'SA_Logged', 'Demo_Date', 'SA_Followup_Meeting_Date',
-    'SA_Pricing_Raised', 'SA_F2F_Count', 'Lost_Reason',
-    'SA_OMS', 'SA_Shopping_Cart', 'SA_Current_Warehousing',
-    'SA_Current_Shipping', 'SA_Demo_Format', 'SA_Segment',
-    'Contact_Name',
-  ].join(',');
+const DEALS_2_LAYOUT_ID = '6483035000025962021';
 
-  const allDeals = [];
+export async function getDeals(env) {
+  const cached = await env.TOKEN_CACHE.get('v3_deals_cache');
+  if (cached) return { data: JSON.parse(cached) };
+
+  const deals = [];
   let page = 1;
-  while (true) {
-    const path = `/Deals?fields=${fields}&per_page=200&page=${page}&sort_by=Created_Time&sort_order=desc&criteria=(Created_Time:greater_than:2026-01-01T00:00:00%2B00:00)`;
+  while (page <= 30) {
+    const path = `/Deals?fields=${DEAL_FIELDS}&per_page=200&page=${page}&sort_by=Modified_Time&sort_order=desc&criteria=(Modified_Time:greater_than:2025-01-01T00:00:00+00:00)`;
     const res = await zohoAPI(env, 'GET', path);
     if (!res?.data?.length) break;
-    allDeals.push(...res.data);
+    const filtered = res.data.filter(d => d.Layout?.id === DEALS_2_LAYOUT_ID);
+    deals.push(...filtered);
     if (!res.info?.more_records) break;
     page++;
-    if (page > 15) break;
   }
-  return { data: allDeals };
+
+  await env.TOKEN_CACHE.put('v3_deals_cache', JSON.stringify(deals), { expirationTtl: 900 });
+  return { data: deals };
 }
 
 export async function searchDeals(env, query) {

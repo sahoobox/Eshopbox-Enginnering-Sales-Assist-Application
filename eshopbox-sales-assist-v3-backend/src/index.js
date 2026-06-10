@@ -25,6 +25,21 @@ app.use('*', cors({
 app.get('/', (c) => c.json({ status: 'ok', app: 'Eshopbox Sales Assist Backend' }));
 app.get('/test', (c) => c.json({ test: 'working' }));
 
+app.get('/api/debug', async (c) => {
+  try {
+    const res = await zohoAPI(c.env, 'GET', '/Deals?per_page=200&page=1')
+    return c.json({
+      count: res?.data?.length,
+      total: res?.info?.count,
+      more: res?.info?.more_records,
+      first: res?.data?.[0]?.Deal_Name,
+      last: res?.data?.[res?.data?.length-1]?.Deal_Name,
+    })
+  } catch (err) {
+    return c.json({ error: err.message })
+  }
+})
+
 app.get('/api/debug/leads', requireAuth, async (c) => {
   const user = c.get('user')
   if (user.email !== 'satyanarayan.sahoo@eshopbox.com') return c.json({ error: 'Forbidden' }, 403)
@@ -80,17 +95,6 @@ async function verifyPassword(password, stored) {
   return JSON.stringify(Array.from(new Uint8Array(bits))) === JSON.stringify(hash);
 }
 
-const VALID_PIPELINES = ['Ship', 'SME 2.0', 'Enterprise 2.0'];
-
-const VALID_STAGES = [
-  'Qualified To Buy',
-  'Demo Call Scheduled',
-  'Demo Done',
-  'Proposal Sent',
-  'Follow up Meeting Done',
-  'Deal Approved',
-  'Won/Payment Received',
-];
 
 const DEAL_FIELDS = [
   'id', 'Deal_Name', 'Stage', 'Owner', 'Pipeline', 'Created_Time',
@@ -121,13 +125,31 @@ const WAREHOUSING_PAINS_MAP = {
   w7: 'Returns processing and QC',
 };
 
+const MIDMARKET_STAGES = ['Upcoming Demo','Demo Done','Proposal Sent','Account Setup in Progress','Awaiting First Shipment','First Shipment Done','Active','On Hold','Won/Payment Received','Lost/Dropped'];
+const ENTERPRISE_STAGES = ['Upcoming Demo','Demo Done','Proposal Sent','Follow up Meeting Done','On Hold','Won/Payment Received','Lost/Dropped'];
+const ALL_VALID_STAGES = [...new Set([...MIDMARKET_STAGES, ...ENTERPRISE_STAGES])];
+
+const MDE_EMAILS = ['sriya.komal@eshopbox.com','mriganki.srivastava@eshopbox.com','shubham.kumar@eshopbox.com'];
+const AE_EMAILS = ['taufeeq.ahmad@eshopbox.com','sunil.sethi@eshopbox.com','afzal.maknoo@eshopbox.com','raghwendra.kumar@eshopbox.com','gautam@eshopbox.com','jeevan.more@eshopbox.com'];
+const MIDMARKET_ONLY_STAGES = ['Workspace Created','Account Setup in Progress','Awaiting First Shipment','First Shipment Done','Active','Handover to CSM','Inactive','Low order volume'];
+const ENTERPRISE_ONLY_STAGES = ['Demo Call Scheduled','Follow up Meeting Done','Deal Approved'];
+
+function getPipeline(stage, ownerEmail) {
+  if (MIDMARKET_ONLY_STAGES.includes(stage)) return 'Mid-market';
+  if (ENTERPRISE_ONLY_STAGES.includes(stage)) return 'Enterprise 2.0';
+  if (MDE_EMAILS.includes(ownerEmail)) return 'Mid-market';
+  if (AE_EMAILS.includes(ownerEmail)) return 'Enterprise 2.0';
+  return 'Mid-market';
+}
+
 function mapZohoDeal(d) {
   return {
     id: d.id,
     dealName: d.Deal_Name,
     brandName: d.Deal_Name?.split(' — ')[0] || d.Deal_Name,
     stage: d.Stage,
-    pipeline: d.Pipeline?.name || d.Pipeline || '',
+    stageAligned: ALL_VALID_STAGES.includes(d.Stage),
+    pipeline: getPipeline(d.Stage, d.Owner?.email),
     repName: d.Owner?.name || 'Unknown',
     repEmail: d.Owner?.email || '',
 grade: (() => {
@@ -540,22 +562,24 @@ app.get('/api/deals', requireAuth, async (c) => {
         if (viewAsUser) effectiveUser = viewAsUser;
       }
     }
-    const isImpersonating = effectiveUser !== user;
     console.log('impersonation: effectiveUser =', JSON.stringify({
       email: effectiveUser.email,
       role: effectiveUser.role,
       viewAsHeader: c.req.header('x-view-as-email'),
     }));
-    const useSharedCache = !isImpersonating && ['Admin', 'Manager', 'Developer'].includes(effectiveUser.role);
-    if (useSharedCache) {
-      const cached = await c.env.TOKEN_CACHE.get('deals_cache');
-      if (cached) return c.json(JSON.parse(cached));
+    if (c.req.query('refresh') === 'true') {
+      await c.env.TOKEN_CACHE.delete('v3_deals_cache');
     }
     const zohoResponse = await getDeals(c.env);
     if (!zohoResponse?.data) return c.json({ deals: [], total: 0 });
   let dealsList = zohoResponse.data
-  .filter(d => VALID_STAGES.includes(d.Stage))
-  .map(mapZohoDeal);
+  .map(mapZohoDeal)
+  .filter(d => d.pipeline === 'Mid-market' || d.pipeline === 'Enterprise 2.0');
+
+    const isAdmin = effectiveUser.role === 'admin';
+    if (!isAdmin) {
+      dealsList = dealsList.filter(d => d.stageAligned);
+    }
 
     if (effectiveUser.role === 'Sales rep') {
       dealsList = dealsList.filter(d => d.repEmail === effectiveUser.email);
@@ -587,15 +611,7 @@ app.get('/api/deals', requireAuth, async (c) => {
       saLoggedDeals = rawSALogged
         .map(d => mapZohoDeal(d))
         .filter(d => !existingIds.has(d.id))
-        .filter(d =>
-          VALID_STAGES.includes(d.stage) ||
-          (d.stage === 'Lost/Dropped' && d.saLogged === true)
-        )
-        .filter(d =>
-          d.saLogged === true ||
-          VALID_VOLUMES.includes(d.orderVolume) ||
-          d.stage === 'Won/Payment Received'
-        );
+        .filter(d => d.stageAligned || d.stage === 'Lost/Dropped');
       saLoggedDeals.forEach(d => { d.manuallyLogged = true; });
       if (effectiveUser.role === 'Sales rep') {
         saLoggedDeals = saLoggedDeals.filter(d => d.repEmail === effectiveUser.email);
@@ -663,9 +679,6 @@ const dealsWithFlags = dealsList.map(deal => {
 
     dealsWithFlags.sort((a, b) => ({ high: 0, medium: 1, info: 2, ok: 3 }[a.attentionLevel] - { high: 0, medium: 1, info: 2, ok: 3 }[b.attentionLevel]));
     const dealsResponse = { deals: dealsWithFlags, total: dealsWithFlags.length };
-    if (useSharedCache) {
-      await c.env.TOKEN_CACHE.put('deals_cache', JSON.stringify(dealsResponse), { expirationTtl: 300 });
-    }
     return c.json(dealsResponse);
   } catch (err) {
     return c.json({ error: 'Failed to fetch deals', details: err.message }, 500);
