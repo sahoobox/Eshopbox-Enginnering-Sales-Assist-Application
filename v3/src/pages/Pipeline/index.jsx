@@ -45,9 +45,9 @@ function PipelineList() {
     let d = deals
     // Pipeline filter (admin / lead roles only — reps see their own deals from backend)
     if (pipelineFilter === 'midmarket') {
-      d = d.filter(deal => MDE_EMAILS.includes(deal.repEmail))
+      d = d.filter(deal => deal.pipeline === 'Mid market')
     } else if (pipelineFilter === 'enterprise') {
-      d = d.filter(deal => AE_EMAILS.includes(deal.repEmail))
+      d = d.filter(deal => deal.pipeline === 'Enterprise 2.0')
     }
     if (search.trim()) {
       const q = search.toLowerCase()

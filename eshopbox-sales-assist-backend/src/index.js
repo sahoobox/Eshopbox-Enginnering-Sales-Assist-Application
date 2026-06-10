@@ -126,7 +126,7 @@ function mapZohoDeal(d) {
     dealName: d.Deal_Name,
     brandName: d.Deal_Name?.split(' — ')[0] || d.Deal_Name,
     stage: d.Stage,
-    pipeline: d.Pipeline?.name || d.Pipeline || '',
+    pipeline: d.Pipeline?.name || (typeof d.Pipeline === 'string' ? d.Pipeline : ''),
     repName: d.Owner?.name || 'Unknown',
     repEmail: d.Owner?.email || '',
 grade: (() => {
@@ -556,12 +556,18 @@ app.get('/api/deals', requireAuth, async (c) => {
     }
     const zohoResponse = await getDeals(c.env, { bothPipelines: isV3 });
     if (!zohoResponse?.data) return c.json({ deals: [], total: 0 });
-    const VALID_VOLUMES = ['501 - 3,000 orders/month', '3,001 - 10,000 orders/month', 'More than 10,000 orders/month'];
-
   let dealsList = zohoResponse.data
   .filter(d => VALID_STAGES.includes(d.Stage))
-  .filter(d => VALID_VOLUMES.includes(d.How_many_orders_do_you_ship_in_a_month) || d.Stage === 'Won/Payment Received')
-  .map(mapZohoDeal);
+  .map(mapZohoDeal)
+  .filter(d => d.pipeline === 'Mid market' || d.pipeline === 'Enterprise 2.0');
+
+    if (c.req.query('debug') === 'stages') {
+      const stageCounts = {}
+      dealsList.forEach(d => {
+        stageCounts[d.stage] = (stageCounts[d.stage] || 0) + 1
+      })
+      return c.json({ stageCounts, total: dealsList.length })
+    }
 
     if (effectiveUser.role === 'Sales rep') {
       dealsList = dealsList.filter(d => d.repEmail === effectiveUser.email);
