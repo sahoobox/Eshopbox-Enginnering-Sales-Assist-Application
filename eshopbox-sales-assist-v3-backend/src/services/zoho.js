@@ -72,7 +72,7 @@ const DEAL_FIELDS = [
   'SA_Pricing_Raised', 'SA_F2F_Count', 'Lost_Reason',
   'SA_OMS', 'SA_Shopping_Cart', 'SA_Current_Warehousing',
   'SA_Current_Shipping', 'SA_Demo_Format', 'SA_Segment',
-  'Contact_Name', 'Amount', 'On_Hold_Reason'
+  'Contact_Name', 'Amount', 'On_Hold_Reason', 'Pipeline'
 ].join(',');
 
 const DEALS_2_LAYOUT_ID = '6483035000025962021';
@@ -81,17 +81,47 @@ export async function getDeals(env) {
   const cached = await env.TOKEN_CACHE.get('v3_deals_cache');
   if (cached) return { data: JSON.parse(cached) };
 
-  const deals = [];
-  let page = 1;
-  while (page <= 30) {
-    const path = `/Deals?fields=${DEAL_FIELDS}&per_page=200&page=${page}&sort_by=Modified_Time&sort_order=desc&criteria=(Modified_Time:greater_than:2025-01-01T00:00:00+00:00)`;
-    const res = await zohoAPI(env, 'GET', path);
-    if (!res?.data?.length) break;
-    const filtered = res.data.filter(d => d.Layout?.id === DEALS_2_LAYOUT_ID);
-    deals.push(...filtered);
-    if (!res.info?.more_records) break;
-    page++;
+  async function fetchMidmarket() {
+    const results = []
+    let page = 1
+    while (page <= 20) {
+      const token = await getAccessToken(env)
+      const res = await fetch(`https://www.zohoapis.com/crm/v2.1/Deals?fields=${DEAL_FIELDS}&per_page=200&page=${page}&sort_by=Modified_Time&sort_order=desc`, {
+        headers: { Authorization: `Zoho-oauthtoken ${token}` }
+      }).then(r => r.json())
+      if (!res?.data?.length) break
+      const filtered = res.data
+        .filter(d => d.Layout?.id === DEALS_2_LAYOUT_ID)
+        .filter(d => d.Pipeline === 'Mid-market')
+      results.push(...filtered)
+      if (!res.info?.more_records) break
+      page++
+    }
+    return results
   }
+
+  async function fetchEnterprise() {
+    const criteria = '((Owner:equals:taufeeq.ahmad@eshopbox.com)or(Owner:equals:afzal.maknoo@eshopbox.com)or(Owner:equals:jeevan.more@eshopbox.com)or(Owner:equals:gautam@eshopbox.com))'
+    const results = []
+    let page = 1
+    while (page <= 15) {
+      const token = await getAccessToken(env)
+      const res = await fetch(`https://www.zohoapis.com/crm/v2.1/Deals?fields=${DEAL_FIELDS}&per_page=200&page=${page}&sort_by=Modified_Time&sort_order=desc&criteria=${encodeURIComponent(criteria)}`, {
+        headers: { Authorization: `Zoho-oauthtoken ${token}` }
+      }).then(r => r.json())
+      if (!res?.data?.length) break
+      const filtered = res.data
+        .filter(d => d.Layout?.id === DEALS_2_LAYOUT_ID)
+        .filter(d => d.Pipeline === 'Enterprise 2.0')
+      results.push(...filtered)
+      if (!res.info?.more_records) break
+      page++
+    }
+    return results
+  }
+
+  const [midmarket, enterprise] = await Promise.all([fetchMidmarket(), fetchEnterprise()])
+  const deals = [...midmarket, ...enterprise]
 
   await env.TOKEN_CACHE.put('v3_deals_cache', JSON.stringify(deals), { expirationTtl: 900 });
   return { data: deals };

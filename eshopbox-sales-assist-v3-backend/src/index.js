@@ -64,6 +64,16 @@ app.get('/api/debug/leads', requireAuth, async (c) => {
   return c.json(data)
 })
 
+app.get('/api/debug/pipelines', requireAuth, async (c) => {
+  const res = await zohoAPI(c.env, 'GET', '/settings/pipeline?layout_id=6483035000025962021')
+  return c.json(res)
+})
+
+app.delete('/api/cache', requireAuth, async (c) => {
+  await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+  return c.json({ ok: true })
+})
+
 
 
 async function hashPassword(password) {
@@ -145,17 +155,28 @@ const MIDMARKET_STAGES = ['Upcoming Demo','Demo Done','Proposal Sent','Account S
 const ENTERPRISE_STAGES = ['Upcoming Demo','Demo Done','Proposal Sent','Follow up Meeting Done','On Hold','Won/Payment Received','Lost/Dropped'];
 const ALL_VALID_STAGES = [...new Set([...MIDMARKET_STAGES, ...ENTERPRISE_STAGES])];
 
-const MDE_EMAILS = ['sriya.komal@eshopbox.com','mriganki.srivastava@eshopbox.com','shubham.kumar@eshopbox.com','raghwendra.kumar@eshopbox.com'];
-const AE_EMAILS = ['taufeeq.ahmad@eshopbox.com','afzal.maknoo@eshopbox.com','gautam@eshopbox.com','jeevan.more@eshopbox.com'];
-const MIDMARKET_ONLY_STAGES = ['Workspace Created','Account Setup in Progress','Awaiting First Shipment','First Shipment Done','Active','Handover to CSM','Inactive','Low order volume'];
-const ENTERPRISE_ONLY_STAGES = ['Demo Call Scheduled','Follow up Meeting Done','Deal Approved'];
-
+const MDE_EMAILS = [
+  'sriya.komal@eshopbox.com',
+  'mriganki.srivastava@eshopbox.com',
+  'shubham.kumar@eshopbox.com',
+  'raghwendra.kumar@eshopbox.com',
+  'sneha.gupta@eshopbox.com',
+  'chetna.lakhmani@eshopbox.com',
+  'arihant.sharma@eshopbox.com',
+  'ajeet.kumar@eshopbox.com',
+  'sunil.sethi@eshopbox.com',
+  'umang.seth@eshopbox.com',
+]
+const AE_EMAILS = [
+  'taufeeq.ahmad@eshopbox.com',
+  'afzal.maknoo@eshopbox.com',
+  'gautam@eshopbox.com',
+  'jeevan.more@eshopbox.com',
+]
 function getPipeline(stage, ownerEmail) {
-  if (MIDMARKET_ONLY_STAGES.includes(stage)) return 'Mid-market';
-  if (ENTERPRISE_ONLY_STAGES.includes(stage)) return 'Enterprise 2.0';
-  if (MDE_EMAILS.includes(ownerEmail)) return 'Mid-market';
-  if (AE_EMAILS.includes(ownerEmail)) return 'Enterprise 2.0';
-  return 'Mid-market';
+  if (MDE_EMAILS.includes(ownerEmail)) return 'Mid-market'
+  if (AE_EMAILS.includes(ownerEmail)) return 'Enterprise 2.0'
+  return 'Mid-market'
 }
 
 function mapZohoDeal(d) {
@@ -165,7 +186,7 @@ function mapZohoDeal(d) {
     brandName: d.Deal_Name?.split(' — ')[0] || d.Deal_Name,
     stage: d.Stage,
     stageAligned: ALL_VALID_STAGES.includes(d.Stage),
-    pipeline: getPipeline(d.Stage, d.Owner?.email),
+    pipeline: d.Pipeline || getPipeline(d.Stage, d.Owner?.email),
     repName: d.Owner?.name || 'Unknown',
     repEmail: d.Owner?.email || '',
 grade: (() => {
@@ -653,19 +674,29 @@ const teamEmails = new Set((teamRows.results || []).map(r => r.email.toLowerCase
 // Fetch deal summaries for all deals + email statuses for saLogged deals only
 const allEmailStatuses = {};
 const allDealSummaries = {};
-const allIds = dealsList.map(d => `'${d.id}'`).join(',');
-const saLoggedIds = dealsList.filter(d => d.saLogged).map(d => `'${d.id}'`).join(',');
-if (allIds) {
-  const [summaryRows, emailRows] = await Promise.all([
-    c.env.DB.prepare(
-      `SELECT deal_id, deal_summary FROM deal_form_data WHERE deal_id IN (${allIds})`
-    ).all(),
-    saLoggedIds
-      ? c.env.DB.prepare(
-          `SELECT deal_id, email_type, status, scheduled_for FROM deal_emails WHERE deal_id IN (${saLoggedIds})`
-        ).all()
-      : Promise.resolve({ results: [] }),
-  ]);
+const chunkArray = (arr, size) => Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size))
+
+const allIds = dealsList.map(d => d.id)
+const saLoggedIds = dealsList.filter(d => d.saLogged).map(d => d.id)
+
+const allIdChunks = chunkArray(allIds, 500)
+const saLoggedIdChunks = chunkArray(saLoggedIds, 500)
+
+const [summaryResults, emailResults] = await Promise.all([
+  Promise.all(allIdChunks.map(chunk => {
+    const ids = chunk.map(id => `'${id}'`).join(',')
+    return c.env.DB.prepare(`SELECT deal_id, deal_summary FROM deal_form_data WHERE deal_id IN (${ids})`).all()
+  })),
+  saLoggedIds.length > 0 ? Promise.all(saLoggedIdChunks.map(chunk => {
+    const ids = chunk.map(id => `'${id}'`).join(',')
+    return c.env.DB.prepare(`SELECT deal_id, email_type, status, scheduled_for FROM deal_emails WHERE deal_id IN (${ids})`).all()
+  })) : [{ results: [] }]
+])
+
+const summaryRows = { results: summaryResults.flatMap(r => r.results) }
+const emailRows = { results: emailResults.flatMap(r => r.results) }
+
+if (allIds.length) {
   (summaryRows.results || []).forEach(r => {
     if (r.deal_summary) allDealSummaries[r.deal_id] = r.deal_summary;
   });
