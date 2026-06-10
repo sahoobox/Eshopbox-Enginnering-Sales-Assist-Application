@@ -30,7 +30,7 @@
 
 /* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; height: 100%; }
+html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; }
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--bg);
@@ -48,14 +48,19 @@ p { margin: 0; }
 
 /* ── Layout ── */
 .app {
-  display: grid;
+  display: flex;
   grid-template-columns: var(--sidebar-width) 1fr;
-  min-height: 100vh;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
 }
 .main {
+  flex: 1;
   padding: 24px 32px 60px;
   max-width: 1500px;
+  overflow-y: auto;
   overflow-x: hidden;
+  height: 100vh;
 }
 
 /* ── Sidebar ── */
@@ -63,12 +68,13 @@ p { margin: 0; }
   background: var(--surface);
   border-right: 1px solid var(--line);
   padding: 16px 14px;
-  position: sticky;
-  top: 0;
+  width: var(--sidebar-width);
+  flex-shrink: 0;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .sidebar-brand {
   display: flex;
