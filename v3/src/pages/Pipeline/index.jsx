@@ -120,7 +120,7 @@ function PipelineList() {
         }
       />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+      <div className="controls-row">
         {showPipelineToggle && (
           <div className="seg">
             <button className={pipelineFilter === 'midmarket' ? 'is-on' : ''} onClick={() => setPipelineFilter('midmarket')}>Mid-Market</button>
@@ -136,7 +136,6 @@ function PipelineList() {
           placeholder="Search brand or rep…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          style={{ marginLeft: 'auto' }}
         />
       </div>
 

@@ -56,11 +56,12 @@ p { margin: 0; }
 }
 .main {
   flex: 1;
-  padding: 24px 32px 60px;
+  padding: 24px 16px 60px 32px;
   max-width: 1500px;
   overflow-y: auto;
   overflow-x: hidden;
   height: 100vh;
+  box-sizing: border-box;
 }
 
 /* ── Sidebar ── */
@@ -209,7 +210,18 @@ p { margin: 0; }
   justify-content: space-between;
   margin-bottom: 18px;
   gap: 16px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  width: 100%;
+  padding-right: 16px;
+}
+.controls-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+  width: 100%;
+  overflow: visible;
+  margin-bottom: 10px;
 }
 .topbar-title-block { flex: 1; min-width: 0; }
 .topbar-actions { display: flex; gap: 8px; align-items: center; }
@@ -340,8 +352,10 @@ p { margin: 0; }
   border-radius: 6px;
   background: var(--surface);
   font-size: 13px;
-  min-width: 220px;
+  min-width: 200px;
   color: var(--ink);
+  margin-left: auto;
+  flex-shrink: 0;
 }
 .search-input:focus,
 .filter-bar select:focus,
@@ -590,11 +604,8 @@ table.t tr:hover td { background: #faf9f7; }
 /* ── Kanban ── */
 .kanban-wrap {
   overflow-x: auto;
-  overflow-y: visible;
+  width: 100%;
   padding-bottom: 12px;
-  margin: 0 -32px;
-  padding-left: 32px;
-  padding-right: 32px;
 }
 .kanban-wrap::-webkit-scrollbar { height: 8px; }
 .kanban-wrap::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; }
