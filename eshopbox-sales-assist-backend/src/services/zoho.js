@@ -120,11 +120,19 @@ export async function getDeals(env, options = {}) {
   }
 
   if (bothPipelines) {
-    const [midMarket, enterprise] = await Promise.all([
+    const cacheKey = 'v3_deals_cache';
+    const cached = await env.TOKEN_CACHE.get(cacheKey);
+    if (cached) return { data: JSON.parse(cached) };
+
+    const [mm, ent] = await Promise.allSettled([
       fetchPipeline('Mid market'),
       fetchPipeline('Enterprise 2.0'),
     ]);
-    return { data: [...midMarket, ...enterprise] };
+    const combined = [...(mm.value || []), ...(ent.value || [])];
+
+    await env.TOKEN_CACHE.put(cacheKey, JSON.stringify(combined), { expirationTtl: 900 });
+
+    return { data: combined };
   }
 
   return fetchAllDeals();
