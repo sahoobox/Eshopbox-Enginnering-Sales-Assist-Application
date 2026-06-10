@@ -29,6 +29,7 @@ function mapZohoDeal(d) {
     dealName: d.Deal_Name,
     brandName: d.Deal_Name?.split(' — ')[0] || d.Deal_Name,
     stage: d.Stage,
+    pipeline: d.Pipeline?.name || d.Pipeline || '',
     repName: d.Owner?.name || 'Unknown',
     repEmail: d.Owner?.email || '',
     grade: d.Deal_Grade || 'D',

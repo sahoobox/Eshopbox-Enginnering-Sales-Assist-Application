@@ -74,9 +74,6 @@ const DEAL_FIELDS = [
 ].join(',');
 
 export async function getDeals(env) {
-  const allDeals = [];
-  let page = 1;
-
   const fields = [
     'id', 'Deal_Name', 'Stage', 'Owner', 'Pipeline', 'Created_Time',
     'Modified_Time', 'Deal_Grade', 'SA_Forecast_Probability', 'SA_Segment',
@@ -87,20 +84,28 @@ export async function getDeals(env) {
     'Account_Name', 'Description', 'How_many_orders_do_you_ship_in_a_month'
   ].join(',');
 
-  while (true) {
-    const path = `/Deals?fields=${fields}&per_page=200&page=${page}&sort_by=Created_Time&sort_order=desc&criteria=(Created_Time:greater_than:2026-01-01T00:00:00%2B00:00)`;
-    const res = await zohoAPI(env, 'GET', path);
-
-    if (!res?.data?.length) break;
-
-    allDeals.push(...res.data);
-
-    if (!res.info?.more_records) break;
-    page++;
-    if (page > 15) break;
+  async function fetchPipeline(pipelineName) {
+    const deals = [];
+    let page = 1;
+    while (true) {
+      const criteria = `(Pipeline:equals:${encodeURIComponent(pipelineName)})`;
+      const path = `/Deals?fields=${fields}&per_page=200&page=${page}&sort_by=Created_Time&sort_order=desc&criteria=${criteria}`;
+      const res = await zohoAPI(env, 'GET', path);
+      if (!res?.data?.length) break;
+      deals.push(...res.data);
+      if (!res.info?.more_records) break;
+      page++;
+      if (page > 15) break;
+    }
+    return deals;
   }
 
-  return { data: allDeals };
+  const [midMarket, enterprise] = await Promise.all([
+    fetchPipeline('Mid market'),
+    fetchPipeline('Enterprise 2.0'),
+  ]);
+
+  return { data: [...midMarket, ...enterprise] };
 }
 
 export async function searchDeals(env, query) {
