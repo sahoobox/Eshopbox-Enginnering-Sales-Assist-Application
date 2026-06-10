@@ -575,7 +575,7 @@ app.get('/api/deals', requireAuth, async (c) => {
   let dealsList = zohoResponse.data
   .filter(d => VALID_STAGES.includes(d.Stage))
   .map(mapZohoDeal)
-  .filter(d => d.pipeline === 'Mid market' || d.pipeline === 'Enterprise 2.0');
+  .filter(d => d.pipeline === 'Mid-market' || d.pipeline === 'Enterprise 2.0');
 
     if (effectiveUser.role === 'Sales rep') {
       dealsList = dealsList.filter(d => d.repEmail === effectiveUser.email);

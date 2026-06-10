@@ -91,8 +91,9 @@ export async function getDeals(env, options = {}) {
     const deals = [];
     let page = 1;
     while (true) {
-      const criteria = `(Pipeline:equals:${encodeURIComponent(pipelineName)})`;
+      const criteria = `(Pipeline.name:equals:${encodeURIComponent(pipelineName)})`;
       const path = `/Deals?fields=${fields}&per_page=200&page=${page}&sort_by=Created_Time&sort_order=desc&criteria=${criteria}`;
+      console.log(`[fetchPipeline] ${pipelineName} page=${page} criteria=${criteria}`);
       const res = await zohoAPI(env, 'GET', path);
       if (!res?.data?.length) break;
       deals.push(...res.data);
@@ -125,7 +126,7 @@ export async function getDeals(env, options = {}) {
     if (cached) return { data: JSON.parse(cached) };
 
     const [mm, ent] = await Promise.allSettled([
-      fetchPipeline('Mid market'),
+      fetchPipeline('Mid-market'),
       fetchPipeline('Enterprise 2.0'),
     ]);
     const combined = [...(mm.value || []), ...(ent.value || [])];
