@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
@@ -9,6 +9,14 @@ import {
   ALL_PIPELINE_STAGES, SME_STAGES, ENT_STAGES, getStagePill, stageColor, initials, formatDate, daysAgo
 } from '../../lib/stageConfig'
 
+const ORDER_VOLUME_OPTIONS = [
+  '1 - 500 orders/month',
+  '501 - 3,000 orders/month',
+  '3,001 - 10,000 orders/month',
+  'More than 10,000 orders/month',
+  'New store / not shipping orders yet',
+]
+
 // ── Pipeline page ─────────────────────────────────────────
 export default function Pipeline() {
   const { dealId } = useParams()
@@ -16,24 +24,62 @@ export default function Pipeline() {
   return <PipelineList />
 }
 
+// ── Filter matching ───────────────────────────────────────
+function matchSingle(deal, f) {
+  switch (f.field) {
+    case 'rep':         return f.values.includes(deal.repName)
+    case 'stage':       return f.values.includes(deal.stage)
+    case 'grade':       return f.values.includes(deal.grade)
+    case 'orderVolume': return f.values.includes(deal.orderVolume)
+    case 'saLogged':    return f.values.includes(deal.saLogged ? 'Yes' : 'No')
+    case 'demoDate': {
+      if (!deal.demoDate) return false
+      const d = new Date(deal.demoDate)
+      const from = f.dateFrom ? new Date(f.dateFrom) : null
+      const to   = f.dateTo   ? new Date(f.dateTo + 'T23:59:59') : null
+      return (!from || d >= from) && (!to || d <= to)
+    }
+    case 'flags': {
+      let m = false
+      if (f.values.includes('Has flags')) m = m || (deal.flags?.length > 0)
+      if (f.values.includes('No flags'))  m = m || (!deal.flags?.length)
+      const specific = f.values.filter(v => v !== 'Has flags' && v !== 'No flags')
+      if (specific.length) m = m || specific.some(t => deal.flags?.some(fl => fl.title === t))
+      return m
+    }
+    default: return true
+  }
+}
+
+function matchFilters(deal, filters) {
+  for (const f of filters) {
+    const m = matchSingle(deal, f)
+    if (f.op === 'is'     && !m) return false
+    if (f.op === 'is not' &&  m) return false
+  }
+  return true
+}
+
+// ── Pipeline list ─────────────────────────────────────────
 function PipelineList() {
-  const { role, isMDE, isAE, isAdmin } = useAuth()
+  const { role, isMDE, isAE, isAdmin, isMidMarketLead, isEnterpriseLead } = useAuth()
   const { deals, loading, error, refetch } = useDeals()
   const navigate = useNavigate()
 
   const [view, setView] = useState('kanban')
   const [pipelineFilter, setPipelineFilter] = useState('midmarket')
   const [search, setSearch] = useState('')
+  const [activeFilters, setActiveFilters] = useState([])
+
+  const currentStages = useMemo(() =>
+    isMDE ? SME_STAGES : isAE ? ENT_STAGES : pipelineFilter === 'enterprise' ? ENT_STAGES : SME_STAGES
+  , [isMDE, isAE, pipelineFilter])
 
   const scopedDeals = useMemo(() => {
     let d = deals
-    // Pipeline filter (admin / lead roles only — reps see their own deals from backend)
-    if (pipelineFilter === 'midmarket') {
-      d = d.filter(deal => deal.pipeline === 'Mid-market')
-    } else if (pipelineFilter === 'enterprise') {
-      d = d.filter(deal => deal.pipeline === 'Enterprise 2.0')
-    }
-    console.log('DEBUG pipeline:', pipelineFilter, 'deals in:', deals.length, 'deals out:', d.length)
+    if (pipelineFilter === 'midmarket') d = d.filter(deal => deal.pipeline === 'Mid-market')
+    else if (pipelineFilter === 'enterprise') d = d.filter(deal => deal.pipeline === 'Enterprise 2.0')
+    if (activeFilters.length > 0) d = d.filter(deal => matchFilters(deal, activeFilters))
     if (search.trim()) {
       const q = search.toLowerCase()
       d = d.filter(deal =>
@@ -42,7 +88,7 @@ function PipelineList() {
       )
     }
     return d
-  }, [deals, search, pipelineFilter])
+  }, [deals, search, pipelineFilter, activeFilters])
 
   const pageTitle = () => {
     if (isMDE) return 'My deals'
@@ -74,7 +120,7 @@ function PipelineList() {
         }
       />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
         {showPipelineToggle && (
           <div className="seg">
             <button className={pipelineFilter === 'midmarket' ? 'is-on' : ''} onClick={() => setPipelineFilter('midmarket')}>Mid-Market</button>
@@ -94,10 +140,219 @@ function PipelineList() {
         />
       </div>
 
+      <FilterBar
+        filters={activeFilters}
+        onChange={setActiveFilters}
+        deals={deals}
+        stages={currentStages}
+        isAdmin={isAdmin}
+        isMidMarketLead={isMidMarketLead}
+        isEnterpriseLead={isEnterpriseLead}
+      />
+
       {view === 'kanban'
         ? <KanbanView deals={scopedDeals} pipelineFilter={pipelineFilter} />
         : <ListView deals={scopedDeals} onOpen={id => navigate(`/pipeline/${id}`)} />
       }
+    </div>
+  )
+}
+
+// ── Filter bar ────────────────────────────────────────────
+function FilterBar({ filters, onChange, deals, stages, isAdmin, isMidMarketLead, isEnterpriseLead }) {
+  const [open, setOpen] = useState(null)   // null | { mode: 'add'|'edit', id? }
+  const [step, setStep] = useState('field')
+  const [draft, setDraft] = useState(null)
+  const dropRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = e => { if (dropRef.current && !dropRef.current.contains(e.target)) close() }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const close = () => { setOpen(null); setDraft(null); setStep('field') }
+
+  let repDeals = deals
+  if (isMidMarketLead) repDeals = deals.filter(d => d.pipeline === 'Mid-market')
+  if (isEnterpriseLead) repDeals = deals.filter(d => d.pipeline === 'Enterprise 2.0')
+  const repNames = [...new Set(repDeals.map(d => d.repName).filter(Boolean))].sort()
+  const flagTitles = [...new Set(deals.flatMap(d => d.flags?.map(f => f.title) || []))].sort()
+
+  const FIELDS = [
+    ...(isAdmin || isMidMarketLead || isEnterpriseLead
+      ? [{ key: 'rep', label: 'Rep', type: 'multi', opts: repNames }]
+      : []),
+    { key: 'stage',       label: 'Stage',        type: 'multi', opts: stages },
+    { key: 'grade',       label: 'Grade',        type: 'multi', opts: ['A', 'B', 'C', 'D'] },
+    { key: 'orderVolume', label: 'Order Volume',  type: 'multi', opts: ORDER_VOLUME_OPTIONS },
+    { key: 'saLogged',    label: 'SA Logged',     type: 'multi', opts: ['Yes', 'No'] },
+    { key: 'demoDate',    label: 'Demo Date',     type: 'date' },
+    { key: 'flags',       label: 'Flags',         type: 'multi', opts: ['Has flags', 'No flags', ...flagTitles] },
+  ]
+
+  const fieldDef = key => FIELDS.find(f => f.key === key)
+
+  const openAdd = () => {
+    setDraft({ field: null, op: 'is', values: [], dateFrom: '', dateTo: '', preset: null })
+    setStep('field')
+    setOpen({ mode: 'add' })
+  }
+
+  const openEdit = filter => {
+    setDraft({ ...filter })
+    setStep('value')
+    setOpen({ mode: 'edit', id: filter.id })
+  }
+
+  const applyDraft = () => {
+    if (!draft?.field) return
+    if (open.mode === 'add') {
+      onChange([...filters, { ...draft, id: String(Date.now()) }])
+    } else {
+      onChange(filters.map(f => f.id === open.id ? { ...draft, id: open.id } : f))
+    }
+    close()
+  }
+
+  const toggleValue = val => setDraft(d => ({
+    ...d,
+    values: d.values.includes(val) ? d.values.filter(v => v !== val) : [...d.values, val],
+  }))
+
+  const setPreset = preset => {
+    const today = new Date()
+    const from = new Date(today)
+    if (preset === 'Last 7 days')  from.setDate(today.getDate() - 7)
+    if (preset === 'Last 30 days') from.setDate(today.getDate() - 30)
+    if (preset === 'Last 90 days') from.setDate(today.getDate() - 90)
+    const fmt = d => d.toISOString().split('T')[0]
+    setDraft(d => ({ ...d, preset, dateFrom: fmt(from), dateTo: fmt(today) }))
+  }
+
+  const chipLabel = f => {
+    const def = fieldDef(f.field)
+    if (!def) return ''
+    const opLbl = f.op === 'is' ? 'is' : 'is not'
+    if (def.type === 'date') {
+      const val = f.preset || (f.dateFrom && f.dateTo ? `${f.dateFrom} – ${f.dateTo}` : f.dateFrom || f.dateTo || '…')
+      return `${def.label} ${opLbl} ${val}`
+    }
+    const vals = f.values.length > 2 ? `${f.values[0]}, +${f.values.length - 1}` : f.values.join(', ')
+    return `${def.label} ${opLbl} ${vals}`
+  }
+
+  const activeDef = draft?.field ? fieldDef(draft.field) : null
+  const canApply = draft?.field && (
+    activeDef?.type === 'date' ? (draft.dateFrom || draft.dateTo) : draft.values.length > 0
+  )
+
+  return (
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+      {filters.map(f => (
+        <span key={f.id} style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <button
+            className={`filter-chip${open?.id === f.id ? ' filter-chip-active' : ''}`}
+            onClick={() => openEdit(f)}
+          >
+            {chipLabel(f)}
+          </button>
+          <button
+            className="filter-chip-remove"
+            onClick={e => { e.stopPropagation(); onChange(filters.filter(x => x.id !== f.id)) }}
+          >×</button>
+        </span>
+      ))}
+
+      <button className="filter-add-btn" onClick={openAdd}>+ Add filter</button>
+
+      {filters.length > 0 && (
+        <button className="filter-clear-btn" onClick={() => onChange([])}>Clear all</button>
+      )}
+
+      {open && (
+        <div ref={dropRef} className="filter-dropdown">
+          {step === 'field' ? (
+            <>
+              <div className="fdd-title">Filter by</div>
+              {FIELDS.map(f => (
+                <button key={f.key} className="fdd-field-opt" onClick={() => {
+                  setDraft(d => ({ ...d, field: f.key, values: [], preset: null, dateFrom: '', dateTo: '' }))
+                  setStep('value')
+                }}>
+                  {f.label}
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              <div className="fdd-header">
+                {open.mode === 'add' && (
+                  <button className="fdd-back" onClick={() => setStep('field')}>← Back</button>
+                )}
+                <span className="fdd-title" style={{ padding: 0 }}>{activeDef?.label}</span>
+              </div>
+
+              <div className="fdd-op-row">
+                {['is', 'is not'].map(op => (
+                  <button
+                    key={op}
+                    className={`fdd-op${draft.op === op ? ' active' : ''}`}
+                    onClick={() => setDraft(d => ({ ...d, op }))}
+                  >{op}</button>
+                ))}
+              </div>
+
+              {activeDef?.type === 'multi' && (
+                <div className="fdd-opts">
+                  {activeDef.opts.map(opt => (
+                    <label key={opt} className="fdd-opt-row">
+                      <input
+                        type="checkbox"
+                        checked={draft.values.includes(opt)}
+                        onChange={() => toggleValue(opt)}
+                      />
+                      <span>{opt}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {activeDef?.type === 'date' && (
+                <div className="fdd-date">
+                  <div className="fdd-presets">
+                    {['Today', 'Last 7 days', 'Last 30 days', 'Last 90 days'].map(p => (
+                      <button
+                        key={p}
+                        className={`fdd-preset${draft.preset === p ? ' active' : ''}`}
+                        onClick={() => setPreset(p)}
+                      >{p}</button>
+                    ))}
+                  </div>
+                  <div className="fdd-date-inputs">
+                    <input type="date" value={draft.dateFrom}
+                      onChange={e => setDraft(d => ({ ...d, dateFrom: e.target.value, preset: null }))} />
+                    <span style={{ color: 'var(--ink-3)' }}>–</span>
+                    <input type="date" value={draft.dateTo}
+                      onChange={e => setDraft(d => ({ ...d, dateTo: e.target.value, preset: null }))} />
+                  </div>
+                </div>
+              )}
+
+              <div className="fdd-footer">
+                <button
+                  className="btn btn-sm"
+                  style={{ background: 'var(--brand)', color: '#fff', borderColor: 'var(--brand)' }}
+                  onClick={applyDraft}
+                  disabled={!canApply}
+                >Apply</button>
+                <button className="btn btn-sm" onClick={close}>Cancel</button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }

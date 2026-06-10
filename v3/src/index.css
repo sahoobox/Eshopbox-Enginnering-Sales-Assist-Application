@@ -819,3 +819,173 @@ table.t tr:hover td { background: #faf9f7; }
 /* List view */
 .clickable { cursor: pointer; }
 table.t .muted { font-size: 11.5px; color: var(--ink-3); }
+
+/* ── Filter bar ── */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+  border-right: none;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.filter-chip:hover, .filter-chip-active {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.filter-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 7px;
+  border: 1.5px solid var(--line-2);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--surface);
+  font-size: 13px;
+  line-height: 1;
+  color: var(--ink-3);
+  cursor: pointer;
+  margin-right: 2px;
+}
+.filter-chip-remove:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-bg); }
+.filter-add-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border: 1.5px dashed var(--line-2);
+  border-radius: var(--radius-sm);
+  background: none;
+  font-size: 12px;
+  color: var(--ink-3);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.filter-add-btn:hover { border-color: var(--ink-3); color: var(--ink-2); }
+.filter-clear-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--ink-3);
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.filter-clear-btn:hover { color: var(--danger); }
+.filter-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 200;
+  min-width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+  padding: 8px;
+}
+.fdd-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  padding: 2px 4px 8px;
+  display: block;
+}
+.fdd-field-opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.fdd-field-opt:hover { background: var(--surface-2); }
+.fdd-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.fdd-back {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--ink-3);
+  cursor: pointer;
+  padding: 0;
+}
+.fdd-back:hover { color: var(--ink); }
+.fdd-op-row { display: flex; gap: 4px; margin-bottom: 8px; }
+.fdd-op {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: none;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--ink-2);
+}
+.fdd-op.active {
+  border-color: var(--brand);
+  background: #fff3f3;
+  color: var(--brand);
+  font-weight: 600;
+}
+.fdd-opts {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+.fdd-opt-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  cursor: pointer;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+}
+.fdd-opt-row:hover { background: var(--surface-2); }
+.fdd-date { margin-bottom: 8px; }
+.fdd-presets { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.fdd-preset {
+  padding: 3px 9px;
+  border: 1.5px solid var(--line-2);
+  border-radius: 20px;
+  background: none;
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--ink-2);
+}
+.fdd-preset.active { border-color: var(--brand); background: #fff3f3; color: var(--brand); font-weight: 600; }
+.fdd-preset:hover:not(.active) { border-color: var(--ink-3); }
+.fdd-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.fdd-date-inputs input[type="date"] {
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  padding: 3px 6px;
+  font-size: 12px;
+  background: var(--surface);
+}
+.fdd-footer {
+  display: flex;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+}
