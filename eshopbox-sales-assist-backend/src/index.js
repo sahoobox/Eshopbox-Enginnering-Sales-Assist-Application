@@ -33,14 +33,6 @@ app.get('/api/debug/leads', requireAuth, async (c) => {
   return c.json(data)
 })
 
-app.get('/api/debug/pipelines', async (c) => {
-  try {
-    const res = await zohoAPI(c.env, 'GET', '/settings/pipeline?layout_id=6483035000025962021')
-    return c.json(res)
-  } catch (err) {
-    return c.json({ error: err.message })
-  }
-})
 
 
 async function hashPassword(password) {
@@ -135,7 +127,7 @@ function mapZohoDeal(d) {
     dealName: d.Deal_Name,
     brandName: d.Deal_Name?.split(' — ')[0] || d.Deal_Name,
     stage: d.Stage,
-    pipeline: d.Pipeline?.name || (typeof d.Pipeline === 'string' ? d.Pipeline : ''),
+    pipeline: d.Pipeline?.name || d.Pipeline || '',
     repName: d.Owner?.name || 'Unknown',
     repEmail: d.Owner?.email || '',
 grade: (() => {
@@ -537,19 +529,6 @@ app.get('/api/users/all', requireAuth, async (c) => {
 // ─── DEALS ROUTES ───────────────────────────────────────
 app.get('/api/deals', requireAuth, async (c) => {
   try {
-    if (c.req.query('debug') === 'stages') {
-      const zohoResponse = await getDeals(c.env, { bothPipelines: true });
-      const raw = zohoResponse.data || [];
-      const first = raw[0] || {};
-      return c.json({
-        allKeys: Object.keys(first),
-        layoutField: first.Layout,
-        pipelineField: first.Pipeline,
-        stageField: first.Stage,
-        total: raw.length,
-      });
-    }
-
     const user = c.get('user');
     let effectiveUser = user;
     if (user.email === 'satyanarayan.sahoo@eshopbox.com') {
@@ -572,16 +551,11 @@ app.get('/api/deals', requireAuth, async (c) => {
       const cached = await c.env.TOKEN_CACHE.get('deals_cache');
       if (cached) return c.json(JSON.parse(cached));
     }
-    const isV3 = c.req.header('x-app-version') === 'v3' || c.req.query('v') === '3';
-    if (isV3 && c.req.query('refresh') === 'true') {
-      await c.env.TOKEN_CACHE.delete('v3_deals_cache');
-    }
-    const zohoResponse = await getDeals(c.env, { bothPipelines: isV3 });
+    const zohoResponse = await getDeals(c.env);
     if (!zohoResponse?.data) return c.json({ deals: [], total: 0 });
   let dealsList = zohoResponse.data
   .filter(d => VALID_STAGES.includes(d.Stage))
-  .map(mapZohoDeal)
-  .filter(d => d.pipeline === 'Mid-market' || d.pipeline === 'Enterprise 2.0');
+  .map(mapZohoDeal);
 
     if (effectiveUser.role === 'Sales rep') {
       dealsList = dealsList.filter(d => d.repEmail === effectiveUser.email);
