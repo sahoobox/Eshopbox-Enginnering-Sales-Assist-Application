@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
@@ -102,6 +102,8 @@ function PipelineList() {
     role === ROLES.SALES_LEAD_MIDMARKET ||
     role === ROLES.SALES_LEAD_ENTERPRISE
 
+  const filterBarRef = useRef(null)
+
   if (loading) return <div className="main"><Loading text="Fetching deals from Zoho CRM…" /></div>
   if (error) return (
     <div className="main">
@@ -127,12 +129,18 @@ function PipelineList() {
             <button className={pipelineFilter === 'enterprise' ? 'is-on' : ''} onClick={() => setPipelineFilter('enterprise')}>Enterprise</button>
           </div>
         )}
-        <div className="seg">
+        <div className="seg" style={{ marginLeft: 'auto' }}>
           <button className={view === 'kanban' ? 'is-on' : ''} onClick={() => setView('kanban')}>Kanban</button>
           <button className={view === 'list' ? 'is-on' : ''} onClick={() => setView('list')}>List</button>
         </div>
+      </div>
+
+      <div className="pipeline-searchbar">
+        <button className="pipeline-filter-trigger" onClick={() => filterBarRef.current?.openAdd()}>
+          🔍 + Add filter
+        </button>
         <input
-          className="search-input"
+          className="pipeline-searchbar-input"
           placeholder="Search brand or rep…"
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -140,6 +148,7 @@ function PipelineList() {
       </div>
 
       <FilterBar
+        ref={filterBarRef}
         filters={activeFilters}
         onChange={setActiveFilters}
         deals={deals}
@@ -158,7 +167,7 @@ function PipelineList() {
 }
 
 // ── Filter bar ────────────────────────────────────────────
-function FilterBar({ filters, onChange, deals, stages, isAdmin, isMidMarketLead, isEnterpriseLead }) {
+const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stages, isAdmin, isMidMarketLead, isEnterpriseLead }, ref) {
   const [open, setOpen] = useState(null)   // null | { mode: 'add'|'edit', id? }
   const [step, setStep] = useState('field')
   const [draft, setDraft] = useState(null)
@@ -172,6 +181,8 @@ function FilterBar({ filters, onChange, deals, stages, isAdmin, isMidMarketLead,
   }, [open])
 
   const close = () => { setOpen(null); setDraft(null); setStep('field') }
+
+  useImperativeHandle(ref, () => ({ openAdd }))
 
   let repDeals = deals
   if (isMidMarketLead) repDeals = deals.filter(d => d.pipeline === 'Mid-market')
@@ -264,8 +275,6 @@ function FilterBar({ filters, onChange, deals, stages, isAdmin, isMidMarketLead,
         </span>
       ))}
 
-      <button className="filter-add-btn" onClick={openAdd}>+ Add filter</button>
-
       {filters.length > 0 && (
         <button className="filter-clear-btn" onClick={() => onChange([])}>Clear all</button>
       )}
@@ -354,7 +363,7 @@ function FilterBar({ filters, onChange, deals, stages, isAdmin, isMidMarketLead,
       )}
     </div>
   )
-}
+})
 
 // ── Kanban view ───────────────────────────────────────────
 function KanbanView({ deals, pipelineFilter }) {
