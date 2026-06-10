@@ -22,7 +22,7 @@ export function useDeals() {
     }
   }, [authFetch])
 
-  useEffect(() => { fetchDeals() }, [fetchDeals])
+  useEffect(() => { fetchDeals(true) }, [fetchDeals])
 
   return { deals, loading, error, refetch: () => fetchDeals(true) }
 }

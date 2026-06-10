@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 
 const AuthContext = createContext(null)
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://eshopbox-sales-assist-backend.satyanarayan-sahoo.workers.dev'
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://eshopbox-sales-assist-v3-backend.satyanarayan-sahoo.workers.dev'
 
 // Role definitions
 export const ROLES = {

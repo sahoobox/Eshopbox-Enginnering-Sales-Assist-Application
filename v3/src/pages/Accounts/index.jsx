@@ -9,13 +9,12 @@ const MDE_EMAILS = [
   'sriya.komal@eshopbox.com',
   'mriganki.srivastava@eshopbox.com',
   'shubham.kumar@eshopbox.com',
+  'raghwendra.kumar@eshopbox.com',
 ]
 
 const AE_EMAILS = [
   'taufeeq.ahmad@eshopbox.com',
-  'sunil.sethi@eshopbox.com',
   'afzal.maknoo@eshopbox.com',
-  'raghwendra.kumar@eshopbox.com',
   'gautam@eshopbox.com',
   'jeevan.more@eshopbox.com',
 ]
