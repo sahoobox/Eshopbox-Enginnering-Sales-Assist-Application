@@ -33,6 +33,15 @@ app.get('/api/debug/leads', requireAuth, async (c) => {
   return c.json(data)
 })
 
+app.get('/api/debug/pipelines', async (c) => {
+  try {
+    const res = await zohoAPI(c.env, 'GET', '/settings/pipeline?layout_id=6483035000025962021')
+    return c.json(res)
+  } catch (err) {
+    return c.json({ error: err.message })
+  }
+})
+
 
 async function hashPassword(password) {
   const encoder = new TextEncoder();
