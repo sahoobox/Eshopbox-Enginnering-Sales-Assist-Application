@@ -531,17 +531,14 @@ app.get('/api/deals', requireAuth, async (c) => {
     if (c.req.query('debug') === 'stages') {
       const zohoResponse = await getDeals(c.env, { bothPipelines: true });
       const raw = zohoResponse.data || [];
-      const rawPipeline = raw.slice(0, 5).map(d => ({
-        dealName: d.Deal_Name,
-        rawPipeline: d.Pipeline,
-        pipelineType: typeof d.Pipeline,
-      }));
-      const mapped = raw.map(mapZohoDeal);
-      const stageCounts = {};
-      mapped.forEach(d => { stageCounts[d.stage] = (stageCounts[d.stage] || 0) + 1; });
-      const pipelineCounts = {};
-      mapped.forEach(d => { pipelineCounts[d.pipeline] = (pipelineCounts[d.pipeline] || 0) + 1; });
-      return c.json({ rawPipeline, stageCounts, pipelineCounts, total: mapped.length });
+      const first = raw[0] || {};
+      return c.json({
+        allKeys: Object.keys(first),
+        layoutField: first.Layout,
+        pipelineField: first.Pipeline,
+        stageField: first.Stage,
+        total: raw.length,
+      });
     }
 
     const user = c.get('user');
