@@ -25,6 +25,22 @@ app.use('*', cors({
 app.get('/', (c) => c.json({ status: 'ok', app: 'Eshopbox Sales Assist Backend' }));
 app.get('/test', (c) => c.json({ test: 'working' }));
 
+app.get('/api/debug/pipeline-counts', async (c) => {
+  try {
+    const cached = await c.env.TOKEN_CACHE.get('v3_deals_cache')
+    if (!cached) return c.json({ error: 'No cache — run /api/deals?refresh=true first' })
+    const deals = JSON.parse(cached)
+    const counts = {}
+    deals.forEach(d => {
+      const key = d.pipeline || 'empty'
+      counts[key] = (counts[key] || 0) + 1
+    })
+    return c.json({ counts, total: deals.length })
+  } catch(err) {
+    return c.json({ error: err.message })
+  }
+})
+
 app.get('/api/debug', async (c) => {
   try {
     const res = await zohoAPI(c.env, 'GET', '/Deals?per_page=200&page=1')
@@ -129,8 +145,8 @@ const MIDMARKET_STAGES = ['Upcoming Demo','Demo Done','Proposal Sent','Account S
 const ENTERPRISE_STAGES = ['Upcoming Demo','Demo Done','Proposal Sent','Follow up Meeting Done','On Hold','Won/Payment Received','Lost/Dropped'];
 const ALL_VALID_STAGES = [...new Set([...MIDMARKET_STAGES, ...ENTERPRISE_STAGES])];
 
-const MDE_EMAILS = ['sriya.komal@eshopbox.com','mriganki.srivastava@eshopbox.com','shubham.kumar@eshopbox.com'];
-const AE_EMAILS = ['taufeeq.ahmad@eshopbox.com','sunil.sethi@eshopbox.com','afzal.maknoo@eshopbox.com','raghwendra.kumar@eshopbox.com','gautam@eshopbox.com','jeevan.more@eshopbox.com'];
+const MDE_EMAILS = ['sriya.komal@eshopbox.com','mriganki.srivastava@eshopbox.com','shubham.kumar@eshopbox.com','raghwendra.kumar@eshopbox.com'];
+const AE_EMAILS = ['taufeeq.ahmad@eshopbox.com','afzal.maknoo@eshopbox.com','gautam@eshopbox.com','jeevan.more@eshopbox.com'];
 const MIDMARKET_ONLY_STAGES = ['Workspace Created','Account Setup in Progress','Awaiting First Shipment','First Shipment Done','Active','Handover to CSM','Inactive','Low order volume'];
 const ENTERPRISE_ONLY_STAGES = ['Demo Call Scheduled','Follow up Meeting Done','Deal Approved'];
 
@@ -2511,8 +2527,8 @@ function mapZohoTask(t) {
   }
 }
 
-const TASK_MDE_EMAILS = ['sriya.komal@eshopbox.com','mriganki.srivastava@eshopbox.com','shubham.kumar@eshopbox.com','umang.seth@eshopbox.com']
-const TASK_AE_EMAILS = ['taufeeq.ahmad@eshopbox.com','sunil.sethi@eshopbox.com','afzal.maknoo@eshopbox.com','raghwendra.kumar@eshopbox.com','gautam@eshopbox.com','jeevan.more@eshopbox.com']
+const TASK_MDE_EMAILS = ['sriya.komal@eshopbox.com','mriganki.srivastava@eshopbox.com','shubham.kumar@eshopbox.com','raghwendra.kumar@eshopbox.com']
+const TASK_AE_EMAILS = ['taufeeq.ahmad@eshopbox.com','afzal.maknoo@eshopbox.com','gautam@eshopbox.com','jeevan.more@eshopbox.com']
 
 app.get('/api/tasks', requireAuth, async (c) => {
   try {

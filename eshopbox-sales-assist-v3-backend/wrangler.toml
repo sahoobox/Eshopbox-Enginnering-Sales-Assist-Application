@@ -10,7 +10,7 @@ FRONTEND_URL = "https://eshopbox-sales-assist-v3.pages.dev"
 
 [[kv_namespaces]]
 binding = "TOKEN_CACHE"
-id = "0d637537ce58405394d96926e2895a42"
+id = "9a3ffbaf785a4e0ea30eafa18b28086a"
 
 [[d1_databases]]
 binding = "DB"
