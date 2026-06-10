@@ -528,6 +528,22 @@ app.get('/api/users/all', requireAuth, async (c) => {
 // ─── DEALS ROUTES ───────────────────────────────────────
 app.get('/api/deals', requireAuth, async (c) => {
   try {
+    if (c.req.query('debug') === 'stages') {
+      const zohoResponse = await getDeals(c.env, { bothPipelines: true });
+      const raw = zohoResponse.data || [];
+      const rawPipeline = raw.slice(0, 5).map(d => ({
+        dealName: d.Deal_Name,
+        rawPipeline: d.Pipeline,
+        pipelineType: typeof d.Pipeline,
+      }));
+      const mapped = raw.map(mapZohoDeal);
+      const stageCounts = {};
+      mapped.forEach(d => { stageCounts[d.stage] = (stageCounts[d.stage] || 0) + 1; });
+      const pipelineCounts = {};
+      mapped.forEach(d => { pipelineCounts[d.pipeline] = (pipelineCounts[d.pipeline] || 0) + 1; });
+      return c.json({ rawPipeline, stageCounts, pipelineCounts, total: mapped.length });
+    }
+
     const user = c.get('user');
     let effectiveUser = user;
     if (user.email === 'satyanarayan.sahoo@eshopbox.com') {
@@ -560,19 +576,6 @@ app.get('/api/deals', requireAuth, async (c) => {
   .filter(d => VALID_STAGES.includes(d.Stage))
   .map(mapZohoDeal)
   .filter(d => d.pipeline === 'Mid market' || d.pipeline === 'Enterprise 2.0');
-
-    if (c.req.query('debug') === 'stages') {
-      const rawPipeline = zohoResponse.data.slice(0, 3).map(d => ({
-        dealName: d.Deal_Name,
-        rawPipeline: d.Pipeline,
-        pipelineType: typeof d.Pipeline,
-      }))
-      const stageCounts = {}
-      dealsList.forEach(d => {
-        stageCounts[d.stage] = (stageCounts[d.stage] || 0) + 1
-      })
-      return c.json({ rawPipeline, stageCounts, total: dealsList.length })
-    }
 
     if (effectiveUser.role === 'Sales rep') {
       dealsList = dealsList.filter(d => d.repEmail === effectiveUser.email);
