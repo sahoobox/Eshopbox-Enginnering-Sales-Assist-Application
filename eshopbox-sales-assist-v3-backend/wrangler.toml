@@ -1,0 +1,21 @@
+name = "eshopbox-sales-assist-v3-backend"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+account_id = "e092a59bfb57a3a9bd5b86f8f1e94430"
+
+[vars]
+ZOHO_API_BASE = "https://www.zohoapis.com/crm/v2"
+ZOHO_ACCOUNTS_URL = "https://accounts.zoho.com"
+FRONTEND_URL = "https://eshopbox-sales-assist-v3.pages.dev"
+
+[[kv_namespaces]]
+binding = "TOKEN_CACHE"
+id = "0d637537ce58405394d96926e2895a42"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "eshopbox-sales-assist"
+database_id = "a093fe4e-f9cc-4130-8bd9-d2067ba9a242"
+
+[triggers]
+crons = ["0 4 * * *", "*/30 * * * *"]
