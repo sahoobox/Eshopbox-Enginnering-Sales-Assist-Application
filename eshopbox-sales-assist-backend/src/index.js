@@ -12,9 +12,14 @@ import { sendGmailEmail, sendGmailEmailWithToken, createGmailDraft, checkDraftSe
 const app = new Hono();
 
 app.use('*', cors({
-  origin: '*',
+  origin: [
+    'https://eshopbox-sales-assist.pages.dev',
+    'https://eshopbox-sales-assist-v3.pages.dev',
+    'https://salesassist.eshopbox.com',
+    'http://localhost:5173',
+  ],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'x-view-as-email'],
+  allowHeaders: ['Content-Type', 'Authorization', 'x-view-as-email', 'x-app-version'],
 }));
 
 app.get('/', (c) => c.json({ status: 'ok', app: 'Eshopbox Sales Assist Backend' }));
