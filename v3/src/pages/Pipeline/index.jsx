@@ -374,7 +374,7 @@ function KanbanView({ deals, pipelineFilter }) {
     : SME_STAGES
 
   return (
-    <div className="kanban-wrap">
+    <div className="kanban-wrap" style={{ overflowX: 'auto' }}>
       <div className="kanban">
         {stages.map(stage => {
           const stageDeals = deals.filter(d => d.stage === stage)
