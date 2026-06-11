@@ -196,7 +196,9 @@ function ActivityTab({ deal }) {
   if (activities.length === 0) {
     return (
       <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>
-        No activity yet on this deal.
+        {deal.saLogged
+          ? 'Activities are loaded from Zoho CRM. If none appear, there may be no logged activities in Zoho for this deal.'
+          : 'No activity yet on this deal.'}
       </div>
     )
   }
@@ -514,14 +516,14 @@ function SequenceTab({ emails, deal }) {
             {email.body?.replace(/<[^>]+>/g, '')}
           </div>
         )}
-        {email.status === 'draft' && (
-          <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+        <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+          {email.status === 'draft' && (
             <button className="btn btn-sm btn-primary">Create Gmail Draft</button>
-            <button className="btn btn-sm" onClick={() => setExpanded(e => !e)}>
-              {expanded ? 'Collapse' : 'Expand'}
-            </button>
-          </div>
-        )}
+          )}
+          <button className="btn btn-sm" onClick={() => setExpanded(e => !e)}>
+            {expanded ? 'Collapse' : 'Expand'}
+          </button>
+        </div>
         {email.status === 'sent' && (
           <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ok)' }}>✓ Sent {formatDate(email.sent_at)}</div>
         )}
@@ -539,17 +541,21 @@ function SequenceTab({ emails, deal }) {
 }
 
 function CoachTab({ deal }) {
+  const d = deal.demoInfo
   const gradeColor = { A: 'ok', B: 'info', C: 'warn', D: 'danger' }
+
   const scoreItems = [
-    { label: 'Pain Clarity', max: 3, key: 'painClarity' },
-    { label: 'DM Present', max: 3, key: 'dmPresent' },
-    { label: 'Budget Signal', max: 2, key: 'budgetSignal' },
-    { label: 'Purchase Timeline', max: 3, key: 'purchaseTimeline' },
-    { label: 'Engagement Level', max: 2, key: 'engagementLevel' },
-    { label: 'Champion Strength', max: 2, key: 'championStrength' },
-    { label: 'Next Step', max: 2, key: 'nextStep' },
-    { label: 'In-person Meeting', max: 2, key: 'inPersonMeeting' },
+    { label: 'Pain Clarity', score: parseInt(d?.painClarity) || 0, max: 3 },
+    { label: 'DM Present', score: parseInt(d?.dmPresent) || 0, max: 3 },
+    { label: 'Budget Signal', score: parseInt(d?.budgetSignal) || 0, max: 2 },
+    { label: 'Purchase Timeline', score: parseInt(d?.purchaseTimeline) || 0, max: 3 },
+    { label: 'Engagement', score: parseInt(d?.engagementLevel) || 0, max: 2 },
+    { label: 'Champion Strength', score: parseInt(d?.championStrength) || 0, max: 2 },
+    { label: 'Next Step', score: parseInt(d?.nextStep) || 0, max: 2 },
+    { label: 'In-person Meeting', score: deal.f2fCount > 0 ? 2 : 0, max: 2 },
   ]
+  const totalScore = d?.score || deal.score || 0
+  const grade = d?.grade || deal.grade || 'D'
 
   if (!deal.saLogged) {
     return (
@@ -559,47 +565,69 @@ function CoachTab({ deal }) {
     )
   }
 
+  const aiAnalysis = d?.aiAnalysis || ''
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+      {/* Grade + Score tiles */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div className="card card-pad" style={{ borderLeft: `3px solid var(--${gradeColor[deal.grade] || 'neutral'})` }}>
-          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Overall Grade</div>
-          <div className={`kc-grade kc-grade-${(deal.grade || 'd').toLowerCase()}`} style={{ marginTop: 4, width: 32, height: 32, fontSize: 14 }}>{deal.grade || '—'}</div>
+        <div className="card card-pad" style={{ borderLeft: `3px solid var(--${gradeColor[grade] || 'neutral'})` }}>
+          <div style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: 1 }}>Deal Grade</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
+            <span className={`kc-grade kc-grade-${grade.toLowerCase()}`} style={{ width: 32, height: 32, fontSize: 15 }}>{grade}</span>
+            <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+              {grade === 'A' ? '55–70% close probability' : grade === 'B' ? '30–50% close probability' : grade === 'C' ? '10–25% close probability' : '<10% close probability'}
+            </span>
+          </div>
         </div>
         <div className="card card-pad">
-          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Total Score</div>
-          <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>{deal.score || 0}<span style={{ fontSize: 13, color: 'var(--ink-3)', fontWeight: 400 }}>/22</span></div>
-        </div>
-        <div className="card card-pad">
-          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Forecast Probability</div>
-          <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>{deal.forecastProbability || 0}%</div>
-        </div>
-        <div className="card card-pad">
-          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Segment</div>
-          <div style={{ fontSize: 15, fontWeight: 600, marginTop: 4 }}>{deal.segment || '—'}</div>
+          <div style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: 1 }}>Total Score</div>
+          <div style={{ fontSize: 26, fontWeight: 700, marginTop: 6 }}>
+            {totalScore}<span style={{ fontSize: 13, color: 'var(--ink-3)', fontWeight: 400 }}> / 22</span>
+          </div>
         </div>
       </div>
+
+      {/* Score breakdown - graphical */}
       <div className="card">
         <div className="ws-side-head"><h4>Score Breakdown</h4></div>
-        <div className="ws-side-body">
+        <div style={{ padding: '8px 16px 16px' }}>
           {scoreItems.map(item => (
-            <div key={item.key} className="ws-side-row">
-              <span className="k">{item.label}</span>
-              <span className="v" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{
-                  display: 'inline-block',
-                  width: `${((deal[item.key] || 0) / item.max) * 60}px`,
-                  height: 6,
-                  background: 'var(--accent)',
+            <div key={item.label} style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>{item.label}</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: item.score === 0 ? 'var(--ink-3)' : 'var(--ink)' }}>
+                  {item.score}/{item.max}
+                </span>
+              </div>
+              <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%',
+                  width: `${(item.score / item.max) * 100}%`,
+                  background: item.score === item.max ? 'var(--ok)' : item.score > 0 ? 'var(--brand)' : 'var(--surface-2)',
                   borderRadius: 3,
-                  minWidth: 2
+                  transition: 'width 0.3s ease'
                 }} />
-                {deal[item.key] || 0}/{item.max}
-              </span>
+              </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* AI Coach Recommendations */}
+      {aiAnalysis ? (
+        <div className="card card-pad">
+          <div className="ws-side-head" style={{ marginBottom: 12 }}><h4>Coach Recommendations</h4></div>
+          <div style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--ink-2)', whiteSpace: 'pre-wrap' }}>
+            {aiAnalysis}
+          </div>
+        </div>
+      ) : (
+        <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>
+          No coach recommendations stored for this demo.
+        </div>
+      )}
     </div>
   )
 }
@@ -1031,7 +1059,7 @@ function F2FModal({ deal, onClose }) {
         <div className="modal-body">
           <div style={{ marginBottom: 12 }}>
             <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Meeting Date *</label>
-            <input type="date" value={date} max={today} onChange={e => setDate(e.target.value)} className="input" style={{ width: '100%' }} />
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input" style={{ width: '100%' }} />
           </div>
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Notes</label>
