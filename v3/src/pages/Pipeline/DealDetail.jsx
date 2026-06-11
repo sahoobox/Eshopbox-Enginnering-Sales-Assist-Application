@@ -10,6 +10,10 @@ export default function DealDetail({ dealId }) {
   const navigate = useNavigate()
   const { deal, emails, loading, error } = useDeal(dealId)
   const [tab, setTab] = useState('activity')
+  const [showDemoForm, setShowDemoForm] = useState(false)
+  const [showF2FForm, setShowF2FForm] = useState(false)
+  const [showMarkLost, setShowMarkLost] = useState(false)
+  const [showMarkOnHold, setShowMarkOnHold] = useState(false)
 
   if (loading) return <div className="main"><Loading text="Loading deal…" /></div>
   if (error || !deal) return (
@@ -56,8 +60,14 @@ export default function DealDetail({ dealId }) {
         <div className="hdr-meta">
           {!isTerminal && (
             <>
-              <button className="btn btn-sm btn-danger">Mark Lost</button>
-              <button className="btn btn-sm">Mark on Hold</button>
+              {!deal.saLogged && (
+                <button className="btn btn-sm btn-primary" onClick={() => setShowDemoForm(true)}>+ Log Demo</button>
+              )}
+              {deal.saLogged && (
+                <button className="btn btn-sm" onClick={() => setShowF2FForm(true)}>+ Log F2F</button>
+              )}
+              <button className="btn btn-sm btn-danger" onClick={() => setShowMarkLost(true)}>Mark Lost</button>
+              <button className="btn btn-sm" onClick={() => setShowMarkOnHold(true)}>Mark on Hold</button>
             </>
           )}
         </div>
@@ -111,6 +121,11 @@ export default function DealDetail({ dealId }) {
               { id: 'emails', label: 'Emails', count: emails.length },
               { id: 'tasks', label: 'Tasks', count: deal.tasks?.length },
               { id: 'flags', label: 'Flags', count: deal.flags?.length },
+              { id: 'demo', label: 'Demo Info' },
+              { id: 'sequence', label: 'Sequence' },
+              { id: 'coach', label: 'Coach' },
+              { id: 'notes', label: 'Notes' },
+              { id: 'contact', label: 'Contact' },
             ].map(t => (
               <button key={t.id} className={`tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
                 {t.label}
@@ -123,6 +138,11 @@ export default function DealDetail({ dealId }) {
           {tab === 'emails' && <EmailsTab emails={emails} deal={deal} />}
           {tab === 'tasks' && <TasksTab dealId={deal.id} />}
           {tab === 'flags' && <FlagsTab deal={deal} />}
+          {tab === 'demo' && <DemoInfoTab deal={deal} />}
+          {tab === 'sequence' && <SequenceTab emails={emails} deal={deal} />}
+          {tab === 'coach' && <CoachTab deal={deal} />}
+          {tab === 'notes' && <NotesTab dealId={deal.id} />}
+          {tab === 'contact' && <ContactTab deal={deal} />}
         </div>
 
         {/* Right — side panel */}
@@ -159,6 +179,10 @@ export default function DealDetail({ dealId }) {
           </div>
         </div>
       </div>
+      {showDemoForm && <DemoFormModal deal={deal} onClose={() => setShowDemoForm(false)} onSuccess={() => { setShowDemoForm(false); window.location.reload() }} />}
+      {showF2FForm && <F2FModal deal={deal} onClose={() => setShowF2FForm(false)} />}
+      {showMarkLost && <MarkLostModal deal={deal} onClose={() => setShowMarkLost(false)} onSuccess={() => { setShowMarkLost(false); window.location.reload() }} />}
+      {showMarkOnHold && <MarkOnHoldModal deal={deal} onClose={() => setShowMarkOnHold(false)} onSuccess={() => { setShowMarkOnHold(false); window.location.reload() }} />}
     </div>
   )
 }
@@ -351,6 +375,612 @@ function FlagsTab({ deal }) {
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+function DemoInfoTab({ deal }) {
+  if (!deal.saLogged) {
+    return (
+      <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>
+        No demo logged yet. Click "+ Log Demo" to log a demo.
+      </div>
+    )
+  }
+  return (
+    <div className="card">
+      <div className="ws-side-head"><h4>Demo Info</h4></div>
+      <div className="ws-side-body">
+        {[
+          { k: 'Demo Date', v: formatDate(deal.demoDate) },
+          { k: 'Demo Format', v: deal.demoFormat || '—' },
+          { k: 'Solution Interest', v: deal.solutionInterest || '—' },
+          { k: 'Order Volume', v: deal.orderVolume || '—' },
+          { k: 'Pain Points', v: deal.painPoints || '—' },
+          { k: 'Pricing Raised', v: deal.pricingRaised ? 'Yes' : 'No' },
+          { k: 'F2F Count', v: deal.f2fCount || 0 },
+          { k: 'Follow-up Meeting', v: formatDate(deal.followupMeetingDate) },
+          { k: 'OMS', v: deal.oms || '—' },
+          { k: 'Shopping Cart', v: deal.shoppingCart || '—' },
+          { k: 'Current Shipping', v: deal.currentShipping || '—' },
+          { k: 'Current Warehousing', v: deal.currentWarehousing || '—' },
+          { k: 'Grade', v: deal.grade || '—' },
+          { k: 'Score', v: deal.score || '—' },
+          { k: 'Logged At', v: deal.loggedAt ? formatDate(deal.loggedAt) : 'Logged before V3' },
+        ].map(row => (
+          <div key={row.k} className="ws-side-row">
+            <span className="k">{row.k}</span>
+            <span className="v">{row.v}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SequenceTab({ emails, deal }) {
+  const typeLabel = {
+    day1: 'Day 1 · Personalised Recap',
+    day2: 'Day 2 · Pricing Proposal',
+    day3: 'Day 3 · ROI Value',
+    day4: 'Day 4 · Objection Handling',
+    nudge: 'Mtg +7 · Nudge'
+  }
+  const statusPill = { sent: 'pill-ok', scheduled: 'pill-info', draft: 'pill-neutral', failed: 'pill-danger' }
+
+  if (!deal.saLogged) {
+    return (
+      <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>
+        Log the demo to generate email sequence.
+      </div>
+    )
+  }
+
+  if (emails.length === 0) {
+    return (
+      <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>
+        No email drafts yet. They will be generated after logging demo.
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {emails.map(email => (
+        <div key={email.id} className="card card-pad">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <b style={{ fontSize: 13.5 }}>{typeLabel[email.email_type] || email.email_type}</b>
+            <span className={`pill ${statusPill[email.status] || 'pill-neutral'}`}>{email.status}</span>
+            <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--ink-3)' }}>{formatDate(email.scheduled_for)}</span>
+          </div>
+          {email.subject && <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>{email.subject}</div>}
+          {email.body && (
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.5, maxHeight: 80, overflow: 'hidden' }}>
+              {email.body?.replace(/<[^>]+>/g, '').slice(0, 300)}…
+            </div>
+          )}
+          {email.status === 'draft' && (
+            <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+              <button className="btn btn-sm btn-primary">Create Gmail Draft</button>
+              <button className="btn btn-sm">Edit</button>
+            </div>
+          )}
+          {email.status === 'sent' && (
+            <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ok)' }}>✓ Sent {formatDate(email.sent_at)}</div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function CoachTab({ deal }) {
+  const gradeColor = { A: 'ok', B: 'info', C: 'warn', D: 'danger' }
+  const scoreItems = [
+    { label: 'Pain Clarity', max: 3, key: 'painClarity' },
+    { label: 'DM Present', max: 3, key: 'dmPresent' },
+    { label: 'Budget Signal', max: 2, key: 'budgetSignal' },
+    { label: 'Purchase Timeline', max: 3, key: 'purchaseTimeline' },
+    { label: 'Engagement Level', max: 2, key: 'engagementLevel' },
+    { label: 'Champion Strength', max: 2, key: 'championStrength' },
+    { label: 'Next Step', max: 2, key: 'nextStep' },
+    { label: 'In-person Meeting', max: 2, key: 'inPersonMeeting' },
+  ]
+
+  if (!deal.saLogged) {
+    return (
+      <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>
+        Log the demo to see coach recommendations.
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div className="card card-pad" style={{ borderLeft: `3px solid var(--${gradeColor[deal.grade] || 'neutral'})` }}>
+          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Overall Grade</div>
+          <div className={`kc-grade kc-grade-${(deal.grade || 'd').toLowerCase()}`} style={{ marginTop: 4, width: 32, height: 32, fontSize: 14 }}>{deal.grade || '—'}</div>
+        </div>
+        <div className="card card-pad">
+          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Total Score</div>
+          <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>{deal.score || 0}<span style={{ fontSize: 13, color: 'var(--ink-3)', fontWeight: 400 }}>/22</span></div>
+        </div>
+        <div className="card card-pad">
+          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Forecast Probability</div>
+          <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>{deal.forecastProbability || 0}%</div>
+        </div>
+        <div className="card card-pad">
+          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Segment</div>
+          <div style={{ fontSize: 15, fontWeight: 600, marginTop: 4 }}>{deal.segment || '—'}</div>
+        </div>
+      </div>
+      <div className="card">
+        <div className="ws-side-head"><h4>Score Breakdown</h4></div>
+        <div className="ws-side-body">
+          {scoreItems.map(item => (
+            <div key={item.key} className="ws-side-row">
+              <span className="k">{item.label}</span>
+              <span className="v" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{
+                  display: 'inline-block',
+                  width: `${((deal[item.key] || 0) / item.max) * 60}px`,
+                  height: 6,
+                  background: 'var(--accent)',
+                  borderRadius: 3,
+                  minWidth: 2
+                }} />
+                {deal[item.key] || 0}/{item.max}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function NotesTab({ dealId }) {
+  const { authFetch } = useAuth()
+  const [notes, setNotes] = useState([])
+  const [newNote, setNewNote] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    authFetch(`/api/deals/${dealId}/notes`)
+      .then(r => r.json())
+      .then(d => setNotes(d.notes || []))
+      .finally(() => setLoading(false))
+  }, [dealId])
+
+  async function addNote() {
+    if (!newNote.trim()) return
+    setSaving(true)
+    try {
+      const res = await authFetch(`/api/deals/${dealId}/notes`, {
+        method: 'POST',
+        body: JSON.stringify({ content: newNote })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setNotes(prev => [data.note, ...prev])
+        setNewNote('')
+      }
+    } finally { setSaving(false) }
+  }
+
+  if (loading) return <div className="card card-pad" style={{ color: 'var(--ink-3)' }}>Loading notes…</div>
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="card card-pad">
+        <textarea
+          value={newNote}
+          onChange={e => setNewNote(e.target.value)}
+          placeholder="Add a note…"
+          style={{ width: '100%', minHeight: 80, border: 'none', outline: 'none', resize: 'vertical', fontSize: 13, fontFamily: 'inherit', background: 'transparent' }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <button className="btn btn-sm btn-primary" onClick={addNote} disabled={saving || !newNote.trim()}>
+            {saving ? 'Saving…' : 'Add note'}
+          </button>
+        </div>
+      </div>
+      {notes.length === 0 ? (
+        <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>No notes yet.</div>
+      ) : (
+        notes.map((note, i) => (
+          <div key={i} className="card card-pad">
+            <div style={{ fontSize: 13, lineHeight: 1.6 }}>{note.content}</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 6 }}>
+              {note.authorName} · {formatDate(note.createdAt)}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  )
+}
+
+function ContactTab({ deal }) {
+  return (
+    <div className="card">
+      <div className="ws-side-head"><h4>Contact Details</h4></div>
+      <div className="ws-side-body">
+        {[
+          { k: 'Name', v: deal.contactName || '—' },
+          { k: 'Email', v: deal.contactEmail || '—' },
+          { k: 'Phone', v: deal.contactPhone || '—' },
+          { k: 'Company', v: deal.brandName || deal.dealName || '—' },
+        ].map(row => (
+          <div key={row.k} className="ws-side-row">
+            <span className="k">{row.k}</span>
+            <span className="v">{row.v}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Modal components ────────────────────────────────────────
+
+function MarkLostModal({ deal, onClose, onSuccess }) {
+  const { authFetch } = useAuth()
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function submit() {
+    if (!reason.trim()) return alert('Please enter a reason')
+    setSaving(true)
+    try {
+      const res = await authFetch(`/api/deals/${deal.id}/stage`, {
+        method: 'PATCH',
+        body: JSON.stringify({ stage: 'Lost/Dropped', reason })
+      })
+      const data = await res.json()
+      if (data.success) onSuccess()
+      else alert(data.error || 'Failed to mark lost')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-head"><h3>Mark as Lost</h3><button className="btn-close" onClick={onClose}>✕</button></div>
+        <div className="modal-body">
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>Loss Reason *</label>
+            <select value={reason} onChange={e => setReason(e.target.value)} className="input" style={{ width: '100%' }}>
+              <option value="">Select reason…</option>
+              <option>No business/requirement</option>
+              <option>Price too high</option>
+              <option>Chose competitor</option>
+              <option>No response</option>
+              <option>Low order volume</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-danger" onClick={submit} disabled={saving || !reason}>
+            {saving ? 'Saving…' : 'Mark Lost'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MarkOnHoldModal({ deal, onClose, onSuccess }) {
+  const { authFetch } = useAuth()
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function submit() {
+    if (!reason.trim()) return alert('Please enter a reason')
+    setSaving(true)
+    try {
+      const res = await authFetch(`/api/deals/${deal.id}/stage`, {
+        method: 'PATCH',
+        body: JSON.stringify({ stage: 'On Hold', reason })
+      })
+      const data = await res.json()
+      if (data.success) onSuccess()
+      else alert(data.error || 'Failed to mark on hold')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-head"><h3>Mark as On Hold</h3><button className="btn-close" onClick={onClose}>✕</button></div>
+        <div className="modal-body">
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>Hold Reason *</label>
+            <input
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              placeholder="Enter reason for hold…"
+              className="input"
+              style={{ width: '100%' }}
+            />
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving || !reason}>
+            {saving ? 'Saving…' : 'Mark On Hold'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DemoFormModal({ deal, onClose, onSuccess }) {
+  const { authFetch } = useAuth()
+  const [step, setStep] = useState(1)
+  const [saving, setSaving] = useState(false)
+  const today = new Date().toISOString().split('T')[0]
+
+  const [form, setForm] = useState({
+    zohoId: deal.id,
+    demoDate: today,
+    solutionInterest: '',
+    orderVolume: deal.orderVolume || '',
+    brandType: '',
+    painClarity: '',
+    dmPresent: '',
+    budgetSignal: '',
+    purchaseTimeline: '',
+    engagementLevel: '',
+    championStrength: '',
+    nextStep: '',
+    demoFormat: 'virtual',
+    pricingRaisedInDemo: 'no',
+    followupMeetingDate: '',
+    shippingPains: [],
+    warehousingPains: [],
+    oms: '',
+    shoppingCart: '',
+    shippingSetup: '',
+    warehousingSetup: '',
+  })
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  async function submit() {
+    setSaving(true)
+    try {
+      const res = await authFetch('/api/deals/sync', {
+        method: 'POST',
+        body: JSON.stringify(form)
+      })
+      const data = await res.json()
+      if (data.success) onSuccess()
+      else alert(data.error || 'Failed to log demo')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" style={{ maxWidth: 560, width: '90vw' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3>Log Demo · Step {step}/3</h3>
+          <button className="btn-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+
+          {step === 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>
+                  Demo Date *
+                  <span style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 400, marginLeft: 6 }}>
+                    ⚠ Please ensure this is the actual date of your meeting
+                  </span>
+                </label>
+                <input
+                  type="date"
+                  value={form.demoDate}
+                  max={today}
+                  onChange={e => set('demoDate', e.target.value)}
+                  className="input"
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Solution Interest *</label>
+                <select value={form.solutionInterest} onChange={e => set('solutionInterest', e.target.value)} className="input" style={{ width: '100%' }}>
+                  <option value="">Select…</option>
+                  <option value="shipping">Shipping</option>
+                  <option value="warehousing">Warehousing</option>
+                  <option value="both">Both</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Order Volume</label>
+                <select value={form.orderVolume} onChange={e => set('orderVolume', e.target.value)} className="input" style={{ width: '100%' }}>
+                  <option value="">Select…</option>
+                  <option>New store / not shipping orders yet</option>
+                  <option>1 - 500 orders/month</option>
+                  <option>501 - 3,000 orders/month</option>
+                  <option>3,001 - 10,000 orders/month</option>
+                  <option>More than 10,000 orders/month</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Demo Format</label>
+                <select value={form.demoFormat} onChange={e => set('demoFormat', e.target.value)} className="input" style={{ width: '100%' }}>
+                  <option value="virtual">Virtual</option>
+                  <option value="inperson">In-person</option>
+                  <option value="hybrid">Hybrid</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Pain Clarity</label>
+                <select value={form.painClarity} onChange={e => set('painClarity', e.target.value)} className="input" style={{ width: '100%' }}>
+                  <option value="">Select…</option>
+                  <option value="3">Clear (3)</option>
+                  <option value="1">Vague (1)</option>
+                  <option value="0">None (0)</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Decision Maker Present</label>
+                <select value={form.dmPresent} onChange={e => set('dmPresent', e.target.value)} className="input" style={{ width: '100%' }}>
+                  <option value="">Select…</option>
+                  <option value="3">Yes (3)</option>
+                  <option value="1">Champion (1)</option>
+                  <option value="0">Unknown (0)</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Budget Signal</label>
+                <select value={form.budgetSignal} onChange={e => set('budgetSignal', e.target.value)} className="input" style={{ width: '100%' }}>
+                  <option value="">Select…</option>
+                  <option value="2">Confirmed (2)</option>
+                  <option value="1">Implied (1)</option>
+                  <option value="0">None (0)</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Purchase Timeline</label>
+                <select value={form.purchaseTimeline} onChange={e => set('purchaseTimeline', e.target.value)} className="input" style={{ width: '100%' }}>
+                  <option value="">Select…</option>
+                  <option value="3">This month (3)</option>
+                  <option value="2">This quarter (2)</option>
+                  <option value="1">6 months (1)</option>
+                  <option value="0">Unknown (0)</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Engagement Level</label>
+                <select value={form.engagementLevel} onChange={e => set('engagementLevel', e.target.value)} className="input" style={{ width: '100%' }}>
+                  <option value="">Select…</option>
+                  <option value="2">High (2)</option>
+                  <option value="1">Medium (1)</option>
+                  <option value="0">Low (0)</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Pricing Raised in Demo?</label>
+                <select value={form.pricingRaisedInDemo} onChange={e => set('pricingRaisedInDemo', e.target.value)} className="input" style={{ width: '100%' }}>
+                  <option value="no">No</option>
+                  <option value="yes">Yes</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Next Step</label>
+                <select value={form.nextStep} onChange={e => set('nextStep', e.target.value)} className="input" style={{ width: '100%' }}>
+                  <option value="">Select…</option>
+                  <option value="2">Booked (2)</option>
+                  <option value="1">Vague (1)</option>
+                  <option value="0">None (0)</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Follow-up Meeting Date</label>
+                <input
+                  type="date"
+                  value={form.followupMeetingDate}
+                  onChange={e => set('followupMeetingDate', e.target.value)}
+                  className="input"
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>OMS Used</label>
+                <input value={form.oms} onChange={e => set('oms', e.target.value)} placeholder="e.g. Unicommerce" className="input" style={{ width: '100%' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Shopping Cart</label>
+                <input value={form.shoppingCart} onChange={e => set('shoppingCart', e.target.value)} placeholder="e.g. Shopify" className="input" style={{ width: '100%' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Brand Type</label>
+                <select value={form.brandType} onChange={e => set('brandType', e.target.value)} className="input" style={{ width: '100%' }}>
+                  <option value="">Select…</option>
+                  <option value="small">Small</option>
+                  <option value="scaling">Scaling</option>
+                  <option value="enterprise">Enterprise</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+        </div>
+        <div className="modal-foot">
+          {step > 1 && <button className="btn" onClick={() => setStep(s => s - 1)}>← Back</button>}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+            <button className="btn" onClick={onClose}>Cancel</button>
+            {step < 3
+              ? <button className="btn btn-primary" onClick={() => setStep(s => s + 1)}>Next →</button>
+              : <button className="btn btn-primary" onClick={submit} disabled={saving}>
+                  {saving ? 'Logging…' : 'Log Demo ✓'}
+                </button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function F2FModal({ deal, onClose }) {
+  const { authFetch } = useAuth()
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const today = new Date().toISOString().split('T')[0]
+
+  async function submit() {
+    setSaving(true)
+    try {
+      const res = await authFetch(`/api/deals/${deal.id}/f2f`, {
+        method: 'POST',
+        body: JSON.stringify({ date, notes })
+      })
+      const data = await res.json()
+      if (data.success) onClose()
+      else alert(data.error || 'Failed to log F2F')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-head"><h3>Log F2F Meeting</h3><button className="btn-close" onClick={onClose}>✕</button></div>
+        <div className="modal-body">
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Meeting Date *</label>
+            <input type="date" value={date} max={today} onChange={e => setDate(e.target.value)} className="input" style={{ width: '100%' }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Notes</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Meeting notes…" className="input" style={{ width: '100%', minHeight: 80, resize: 'vertical' }} />
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving}>
+            {saving ? 'Saving…' : 'Log F2F'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
