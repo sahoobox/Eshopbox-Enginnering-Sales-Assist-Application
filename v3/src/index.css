@@ -30,7 +30,8 @@
 
 /* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; }
+html, body { margin: 0; padding: 0; height: 100%; }
+#root { height: 100%; }
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--bg);
@@ -49,19 +50,15 @@ p { margin: 0; }
 /* ── Layout ── */
 .app {
   display: flex;
-  grid-template-columns: var(--sidebar-width) 1fr;
   height: 100vh;
-  width: 100vw;
   overflow: hidden;
 }
 .main {
   flex: 1;
-  padding: 24px 16px 60px 32px;
-  max-width: 1500px;
   overflow-y: auto;
   overflow-x: hidden;
   height: 100vh;
-  box-sizing: border-box;
+  min-width: 0;
 }
 
 /* ── Sidebar ── */
@@ -205,33 +202,36 @@ p { margin: 0; }
 
 /* ── Topbar ── */
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--surface);
+  padding: 16px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 18px;
-  gap: 16px;
-  flex-wrap: nowrap;
   width: 100%;
-  padding-right: 16px;
+  box-sizing: border-box;
 }
 .controls-row {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: nowrap;
-  width: 100%;
-  overflow: visible;
+  padding: 0 24px;
   margin-bottom: 10px;
+  width: 100%;
+  box-sizing: border-box;
 }
 .pipeline-searchbar {
   display: flex;
   align-items: center;
-  width: 100%;
+  width: calc(100% - 48px);
+  margin: 0 24px 10px;
   height: 40px;
   border: 1px solid var(--line-2);
   border-radius: var(--radius-sm);
   background: var(--surface);
-  margin-bottom: 10px;
   overflow: hidden;
 }
 .pipeline-filter-trigger {
@@ -645,12 +645,13 @@ table.t tr:hover td { background: #faf9f7; }
 .kanban-wrap {
   overflow-x: auto;
   overflow-y: hidden;
+  padding: 0 24px 24px;
   width: 100%;
-  padding-bottom: 12px;
+  box-sizing: border-box;
 }
 .kanban-wrap::-webkit-scrollbar { height: 8px; }
 .kanban-wrap::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; }
-.kanban { display: flex; gap: 10px; margin-top: 4px; min-width: max-content; }
+.kanban { display: flex; gap: 12px; width: max-content; }
 
 .kcol {
   background: var(--surface-2);

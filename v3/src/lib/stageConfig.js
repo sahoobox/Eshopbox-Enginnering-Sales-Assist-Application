@@ -14,6 +14,7 @@ export const SME_STAGES = [
 ]
 
 export const ENT_STAGES = [
+  'Upcoming Demo',
   'Demo Done',
   'Proposal Sent',
   'Follow up Meeting Done',
