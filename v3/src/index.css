@@ -51,16 +51,15 @@ p { margin: 0; }
 .app {
   display: flex;
   height: 100vh;
-  width: 100%;
   overflow: hidden;
 }
 .main {
   flex: 1;
-  min-width: 0;
-  width: 0;
-  height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
+  height: 100vh;
+  min-width: 0;
+  padding-left: 16px;
 }
 
 /* ── Sidebar ── */
@@ -68,7 +67,7 @@ p { margin: 0; }
   background: var(--surface);
   border-right: 1px solid var(--line);
   padding: 16px 14px;
-  width: 180px;
+  width: var(--sidebar-width);
   flex-shrink: 0;
   height: 100vh;
   display: flex;
@@ -212,18 +211,16 @@ p { margin: 0; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: nowrap;
-  white-space: nowrap;
   width: 100%;
   box-sizing: border-box;
 }
 .controls-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   flex-wrap: nowrap;
   padding: 0 16px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -231,8 +228,7 @@ p { margin: 0; }
   display: flex;
   align-items: center;
   width: calc(100% - 32px);
-  margin: 0 16px 8px;
-  box-sizing: border-box;
+  margin: 0 16px 10px;
   height: 40px;
   border: 1px solid var(--line-2);
   border-radius: var(--radius-sm);
@@ -650,22 +646,21 @@ table.t tr:hover td { background: #faf9f7; }
 .kanban-wrap {
   overflow-x: auto;
   overflow-y: hidden;
+  padding: 0 16px 16px;
   width: 100%;
-  padding: 0 16px 24px;
   box-sizing: border-box;
 }
 .kanban-wrap::-webkit-scrollbar { height: 8px; }
 .kanban-wrap::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; }
-.kanban { display: flex; flex-wrap: nowrap; gap: 12px; width: max-content; min-width: 100%; }
+.kanban { display: flex; gap: 8px; width: max-content; }
 
 .kcol {
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   display: flex; flex-direction: column;
-  flex: 0 0 clamp(200px, 18vw, 260px);
-  min-width: 200px;
-  max-width: 260px;
+  width: 220px; min-width: 220px;
+  flex-shrink: 0;
   min-height: 120px;
 }
 .kcol-head {
@@ -792,7 +787,6 @@ table.t tr:hover td { background: #faf9f7; }
 .seg button {
   background: transparent; border: none; padding: 6px 12px; font-size: 12.5px;
   font-weight: 500; color: var(--ink-2); border-radius: 6px; cursor: pointer; font-family: inherit;
-  white-space: nowrap; flex-shrink: 0;
 }
 .seg button:hover { color: var(--ink); }
 .seg button.is-on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-1); }
