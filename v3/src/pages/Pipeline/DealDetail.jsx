@@ -118,7 +118,6 @@ export default function DealDetail({ dealId }) {
           <div className="tabs">
             {[
               { id: 'activity', label: 'Activity', count: deal.activities?.length },
-              { id: 'emails', label: 'Emails', count: emails.length },
               { id: 'tasks', label: 'Tasks', count: deal.tasks?.length },
               { id: 'flags', label: 'Flags', count: deal.flags?.length },
               { id: 'demo', label: 'Demo Info' },
@@ -135,7 +134,6 @@ export default function DealDetail({ dealId }) {
           </div>
 
           {tab === 'activity' && <ActivityTab deal={deal} />}
-          {tab === 'emails' && <EmailsTab emails={emails} deal={deal} />}
           {tab === 'tasks' && <TasksTab dealId={deal.id} />}
           {tab === 'flags' && <FlagsTab deal={deal} />}
           {tab === 'demo' && <DemoInfoTab deal={deal} />}
@@ -149,7 +147,7 @@ export default function DealDetail({ dealId }) {
         <div className="ws-side">
           {deal.dealSummary && (
             <div className="card">
-              <div className="ws-side-head"><h4>AI Summary</h4></div>
+              <div className="ws-side-head"><h4>Brand Summary</h4></div>
               <div className="ws-side-body" style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--ink-2)' }}>
                 {deal.dealSummary}
               </div>
@@ -380,40 +378,97 @@ function FlagsTab({ deal }) {
 }
 
 function DemoInfoTab({ deal }) {
-  if (!deal.saLogged) {
+  const d = deal.demoInfo
+  if (!deal.saLogged || !d) {
     return (
       <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>
-        No demo logged yet. Click "+ Log Demo" to log a demo.
+        {deal.saLogged ? 'Demo info not found.' : 'No demo logged yet. Click "+ Log Demo" to log a demo.'}
+        {deal.saLogged && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ink-3)' }}>This demo was logged before V3.</div>}
       </div>
     )
   }
+
+  const sections = [
+    {
+      title: 'Deal Info',
+      rows: [
+        { k: 'Stage', v: deal.stage },
+        { k: 'Solution Interest', v: d.solutionInterest || deal.solutionInterest },
+        { k: 'Order Volume', v: d.orderVolume || deal.orderVolume },
+        { k: 'Follow-up Meeting', v: formatDate(d.followupMeetingDate || deal.followupMeetingDate) },
+        { k: 'Demo Date', v: formatDate(deal.demoDate) },
+        { k: 'Pricing Raised', v: d.pricingRaised === 'yes' || deal.pricingRaised ? 'Yes' : 'No' },
+        { k: 'OMS', v: d.oms },
+        { k: 'Shopping Cart', v: d.shoppingCart },
+        { k: 'Current Shipping', v: d.shippingSetup },
+        { k: 'Current Warehousing', v: d.warehousingSetup },
+        { k: 'Brand Type', v: d.brandType },
+        { k: 'Demo Format', v: d.demoFormat },
+        { k: 'Meeting Location', v: d.meetingLocation },
+      ]
+    },
+    {
+      title: 'Qualification',
+      rows: [
+        { k: 'DM Present', v: d.dmPresent },
+        { k: 'Engagement Level', v: d.engagementLevel },
+        { k: 'Pain Clarity', v: d.painClarity },
+        { k: 'Budget Signal', v: d.budgetSignal },
+        { k: 'Purchase Timeline', v: d.purchaseTimeline },
+        { k: 'Champion Strength', v: d.championStrength },
+        { k: 'Next Step', v: d.nextStep },
+        { k: 'Urgency Driver', v: d.urgencyDriver },
+        { k: 'Competitor Mentioned', v: d.competitorMentioned },
+        { k: 'Objections', v: d.objections },
+      ]
+    },
+    {
+      title: 'Prospect',
+      rows: [
+        { k: 'Prospect Name', v: d.prospectName },
+        { k: 'Prospect Email', v: d.prospectEmail },
+      ]
+    },
+    {
+      title: 'Pain Points',
+      rows: [
+        { k: 'Shipping Pains', v: d.shippingPains?.join(', ') },
+        { k: 'Warehousing Pains', v: d.warehousingPains?.join(', ') },
+      ]
+    },
+    {
+      title: 'Demo Notes',
+      rows: [
+        { k: 'Features Shown', v: d.featuresShown?.join(', ') },
+        { k: 'Rep Notes', v: d.repNotes },
+        { k: 'Transcript', v: d.transcript || 'No transcript was logged for this demo.' },
+      ]
+    },
+    {
+      title: 'Grading',
+      rows: [
+        { k: 'Grade', v: d.grade || deal.grade },
+        { k: 'Score', v: `${d.score || deal.score || 0}/22` },
+        { k: 'Logged At', v: d.createdAt ? formatDate(d.createdAt) : 'Logged before V3' },
+      ]
+    },
+  ]
+
   return (
-    <div className="card">
-      <div className="ws-side-head"><h4>Demo Info</h4></div>
-      <div className="ws-side-body">
-        {[
-          { k: 'Demo Date', v: formatDate(deal.demoDate) },
-          { k: 'Demo Format', v: deal.demoFormat || '—' },
-          { k: 'Solution Interest', v: deal.solutionInterest || '—' },
-          { k: 'Order Volume', v: deal.orderVolume || '—' },
-          { k: 'Pain Points', v: deal.painPoints || '—' },
-          { k: 'Pricing Raised', v: deal.pricingRaised ? 'Yes' : 'No' },
-          { k: 'F2F Count', v: deal.f2fCount || 0 },
-          { k: 'Follow-up Meeting', v: formatDate(deal.followupMeetingDate) },
-          { k: 'OMS', v: deal.oms || '—' },
-          { k: 'Shopping Cart', v: deal.shoppingCart || '—' },
-          { k: 'Current Shipping', v: deal.currentShipping || '—' },
-          { k: 'Current Warehousing', v: deal.currentWarehousing || '—' },
-          { k: 'Grade', v: deal.grade || '—' },
-          { k: 'Score', v: deal.score || '—' },
-          { k: 'Logged At', v: deal.loggedAt ? formatDate(deal.loggedAt) : 'Logged before V3' },
-        ].map(row => (
-          <div key={row.k} className="ws-side-row">
-            <span className="k">{row.k}</span>
-            <span className="v">{row.v}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {sections.map(section => (
+        <div key={section.title} className="card">
+          <div className="ws-side-head"><h4>{section.title}</h4></div>
+          <div className="ws-side-body">
+            {section.rows.filter(r => r.v).map(row => (
+              <div key={row.k} className="ws-side-row">
+                <span className="k">{row.k}</span>
+                <span className="v" style={{ maxWidth: '60%', textAlign: 'right', wordBreak: 'break-word' }}>{row.v}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   )
 }
@@ -444,31 +499,40 @@ function SequenceTab({ emails, deal }) {
     )
   }
 
+  function EmailCard({ email }) {
+    const [expanded, setExpanded] = useState(false)
+    return (
+      <div className="card card-pad">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <b style={{ fontSize: 13.5 }}>{typeLabel[email.email_type] || email.email_type}</b>
+          <span className={`pill ${statusPill[email.status] || 'pill-neutral'}`}>{email.status}</span>
+          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--ink-3)' }}>{formatDate(email.scheduled_for)}</span>
+        </div>
+        {email.subject && <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>{email.subject}</div>}
+        {email.body && (
+          <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.5, maxHeight: expanded ? 'none' : 60, overflow: expanded ? 'visible' : 'hidden' }}>
+            {email.body?.replace(/<[^>]+>/g, '')}
+          </div>
+        )}
+        {email.status === 'draft' && (
+          <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+            <button className="btn btn-sm btn-primary">Create Gmail Draft</button>
+            <button className="btn btn-sm" onClick={() => setExpanded(e => !e)}>
+              {expanded ? 'Collapse' : 'Expand'}
+            </button>
+          </div>
+        )}
+        {email.status === 'sent' && (
+          <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ok)' }}>✓ Sent {formatDate(email.sent_at)}</div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {emails.map(email => (
-        <div key={email.id} className="card card-pad">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <b style={{ fontSize: 13.5 }}>{typeLabel[email.email_type] || email.email_type}</b>
-            <span className={`pill ${statusPill[email.status] || 'pill-neutral'}`}>{email.status}</span>
-            <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--ink-3)' }}>{formatDate(email.scheduled_for)}</span>
-          </div>
-          {email.subject && <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>{email.subject}</div>}
-          {email.body && (
-            <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.5, maxHeight: 80, overflow: 'hidden' }}>
-              {email.body?.replace(/<[^>]+>/g, '').slice(0, 300)}…
-            </div>
-          )}
-          {email.status === 'draft' && (
-            <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-              <button className="btn btn-sm btn-primary">Create Gmail Draft</button>
-              <button className="btn btn-sm">Edit</button>
-            </div>
-          )}
-          {email.status === 'sent' && (
-            <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ok)' }}>✓ Sent {formatDate(email.sent_at)}</div>
-          )}
-        </div>
+        <EmailCard key={email.id} email={email} />
       ))}
     </div>
   )
@@ -609,10 +673,10 @@ function ContactTab({ deal }) {
       <div className="ws-side-head"><h4>Contact Details</h4></div>
       <div className="ws-side-body">
         {[
-          { k: 'Name', v: deal.contactName || '—' },
-          { k: 'Email', v: deal.contactEmail || '—' },
-          { k: 'Phone', v: deal.contactPhone || '—' },
+          { k: 'Name', v: deal.demoInfo?.prospectName || '—' },
+          { k: 'Email', v: deal.demoInfo?.prospectEmail || '—' },
           { k: 'Company', v: deal.brandName || deal.dealName || '—' },
+          { k: 'Rep Owner', v: deal.repName || '—' },
         ].map(row => (
           <div key={row.k} className="ws-side-row">
             <span className="k">{row.k}</span>
