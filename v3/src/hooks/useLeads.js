@@ -11,7 +11,7 @@ export function useLeads() {
     setLoading(true)
     setError(null)
     try {
-      const res = await authFetch('/api/leads')
+      const res = await authFetch('/api/leads?refresh=true')
       const data = await res.json()
       setLeads(data.leads || [])
     } catch (err) {
