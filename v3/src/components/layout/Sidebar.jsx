@@ -16,6 +16,7 @@ function getNavItems(role, counts = {}) {
       { id: 'accounts',   label: 'Accounts',      path: '/accounts',    section: null },
       { id: 'tasks',      label: 'Tasks',         path: '/tasks',       section: null,
         count: counts.tasksToday },
+      { id: 'log-demo',   label: '+ Log demo',    path: '/form',        section: null },
     )
   }
 
