@@ -300,11 +300,6 @@ export default function DemoForm() {
           if (data.prospectEmail) set("prospectEmail", data.prospectEmail);
           if (data.brandName) set("brandName", data.brandName);
           if (data.orderVolume) set("orderVolume", data.orderVolume);
-          if (data.volumeTooLow) {
-            setZohoErr("⚠️ This deal's order volume is below 3,001/month. Sales Assist is designed for deals above this threshold.");
-            setVerified(false);
-            return;
-          }
           setVerified(true);
           if (data.saLogged) {
             setZohoErr("⚠️ This deal has already been logged. Re-logging will overwrite existing data.");
@@ -396,11 +391,6 @@ export default function DemoForm() {
       if (data.prospectEmail) set("prospectEmail", data.prospectEmail);
       if (data.brandName) set("brandName", data.brandName);
       if (data.orderVolume) set("orderVolume", data.orderVolume);
-      if (data.volumeTooLow) {
-        setZohoErr("⚠️ This deal's order volume is below 3,001/month. Sales Assist is designed for deals above this threshold.");
-        setVerified(false);
-        return;
-      }
       setVerified(true);
       if (data.saLogged) {
         setZohoErr("⚠️ This deal has already been logged. Re-logging will overwrite existing data.");
