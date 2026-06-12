@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useLeads } from '../../hooks/useLeads'
@@ -22,6 +22,7 @@ export default function LeadInbox() {
   const { role, user } = useAuth()
   const { leads, loading, error, refetch } = useLeads()
   const navigate = useNavigate()
+  const [search, setSearch] = useState('')
 
   const scopedLeads = useMemo(() => {
     if (role === ROLES.MDE || role === ROLES.AE) return leads.filter(l => l.ownerEmail === user?.email)
@@ -29,6 +30,25 @@ export default function LeadInbox() {
     if (role === ROLES.SALES_LEAD_ENTERPRISE) return leads.filter(l => AE_EMAILS.includes(l.ownerEmail))
     return leads
   }, [leads, role, user])
+
+  const filteredLeads = useMemo(() => {
+    let result = scopedLeads
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      result = result.filter(l =>
+        (l.company || '').toLowerCase().includes(q) ||
+        (l.fullName || '').toLowerCase().includes(q) ||
+        (l.email || '').toLowerCase().includes(q) ||
+        (l.ownerName || '').toLowerCase().includes(q) ||
+        (l.leadSource || '').toLowerCase().includes(q) ||
+        (l.orderVolume || '').toLowerCase().includes(q) ||
+        (l.leadStatus || '').toLowerCase().includes(q) ||
+        (l.utmSource || '').toLowerCase().includes(q) ||
+        (l.phone || '').toLowerCase().includes(q)
+      )
+    }
+    return result
+  }, [scopedLeads, search])
 
   const todayStr = new Date().toISOString().split('T')[0]
   const isPast6pm = new Date().getHours() >= 18
@@ -67,6 +87,20 @@ export default function LeadInbox() {
         <span>Volume &gt; 10,000 → <b>Assigned to AE-Enterprise</b></span>
       </div>
 
+      <div style={{ marginBottom: 12 }}>
+        <input
+          className="search-input"
+          style={{ width: '100%', maxWidth: 480 }}
+          placeholder="Search by brand, contact, email, rep, source, volume..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 8 }}>
+        Showing {filteredLeads.length} of {scopedLeads.length} leads
+        {search && <button onClick={() => setSearch('')} style={{ marginLeft: 8, background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Clear</button>}
+      </div>
+
       <div className="table-wrap" style={{ overflowX: 'auto' }}>
         <table className="t" style={{ minWidth: 900 }}>
           <thead>
@@ -82,10 +116,10 @@ export default function LeadInbox() {
             </tr>
           </thead>
           <tbody>
-            {scopedLeads.length === 0 && (
+            {filteredLeads.length === 0 && (
               <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>No leads found</td></tr>
             )}
-            {scopedLeads.map(lead => {
+            {filteredLeads.map(lead => {
               const isToday = lead.createdAt?.startsWith(todayStr)
               const needsContact = isToday && lead.leadStatus === 'New'
               const canConvert = lead.leadStatus === 'New'
