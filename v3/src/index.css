@@ -181,7 +181,7 @@ p { margin: 0; }
 
 /* ── Topbar ── */
 .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 16px; flex-wrap: wrap; }
-.controls-row { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; margin-bottom: 12px; }
+.controls-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; width: 100%; justify-content: space-between; }
 .pipeline-searchbar {
   display: flex;
   align-items: center;
