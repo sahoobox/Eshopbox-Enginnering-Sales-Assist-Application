@@ -57,7 +57,7 @@ export default function DealCard({ deal }) {
   const stageAction = stageActionMap[deal.stage]
 
   return (
-    <div className={cardClass} onClick={() => navigate(`/deals/${deal.id}`)}>
+    <div className={cardClass} onClick={() => navigate(`/pipeline/${deal.id}`)}>
       {/* Grade colour strip at top */}
       <div className="kc-labels">
         <div className={labelClass} />
