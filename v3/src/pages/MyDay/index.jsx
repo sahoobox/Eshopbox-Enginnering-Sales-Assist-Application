@@ -22,6 +22,13 @@ const AE_EMAILS = [
 
 const TERMINAL_STAGES = ['Won/Payment Received', 'Lost/Dropped', 'On Hold']
 
+const getGreeting = () => {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
 export default function MyDay() {
   const { user, role, isMDE, isAE, isAdmin } = useAuth()
   const { deals, loading: dealsLoading } = useDeals()
@@ -61,7 +68,7 @@ export default function MyDay() {
   return (
     <div className="main">
       <Topbar
-        title={`Good morning, ${firstName}`}
+        title={`${getGreeting()}, ${firstName}`}
         subtitle="Here's what needs your attention today."
       />
 
