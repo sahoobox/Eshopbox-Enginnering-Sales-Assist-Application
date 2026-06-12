@@ -47,6 +47,8 @@ function mapZohoDeal(d) {
     demoFormat: d.SA_Demo_Format || '',
     f2fCount: d.SA_F2F_Count || 0,
     saLogged: d.SA_Logged || false,
+    orderVolume: d['How_many_orders_do_you_ship_in_a_month'] || '',
+    modifiedTime: d.Modified_Time || '',
     lostReason: d.Lost_Reason || '',
     demoDate: d.Demo_Date || d.Created_Time?.split('T')[0] || '',
     stageChangedOn: d.Modified_Time?.split('T')[0] || '',

@@ -4,7 +4,7 @@ import { requireAuth } from './middleware/auth.js';
 import { sign, verify } from './middleware/jwt.js';
 import { getUserByEmail, createUser, createInvite, getInviteByToken, markInviteAccepted, getAllUsers, deactivateUser, updateUserRole, getPendingInvites } from './db/users.js';
 import { calculateGrade, scoreToGrade } from './services/grading.js';
-import { zohoAPI, createDeal, createTask, getDeals, getDeal, getDealTasks, getDealActivities, updateDeal, searchDeals, sendDealEmail, createDealEmailDraft, getAllowedFromAddresses, getAccessTokenForUser, getAccessToken, getDealSentEmails, getEmailContent, getTask, getLeads, getLead, updateLead, getLeadActivities, createLeadActivity, getLeadNotes, createLeadNote, getTasks, createGenericTask, updateTaskStatus } from './services/zoho.js';
+import { zohoAPI, createDeal, createTask, getDeals, getAllDeals, getDeal, getDealTasks, getDealActivities, updateDeal, searchDeals, sendDealEmail, createDealEmailDraft, getAllowedFromAddresses, getAccessTokenForUser, getAccessToken, getDealSentEmails, getEmailContent, getTask, getLeads, getLead, updateLead, getLeadActivities, createLeadActivity, getLeadNotes, createLeadNote, getTasks, createGenericTask, updateTaskStatus } from './services/zoho.js';
 import { generateEmailDrafts, generateReengagement, generateDealAnalysis, generateDealSummary } from './services/claude.js';
 import { computeAttentionFlags, getAttentionLevel } from './services/attentionRules.js';
 import { sendGmailEmail, sendGmailEmailWithToken, createGmailDraft, checkDraftSent, getRealMessageId } from './services/gmail.js';
@@ -588,149 +588,96 @@ app.get('/api/users/all', requireAuth, async (c) => {
 // ─── DEALS ROUTES ───────────────────────────────────────
 app.get('/api/deals', requireAuth, async (c) => {
   try {
-    const user = c.get('user');
-    let effectiveUser = user;
-    if (user.email === 'satyanarayan.sahoo@eshopbox.com') {
-      const viewAsEmail = c.req.header('x-view-as-email');
-      if (viewAsEmail) {
-        const viewAsUser = await c.env.DB.prepare(
-          'SELECT id, email, name, role FROM users WHERE email = ?'
-        ).bind(viewAsEmail).first();
-        if (viewAsUser) effectiveUser = viewAsUser;
+    const user = c.get('user')
+
+    // Impersonation for admin
+    let effectiveUser = user
+    const impersonateEmail = c.req.query('as')
+    if (user.role === 'admin' && impersonateEmail) {
+      const impersonated = await getUserByEmail(c.env.DB, impersonateEmail)
+      if (impersonated) effectiveUser = impersonated
+    }
+    console.log('effectiveUser:', JSON.stringify(effectiveUser))
+
+    const forceRefresh = c.req.query('refresh') === 'true'
+    if (forceRefresh) await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+
+    const { data: rawDeals } = await getDeals(c.env)
+
+    // Map to deal objects
+    let deals = rawDeals.map(d => mapZohoDeal(d))
+
+    // Role-based filtering
+    const roleLC = effectiveUser.role?.toLowerCase()
+    const isAdminOrLead = roleLC === 'admin' || roleLC === 'sales lead mid-market' || roleLC === 'sales lead enterprise'
+    if (!isAdminOrLead) {
+      deals = deals.filter(d => d.repEmail === effectiveUser.email)
+    }
+
+    // D1 lookups in chunks of 500
+    const chunkArray = (arr, size) => Array.from(
+      { length: Math.ceil(arr.length / size) },
+      (_, i) => arr.slice(i * size, i * size + size)
+    )
+    const allIds = deals.map(d => d.id)
+    const saLoggedIds = deals.filter(d => d.saLogged).map(d => d.id)
+    const allIdChunks = chunkArray(allIds, 500)
+    const saLoggedIdChunks = chunkArray(saLoggedIds, 500)
+
+    const [summaryResults, emailResults] = await Promise.all([
+      allIdChunks.length > 0 ? Promise.all(allIdChunks.map(chunk => {
+        const ids = chunk.map(id => `'${id}'`).join(',')
+        return c.env.DB.prepare(`SELECT deal_id, deal_summary FROM deal_form_data WHERE deal_id IN (${ids})`).all()
+      })) : [],
+      saLoggedIds.length > 0 ? Promise.all(saLoggedIdChunks.map(chunk => {
+        const ids = chunk.map(id => `'${id}'`).join(',')
+        return c.env.DB.prepare(`SELECT deal_id, email_type, status, scheduled_for FROM deal_emails WHERE deal_id IN (${ids})`).all()
+      })) : []
+    ])
+
+    const summaryMap = {}
+    const emailMap = {}
+    summaryResults.flat().forEach(r => r.results?.forEach(row => {
+      if (row.deal_summary) summaryMap[row.deal_id] = row.deal_summary
+    }))
+    emailResults.flat().forEach(r => r.results?.forEach(row => {
+      if (!emailMap[row.deal_id]) emailMap[row.deal_id] = {}
+      emailMap[row.deal_id][row.email_type] = { status: row.status, scheduledFor: row.scheduled_for }
+    }))
+
+    // Fetch active SA team member emails for r_no_sa_member flag
+    const teamRows = await c.env.DB.prepare('SELECT email FROM users WHERE is_active = 1').all()
+    const teamEmails = new Set((teamRows.results || []).map(r => r.email.toLowerCase()))
+
+    // Attach D1 data and flags
+    deals = deals.map(d => {
+      const dealWithData = {
+        ...d,
+        dealSummary: summaryMap[d.id] || null,
+        emailStatuses: emailMap[d.id] || {},
       }
-    }
-    console.log('impersonation: effectiveUser =', JSON.stringify({
-      email: effectiveUser.email,
-      role: effectiveUser.role,
-      viewAsHeader: c.req.header('x-view-as-email'),
-    }));
-    if (c.req.query('refresh') === 'true') {
-      await c.env.TOKEN_CACHE.delete('v3_deals_cache');
-    }
-    const zohoResponse = await getDeals(c.env);
-    if (!zohoResponse?.data) return c.json({ deals: [], total: 0 });
-  let dealsList = zohoResponse.data
-  .map(mapZohoDeal)
-  .filter(d => d.pipeline === 'Mid-market' || d.pipeline === 'Enterprise 2.0');
-
-    const isAdmin = effectiveUser.role === 'admin';
-    if (!isAdmin) {
-      dealsList = dealsList.filter(d => d.stageAligned);
-    }
-
-    if (effectiveUser.role === 'Sales rep') {
-      dealsList = dealsList.filter(d => d.repEmail === effectiveUser.email);
-    } else if (effectiveUser.role === 'Sales Lead Mid-Market') {
-      dealsList = dealsList.filter(d => d.solutionInterest?.toLowerCase() === 'shipping');
-    } else if (effectiveUser.role === 'Sales Lead Enterprise') {
-      dealsList = dealsList.filter(d => ['warehousing', 'both'].includes(d.solutionInterest?.toLowerCase()));
-    } else if (effectiveUser.role === 'Sales Rep Mid-Market') {
-      dealsList = dealsList.filter(d => d.repEmail === effectiveUser.email && d.solutionInterest?.toLowerCase() === 'shipping');
-    } else if (effectiveUser.role === 'Sales Rep Enterprise') {
-      dealsList = dealsList.filter(d => d.repEmail === effectiveUser.email && ['warehousing', 'both'].includes(d.solutionInterest?.toLowerCase()));
-    }
-
-    // Secondary fetch: SA_Logged=true deals excluded by stage/volume filters
-    const existingIds = new Set(dealsList.map(d => d.id));
-    let saLoggedDeals = [];
-    try {
-      const rawSALogged = [];
-      let saPage = 1;
-      while (true) {
-        const saLoggedRes = await zohoAPI(c.env, 'GET',
-          `/Deals?fields=${DEAL_FIELDS}&per_page=200&page=${saPage}&sort_by=Modified_Time&sort_order=desc&criteria=(SA_Logged:equals:true)`
-        );
-        const pageData = saLoggedRes?.data || [];
-        rawSALogged.push(...pageData);
-        if (!saLoggedRes?.info?.more_records || saPage >= 15) break;
-        saPage++;
+      const flags = computeAttentionFlags(dealWithData)
+      if (d.repEmail && !teamEmails.has(d.repEmail.toLowerCase())) {
+        flags.push({
+          severity: 'warning',
+          title: 'Rep not in Sales Assist',
+          desc: `${d.repName} is not a member of the Sales Assist team. This deal won't appear in their dashboard.`,
+          rule: 'r_no_sa_member',
+        })
       }
-      saLoggedDeals = rawSALogged
-        .map(d => mapZohoDeal(d))
-        .filter(d => !existingIds.has(d.id))
-        .filter(d => d.stageAligned || d.stage === 'Lost/Dropped');
-      saLoggedDeals.forEach(d => { d.manuallyLogged = true; });
-      if (effectiveUser.role === 'Sales rep') {
-        saLoggedDeals = saLoggedDeals.filter(d => d.repEmail === effectiveUser.email);
-      } else if (effectiveUser.role === 'Sales Lead Mid-Market') {
-        saLoggedDeals = saLoggedDeals.filter(d => d.solutionInterest?.toLowerCase() === 'shipping');
-      } else if (effectiveUser.role === 'Sales Lead Enterprise') {
-        saLoggedDeals = saLoggedDeals.filter(d => ['warehousing', 'both'].includes(d.solutionInterest?.toLowerCase()));
-      } else if (effectiveUser.role === 'Sales Rep Mid-Market') {
-        saLoggedDeals = saLoggedDeals.filter(d => d.repEmail === effectiveUser.email && d.solutionInterest?.toLowerCase() === 'shipping');
-      } else if (effectiveUser.role === 'Sales Rep Enterprise') {
-        saLoggedDeals = saLoggedDeals.filter(d => d.repEmail === effectiveUser.email && ['warehousing', 'both'].includes(d.solutionInterest?.toLowerCase()));
+      return {
+        ...dealWithData,
+        flags,
+        attentionLevel: getAttentionLevel(flags),
       }
-      console.log(`Secondary SA_Logged fetch: ${saLoggedDeals.length} additional deals found`);
-    } catch (e) {
-      console.error('Secondary SA_Logged fetch failed:', e.message);
-    }
-    dealsList = [...dealsList, ...saLoggedDeals];
+    })
 
-// Fetch active SA team member emails for r_no_sa_member flag
-const teamRows = await c.env.DB.prepare('SELECT email FROM users WHERE is_active = 1').all();
-const teamEmails = new Set((teamRows.results || []).map(r => r.email.toLowerCase()));
-
-// Fetch deal summaries for all deals + email statuses for saLogged deals only
-const allEmailStatuses = {};
-const allDealSummaries = {};
-const chunkArray = (arr, size) => Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size))
-
-const allIds = dealsList.map(d => d.id)
-const saLoggedIds = dealsList.filter(d => d.saLogged).map(d => d.id)
-
-const allIdChunks = chunkArray(allIds, 500)
-const saLoggedIdChunks = chunkArray(saLoggedIds, 500)
-
-const [summaryResults, emailResults] = await Promise.all([
-  Promise.all(allIdChunks.map(chunk => {
-    const ids = chunk.map(id => `'${id}'`).join(',')
-    return c.env.DB.prepare(`SELECT deal_id, deal_summary FROM deal_form_data WHERE deal_id IN (${ids})`).all()
-  })),
-  saLoggedIds.length > 0 ? Promise.all(saLoggedIdChunks.map(chunk => {
-    const ids = chunk.map(id => `'${id}'`).join(',')
-    return c.env.DB.prepare(`SELECT deal_id, email_type, status, scheduled_for FROM deal_emails WHERE deal_id IN (${ids})`).all()
-  })) : [{ results: [] }]
-])
-
-const summaryRows = { results: summaryResults.flatMap(r => r.results) }
-const emailRows = { results: emailResults.flatMap(r => r.results) }
-
-if (allIds.length) {
-  (summaryRows.results || []).forEach(r => {
-    if (r.deal_summary) allDealSummaries[r.deal_id] = r.deal_summary;
-  });
-  (emailRows.results || []).forEach(e => {
-    if (!allEmailStatuses[e.deal_id]) allEmailStatuses[e.deal_id] = {};
-    allEmailStatuses[e.deal_id][e.email_type] = {
-      status: e.status,
-      scheduledFor: e.scheduled_for,
-    };
-  });
-}
-
-const dealsWithFlags = dealsList.map(deal => {
-  const dealWithEmails = { ...deal, emailStatuses: allEmailStatuses[deal.id] || {}, dealSummary: allDealSummaries[deal.id] || null };
-  const flags = computeAttentionFlags(dealWithEmails);
-  if (deal.repEmail && !teamEmails.has(deal.repEmail.toLowerCase())) {
-    flags.push({
-      severity: 'warning',
-      title: 'Rep not in Sales Assist',
-      desc: `${deal.repName} is not a member of the Sales Assist team. This deal won't appear in their dashboard.`,
-      rule: 'r_no_sa_member',
-    });
-  }
-  const attentionLevel = getAttentionLevel(flags);
-  return { ...dealWithEmails, flags, attentionLevel };
-});
-
-    dealsWithFlags.sort((a, b) => ({ high: 0, medium: 1, info: 2, ok: 3 }[a.attentionLevel] - { high: 0, medium: 1, info: 2, ok: 3 }[b.attentionLevel]));
-    const dealsResponse = { deals: dealsWithFlags, total: dealsWithFlags.length };
-    return c.json(dealsResponse);
+    return c.json({ deals, total: deals.length })
   } catch (err) {
-    return c.json({ error: 'Failed to fetch deals', details: err.message }, 500);
+    console.error('GET /api/deals error:', err)
+    return c.json({ error: 'Failed to fetch deals', details: err.message }, 500)
   }
-});
+})
 
 app.get('/api/deals/search', requireAuth, async (c) => {
   try {
@@ -785,7 +732,7 @@ const [emailRows, formRow] = await Promise.all([
     'SELECT email_type, status, scheduled_for, sent_at FROM deal_emails WHERE deal_id = ?'
   ).bind(dealId).all(),
   c.env.DB.prepare(
-    'SELECT deal_summary FROM deal_form_data WHERE deal_id = ?'
+    'SELECT * FROM deal_form_data WHERE deal_id = ?'
   ).bind(dealId).first(),
 ]);
 deal.emailStatuses = {};
@@ -796,6 +743,45 @@ deal.emailStatuses = {};
     sentAt: e.sent_at,
   };
 });
+
+if (formRow) {
+  deal.demoInfo = {
+    prospectName: formRow.prospect_name || '',
+    prospectEmail: formRow.prospect_email || '',
+    brandName: formRow.brand_name || '',
+    orderVolume: formRow.order_volume || deal.orderVolume,
+    solutionInterest: formRow.solution_interest || deal.solutionInterest,
+    demoFormat: formRow.demo_format || '',
+    meetingLocation: formRow.meeting_location || '',
+    dmPresent: formRow.dm_present || '',
+    brandType: formRow.brand_type || '',
+    oms: formRow.oms || '',
+    shoppingCart: formRow.shopping_cart || '',
+    shippingSetup: formRow.shipping_setup || '',
+    warehousingSetup: formRow.warehousing_setup || '',
+    shippingPains: JSON.parse(formRow.shipping_pains || '[]'),
+    warehousingPains: JSON.parse(formRow.warehousing_pains || '[]'),
+    painClarity: formRow.pain_clarity || '',
+    engagementLevel: formRow.engagement_level || '',
+    budgetSignal: formRow.budget_signal || '',
+    purchaseTimeline: formRow.purchase_timeline || '',
+    championStrength: formRow.champion_strength || '',
+    nextStep: formRow.next_step || '',
+    followupMeetingDate: formRow.followup_meeting_date || '',
+    pricingRaised: formRow.pricing_raised || '',
+    featuresShown: JSON.parse(formRow.features_shown || '[]'),
+    repNotes: formRow.rep_notes || '',
+    objections: formRow.objections || '',
+    competitorMentioned: formRow.competitor_mentioned || '',
+    urgencyDriver: formRow.urgency_driver || '',
+    transcript: formRow.transcript || '',
+    aiAnalysis: formRow.ai_analysis || '',
+    grade: formRow.grade || deal.grade,
+    score: formRow.score || deal.score,
+    createdAt: formRow.created_at || '',
+  }
+  deal.dealSummary = formRow.deal_summary || null
+}
 
 let dealSummary = formRow?.deal_summary || null;
 console.log('[dealSummary] dealId:', dealId, '| formRow:', JSON.stringify(formRow), '| dealSummary after null check:', dealSummary);
@@ -1247,6 +1233,65 @@ app.post('/api/deals/:id/close', requireAuth, async (c) => {
   }
 });
 
+app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const { stage, reason } = await c.req.json()
+    const payload = { Stage: stage }
+    if (stage === 'Lost/Dropped') payload.Lost_Reason = reason
+    if (stage === 'On Hold') payload.On_Hold_Reason = reason
+    await updateDeal(c.env, dealId, payload)
+    await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.get('/api/deals/:id/notes', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM deal_notes WHERE deal_id = ? ORDER BY created_at DESC'
+    ).bind(dealId).all()
+    return c.json({ notes: results || [] })
+  } catch (err) {
+    return c.json({ notes: [] })
+  }
+})
+
+app.post('/api/deals/:id/notes', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const user = c.get('user')
+    const { content } = await c.req.json()
+    const id = crypto.randomUUID()
+    const now = new Date().toISOString()
+    await c.env.DB.prepare(
+      'INSERT INTO deal_notes (id, deal_id, content, author_email, author_name, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(id, dealId, content, user.email, user.name, now).run()
+    return c.json({ success: true, note: { id, content, authorEmail: user.email, authorName: user.name, createdAt: now } })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.post('/api/deals/:id/f2f', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const { date, notes } = await c.req.json()
+    const deal = await getDeal(c.env, dealId)
+    const currentF2F = deal?.data?.[0]?.SA_F2F_Count || 0
+    await updateDeal(c.env, dealId, {
+      SA_F2F_Count: currentF2F + 1,
+    })
+    await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
 app.post('/api/reengage', requireAuth, async (c) => {
   try {
     const { dealContext, angle } = await c.req.json();
@@ -1439,7 +1484,7 @@ app.post('/api/deals/:id/emails/:emailType/mark-sent', requireAuth, async (c) =>
   }
 });
 
-app.post('/api/deals/:id/emails/:emailType/create-draft', requireAuth, async (c) => {
+async function handleCreateGmailDraft(c) {
   try {
     const dealId = c.req.param('id');
     const emailType = c.req.param('emailType');
@@ -1499,6 +1544,7 @@ app.post('/api/deals/:id/emails/:emailType/create-draft', requireAuth, async (c)
     console.log('create-draft: day1ThreadId =', day1ThreadId, '| from D1 directly');
 
     const htmlBody = emailRow.body.replace(/\n/g, '<br>');
+    console.log('htmlBody preview:', htmlBody?.slice(0, 100))
 
     let accessToken;
     try {
@@ -1507,6 +1553,7 @@ app.post('/api/deals/:id/emails/:emailType/create-draft', requireAuth, async (c)
       return c.json({ error: 'Gmail not connected. Please connect your Gmail account in Account settings first.', code: 'GMAIL_NOT_CONNECTED' }, 400);
     }
 
+    console.log('Calling createGmailDraft for:', loggedInUser.email, 'to:', prospectEmail)
     const result = await createGmailDraft(accessToken, {
       fromEmail: loggedInUser.email,
       fromName,
@@ -1518,12 +1565,13 @@ app.post('/api/deals/:id/emails/:emailType/create-draft', requireAuth, async (c)
       threadId: day1ThreadId,
     });
 
+    console.log('createGmailDraft result:', JSON.stringify(result))
     console.log('create-draft result: draftId =', result.draftId, '| messageId =', result.messageId, '| gmailMessageId =', result.gmailMessageId);
 
     let draftThreadId = null;
     try {
       const threadFetchRes = await fetch(
-        `https://gmail.googleapis.com/gmail/v1/users/${loggedInUser.email}/messages/${result.gmailMessageId}?format=minimal`,
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${result.gmailMessageId}?format=minimal`,
         { headers: { 'Authorization': `Bearer ${accessToken}` } }
       );
       if (threadFetchRes.ok) {
@@ -1541,7 +1589,10 @@ app.post('/api/deals/:id/emails/:emailType/create-draft', requireAuth, async (c)
   } catch (err) {
     return c.json({ error: 'Failed to send email', details: err.message }, 500);
   }
-});
+}
+
+app.post('/api/deals/:id/emails/:emailType/create-draft', requireAuth, handleCreateGmailDraft);
+app.post('/api/deals/:id/emails/:emailType/gmail-draft',  requireAuth, handleCreateGmailDraft);
 
 app.get('/api/zoho/deal/:id', requireAuth, async (c) => {
   try {
@@ -2329,7 +2380,7 @@ async function getGmailAccessToken(env, userId) {
       }),
     });
     const data = await res.json();
-    if (!data.access_token) throw new Error('Failed to refresh Gmail token: ' + JSON.stringify(data));
+    if (!data.access_token) throw new Error('Failed to refresh Gmail token');
     const expiry = Date.now() + (data.expires_in || 3600) * 1000;
     await env.DB.prepare(
       'UPDATE users SET gmail_access_token = ?, gmail_token_expiry = ? WHERE id = ?'
@@ -2349,9 +2400,9 @@ app.get('/auth/gmail', requireAuth, async (c) => {
 
   const params = new URLSearchParams({
     client_id: c.env.GOOGLE_CLIENT_ID,
-    redirect_uri: 'https://eshopbox-sales-assist-backend.satyanarayan-sahoo.workers.dev/auth/gmail/callback',
+    redirect_uri: 'https://eshopbox-sales-assist-v3-backend.satyanarayan-sahoo.workers.dev/auth/gmail/callback',
     response_type: 'code',
-    scope: 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.modify',
+    scope: 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.settings.basic',
     access_type: 'offline',
     prompt: 'consent',
     state: jwtToken,
@@ -2380,7 +2431,7 @@ app.get('/auth/gmail/callback', async (c) => {
       code,
       client_id: c.env.GOOGLE_CLIENT_ID,
       client_secret: c.env.GOOGLE_CLIENT_SECRET,
-      redirect_uri: 'https://eshopbox-sales-assist-backend.satyanarayan-sahoo.workers.dev/auth/gmail/callback',
+      redirect_uri: 'https://eshopbox-sales-assist-v3-backend.satyanarayan-sahoo.workers.dev/auth/gmail/callback',
       grant_type: 'authorization_code',
     }),
   });
@@ -2395,22 +2446,47 @@ app.get('/auth/gmail/callback', async (c) => {
     'UPDATE users SET gmail_access_token = ?, gmail_refresh_token = ?, gmail_token_expiry = ? WHERE id = ?'
   ).bind(tokenData.access_token, tokenData.refresh_token || null, expiry, payload.id).run();
 
-  return c.redirect('https://eshopbox-sales-assist.pages.dev/settings?gmail=connected');
+  try {
+    const sigRes = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/settings/sendAs`,
+      { headers: { Authorization: `Bearer ${tokenData.access_token}` } }
+    )
+    const sigData = await sigRes.json()
+    const primaryAlias = sigData.sendAs?.find(a => a.isPrimary)
+    const signature = primaryAlias?.signature || ''
+    if (signature) {
+      await c.env.DB.prepare(
+        'UPDATE users SET gmail_signature = ? WHERE id = ?'
+      ).bind(signature, payload.id).run()
+    }
+  } catch (e) {
+    console.error('Failed to fetch Gmail signature:', e.message)
+  }
+
+  return c.redirect('https://eshopbox-sales-assist-v3.pages.dev/settings?gmail=connected');
 });
 
-app.get('/api/auth/gmail-status', requireAuth, async (c) => {
-  const user = c.get('user');
+app.get('/auth/gmail/status', requireAuth, async (c) => {
+  const user = c.get('user')
   const row = await c.env.DB.prepare(
-    'SELECT gmail_refresh_token FROM users WHERE id = ?'
-  ).bind(user.id).first();
-  return c.json({ connected: !!row?.gmail_refresh_token });
+    'SELECT gmail_refresh_token, gmail_signature FROM users WHERE id = ?'
+  ).bind(user.id).first()
+  return c.json({ connected: !!row?.gmail_refresh_token, signature: row?.gmail_signature || '' })
+})
+
+app.post('/auth/gmail/disconnect', requireAuth, async (c) => {
+  const user = c.get('user')
+  await c.env.DB.prepare(
+    'UPDATE users SET gmail_access_token = NULL, gmail_refresh_token = NULL, gmail_token_expiry = NULL WHERE id = ?'
+  ).bind(user.id).run()
+  return c.json({ success: true })
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── LEADS ────────────────────────────────────────────────
 
-const ACTIVE_LEAD_STATUSES = ['New', 'Pending Review', 'Connecting', 'Connected']
+const ACTIVE_LEAD_STATUSES = ['Connected', 'Connecting', 'Bad Timing']
 
 const SYSTEM_EMAILS = ['shikhar.gupta@eshopbox.com']
 
@@ -2447,18 +2523,17 @@ function mapZohoLead(l) {
 app.get('/api/leads', requireAuth, async (c) => {
   try {
     const user = c.get('user')
-    const allLeads = []
-    let page = 1
-    while (true) {
-      const res = await getLeads(c.env, page)
-      if (!res?.data?.length) break
-      allLeads.push(...res.data)
-      if (!res.info?.more_records || page >= 10) break
-      page++
-    }
+    const res = await getLeads(c.env)
+    const allLeads = res?.data || []
+    console.log('Total leads from Zoho:', allLeads.length)
+    console.log('After converted filter:', allLeads.filter(l => !l.$converted).length)
+    console.log('After lead type filter:', allLeads.filter(l => !l.$converted).filter(l => l.Lead_Type === 'Inbound').length)
+    console.log('After status filter:', allLeads.filter(l => !l.$converted).filter(l => l.Lead_Type === 'Inbound').filter(l => ACTIVE_LEAD_STATUSES.includes(l.Lead_Status)).length)
+    console.log('Sample lead types:', [...new Set(allLeads.slice(0,20).map(l => l.Lead_Type))])
+    console.log('Sample statuses:', [...new Set(allLeads.slice(0,20).map(l => l.Lead_Status))])
     let leads = allLeads
       .filter(l => !l.$converted)
-      .filter(l => l.Lead_Type === 'Inbound' || l.Lead_Type === 'Paid')
+      .filter(l => l.Lead_Type === 'Inbound')
       .filter(l => ACTIVE_LEAD_STATUSES.includes(l.Lead_Status))
       .filter(l => !SYSTEM_EMAILS.includes(l.Owner?.email))
       .map(mapZohoLead)
@@ -2668,9 +2743,18 @@ export default {
   },
   async scheduled(event, env, ctx) {
     console.log('Cron triggered:', event.cron);
-    ctx.waitUntil(Promise.all([
-      runScheduledEmails(env),
-      runRepReminders(env),
-    ]));
+    ctx.waitUntil((async () => {
+      try {
+        await env.TOKEN_CACHE.delete('v3_deals_cache')
+        const { data } = await getAllDeals(env)
+        console.log('Cache refresh: total deals cached:', data.length)
+      } catch (err) {
+        console.error('Cache refresh error:', err.message)
+      }
+      await Promise.all([
+        runScheduledEmails(env),
+        runRepReminders(env),
+      ])
+    })());
   },
 };

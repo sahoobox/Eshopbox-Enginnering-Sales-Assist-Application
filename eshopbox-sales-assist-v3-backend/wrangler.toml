@@ -18,4 +18,4 @@ database_name = "eshopbox-sales-assist"
 database_id = "a093fe4e-f9cc-4130-8bd9-d2067ba9a242"
 
 [triggers]
-crons = ["0 4 * * *", "*/30 * * * *"]
+crons = ["0 */2 * * *"]

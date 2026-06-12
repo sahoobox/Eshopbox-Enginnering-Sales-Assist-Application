@@ -82,3 +82,14 @@ CREATE TABLE IF NOT EXISTS deal_emails (
   reminder_sent INTEGER DEFAULT 0,
   zoho_task_id TEXT
 );
+
+CREATE TABLE IF NOT EXISTS deal_notes (
+  id TEXT PRIMARY KEY,
+  deal_id TEXT NOT NULL,
+  content TEXT NOT NULL,
+  author_email TEXT,
+  author_name TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+ALTER TABLE users ADD COLUMN gmail_signature TEXT;

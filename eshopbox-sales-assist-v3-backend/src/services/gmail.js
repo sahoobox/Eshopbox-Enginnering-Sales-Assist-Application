@@ -103,7 +103,10 @@ function buildEmailMessage({ from, fromName, to, subject,
   // UTF-8 safe base64url encoding
   const rawString = message.join('\r\n');
   const utf8Bytes = new TextEncoder().encode(rawString);
-  const binaryString = String.fromCharCode(...utf8Bytes);
+  let binaryString = '';
+  for (let i = 0; i < utf8Bytes.length; i++) {
+    binaryString += String.fromCharCode(utf8Bytes[i]);
+  }
   const raw = btoa(binaryString)
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
@@ -111,46 +114,54 @@ function buildEmailMessage({ from, fromName, to, subject,
 }
 
 // Create a Gmail draft using a pre-obtained personal OAuth access token
-export async function createGmailDraft(accessToken, {
-  fromEmail, fromName, toEmail, subject,
-  htmlBody, inReplyTo, references, threadId
-}) {
-  const { raw, messageId } = buildEmailMessage({
-    from: fromEmail,
-    fromName,
-    to: toEmail,
-    subject,
-    htmlBody,
-    inReplyTo,
-    references
-  });
+export async function createGmailDraft(accessToken, { fromEmail, fromName, toEmail, subject, htmlBody, inReplyTo, references, threadId }) {
+  console.log('createGmailDraft START', { fromEmail, toEmail, subject: subject?.slice(0, 50), htmlBodyLength: htmlBody?.length })
+  console.log('createGmailDraft threadId:', threadId)
+  try {
+    const { raw, messageId } = buildEmailMessage({
+      from: fromEmail,
+      fromName,
+      to: toEmail,
+      subject,
+      htmlBody,
+      inReplyTo,
+      references
+    });
 
-  const messageBody = { raw };
-  if (threadId) messageBody.threadId = threadId;
+    const messageBody = { raw };
+    if (threadId) messageBody.threadId = threadId;
+    console.log('messageBody keys:', Object.keys(messageBody), 'has threadId:', !!messageBody.threadId)
 
-  const res = await fetch(
-    `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/drafts`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ message: messageBody })
+    console.log('createGmailDraft about to fetch, raw length:', messageBody.raw?.length)
+    console.log('raw message preview:', messageBody.raw?.slice(0, 200))
+    const res = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/drafts`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ message: messageBody })
+      }
+    );
+    console.log('createGmailDraft fetch done, status:', res.status)
+
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      throw new Error('Gmail draft creation failed: ' + JSON.stringify(data));
     }
-  );
 
-  const data = await res.json();
-
-  if (!res.ok || data.error) {
-    throw new Error('Gmail draft creation failed: ' + JSON.stringify(data));
+    return {
+      draftId: data.id,
+      messageId,
+      gmailMessageId: data.message?.id
+    };
+  } catch (err) {
+    console.error('createGmailDraft CRASH:', err.message, err.stack?.slice(0, 200))
+    throw err
   }
-
-  return {
-    draftId: data.id,
-    messageId,
-    gmailMessageId: data.message?.id
-  };
 }
 
 export async function checkDraftSent(accessToken, fromEmail, draftId, gmailMessageId, threadId = null) {
