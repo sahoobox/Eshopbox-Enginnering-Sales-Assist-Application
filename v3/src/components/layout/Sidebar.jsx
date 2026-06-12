@@ -155,6 +155,22 @@ export default function Sidebar({ counts = {} }) {
         ))}
       </nav>
 
+      {/* Log demo CTA */}
+      <button
+        className="btn btn-primary"
+        onClick={() => navigate('/form')}
+        style={{
+          width: '100%',
+          marginBottom: 8,
+          background: '#F95253',
+          borderColor: '#F95253',
+          justifyContent: 'center',
+          fontWeight: 600
+        }}
+      >
+        + Log demo
+      </button>
+
       {/* User card */}
       <div className="sidebar-user" onClick={logout} title="Click to sign out">
         <div className={`avatar ${ROLE_AV[role] || ''}`}>

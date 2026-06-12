@@ -120,6 +120,26 @@ export default function DealCard({ deal }) {
               </span>
             )}
           </div>
+          {!deal.saLogged && (
+            <button
+              className="btn btn-sm"
+              style={{
+                background: '#F95253',
+                color: '#fff',
+                border: 'none',
+                fontSize: 10,
+                padding: '3px 8px',
+                fontWeight: 600,
+                flexShrink: 0
+              }}
+              onClick={e => {
+                e.stopPropagation()
+                navigate(`/form?dealId=${deal.id}`)
+              }}
+            >
+              + Log
+            </button>
+          )}
         </div>
       </div>
     </div>
