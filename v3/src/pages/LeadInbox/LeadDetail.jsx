@@ -13,6 +13,8 @@ export default function LeadDetail() {
   const [error, setError] = useState(null)
   const [tab, setTab] = useState('activity')
   const [disqualifying, setDisqualifying] = useState(false)
+  const [showDisqualify, setShowDisqualify] = useState(false)
+  const [disqualifyReason, setDisqualifyReason] = useState('')
   const [converting, setConverting] = useState(false)
   const [note, setNote] = useState('')
   const [savingNote, setSavingNote] = useState(false)
@@ -53,13 +55,17 @@ export default function LeadDetail() {
   }
 
   async function handleDisqualify() {
-    if (!confirm(`Disqualify ${lead.company || lead.fullName}?`)) return
+    if (!disqualifyReason) return alert('Please select a reason')
     setDisqualifying(true)
     try {
-      await authFetch(`/api/leads/${leadId}/disqualify`, { method: 'POST', body: JSON.stringify({ reason: 'Disqualified from Lead Inbox' }) })
+      await authFetch(`/api/leads/${leadId}/disqualify`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: disqualifyReason })
+      })
+      setShowDisqualify(false)
       navigate('/leads')
     } catch {
-      alert('Failed to disqualify.')
+      alert('Failed to disqualify. Please try again.')
       setDisqualifying(false)
     }
   }
@@ -155,7 +161,7 @@ export default function LeadDetail() {
           </div>
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
             <button className="btn btn-sm" onClick={() => setShowLogCall(true)}>Log call</button>
-            <button className="btn btn-sm btn-danger" onClick={handleDisqualify} disabled={disqualifying}>
+            <button className="btn btn-sm btn-danger" onClick={() => setShowDisqualify(true)} disabled={disqualifying}>
               {disqualifying ? 'Disqualifying…' : 'Disqualify'}
             </button>
             <button className="btn btn-sm btn-primary" onClick={handleConvert}>
@@ -372,6 +378,58 @@ export default function LeadDetail() {
               <button className="btn btn-primary" onClick={saveLogCall}
                 disabled={logSaving || !logSubject.trim()}>
                 {logSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDisqualify && (
+        <div className="modal-overlay" onClick={() => setShowDisqualify(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>Disqualify Lead</h3>
+              <button className="btn-close" onClick={() => setShowDisqualify(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 8 }}>
+                DISQUALIFICATION REASON *
+              </label>
+              <select
+                className="input"
+                style={{ width: '100%' }}
+                value={disqualifyReason}
+                onChange={e => setDisqualifyReason(e.target.value)}
+              >
+                <option value="">Select reason…</option>
+                <option>Job Seeker / Career Inquiry</option>
+                <option>Investor / vendor / partner enquiry</option>
+                <option>Hyper Local Delivery</option>
+                <option>Duplicate or Existing account</option>
+                <option>Wrong number / can't reach decision maker</option>
+                <option>Not an E-commerce Brand</option>
+                <option>Outside Service Geography</option>
+                <option>Volume / Business size mismatch</option>
+                <option>Business Model Misaligned</option>
+                <option>Duplicate Lead</option>
+                <option>Service we don't offer (courier / packaging only)</option>
+                <option>Language Barrier</option>
+                <option>Looking for boxes</option>
+                <option>No budget / decision delayed</option>
+                <option>Just searching - no immediate need</option>
+                <option>Chose a competitor</option>
+                <option>Invalid / spam / test entry</option>
+                <option>Submitted by mistake / email bounced</option>
+              </select>
+            </div>
+            <div className="modal-foot">
+              <button className="btn" onClick={() => setShowDisqualify(false)}>Cancel</button>
+              <button
+                className="btn btn-danger"
+                onClick={handleDisqualify}
+                disabled={disqualifying || !disqualifyReason}
+              >
+                {disqualifying ? 'Disqualifying…' : 'Disqualify'}
               </button>
             </div>
           </div>
