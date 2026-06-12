@@ -15,6 +15,16 @@ export default function DealDetail({ dealId }) {
   const [showMarkLost, setShowMarkLost] = useState(false)
   const [showMarkOnHold, setShowMarkOnHold] = useState(false)
   const [movingStage, setMovingStage] = useState(null)
+  const [stageDropdown, setStageDropdown] = useState(false)
+
+  useEffect(() => {
+    if (!stageDropdown) return
+    const handler = (e) => {
+      if (!e.target.closest('[data-stage-dropdown]')) setStageDropdown(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [stageDropdown])
 
   if (loading) return <div className="main"><Loading text="Loading deal…" /></div>
   if (error || !deal) return (
@@ -31,6 +41,11 @@ export default function DealDetail({ dealId }) {
     !['Won/Payment Received', 'Lost/Dropped', 'On Hold'].includes(s)
   )
   const endStages = ['On Hold', 'Won/Payment Received', 'Lost/Dropped']
+  const moveableStages = deal.pipeline === 'Enterprise 2.0'
+    ? ['Follow up Meeting Done', 'Active', 'Won/Payment Received']
+    : ['Account Setup in Progress', 'Awaiting First Shipment',
+       'First Shipment Done', 'Active', 'Won/Payment Received']
+  const availableStages = moveableStages.filter(s => s !== deal.stage)
   const flagLevel = deal.attentionLevel || 'ok'
   const gradeColor = { A: 'ok', B: 'info', C: 'warn', D: 'danger' }[deal.grade] || 'neutral'
 
@@ -98,6 +113,69 @@ export default function DealDetail({ dealId }) {
               {deal.saLogged && (
                 <button className="btn btn-sm" onClick={() => setShowF2FForm(true)}>+ Log F2F</button>
               )}
+              <div data-stage-dropdown style={{ position: 'relative' }}>
+                <button
+                  className="btn btn-sm"
+                  onClick={() => setStageDropdown(v => !v)}
+                >
+                  Move stage ▾
+                </button>
+                {stageDropdown && (
+                  <div style={{
+                    position: 'absolute', top: '100%', right: 0, zIndex: 200,
+                    background: 'var(--surface)', border: '1px solid var(--line-2)',
+                    borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-2)',
+                    marginTop: 4, minWidth: 220, overflow: 'hidden'
+                  }}>
+                    {availableStages.map(stage => (
+                      <button key={stage}
+                        onClick={() => {
+                          setStageDropdown(false)
+                          moveToStage(stage)
+                        }}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left',
+                          padding: '10px 14px', border: 'none', background: 'none',
+                          fontSize: 13, cursor: 'pointer', color: 'var(--ink)',
+                          fontFamily: 'inherit'
+                        }}
+                        onMouseEnter={e => e.target.style.background = 'var(--surface-2)'}
+                        onMouseLeave={e => e.target.style.background = 'none'}
+                      >
+                        {stage}
+                      </button>
+                    ))}
+                    <div style={{ borderTop: '1px solid var(--line)', padding: '4px 0' }}>
+                      <button key="on-hold"
+                        onClick={() => { setStageDropdown(false); setShowMarkOnHold(true) }}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left',
+                          padding: '10px 14px', border: 'none', background: 'none',
+                          fontSize: 13, cursor: 'pointer', color: 'var(--warn)',
+                          fontFamily: 'inherit', fontWeight: 500
+                        }}
+                        onMouseEnter={e => e.target.style.background = 'var(--warn-bg)'}
+                        onMouseLeave={e => e.target.style.background = 'none'}
+                      >
+                        ⏸ On Hold…
+                      </button>
+                      <button key="lost"
+                        onClick={() => { setStageDropdown(false); setShowMarkLost(true) }}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left',
+                          padding: '10px 14px', border: 'none', background: 'none',
+                          fontSize: 13, cursor: 'pointer', color: 'var(--danger)',
+                          fontFamily: 'inherit', fontWeight: 500
+                        }}
+                        onMouseEnter={e => e.target.style.background = 'var(--danger-bg)'}
+                        onMouseLeave={e => e.target.style.background = 'none'}
+                      >
+                        ✗ Lost / Dropped…
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
               <button className="btn btn-sm btn-danger" onClick={() => setShowMarkLost(true)}>Mark Lost</button>
               <button className="btn btn-sm" onClick={() => setShowMarkOnHold(true)}>Mark on Hold</button>
             </>
