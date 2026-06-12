@@ -24,6 +24,8 @@ export default function LeadInbox() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [dateFilter, setDateFilter] = useState('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
 
   const scopedLeads = useMemo(() => {
     if (role === ROLES.MDE || role === ROLES.AE) return leads.filter(l => l.ownerEmail === user?.email)
@@ -64,8 +66,21 @@ export default function LeadInbox() {
         return true
       })
     }
+    if (dateFilter === 'custom') {
+      result = result.filter(l => {
+        if (!l.createdAt) return false
+        const d = new Date(l.createdAt)
+        if (customFrom && d < new Date(customFrom)) return false
+        if (customTo) {
+          const toEnd = new Date(customTo)
+          toEnd.setHours(23, 59, 59, 999)
+          if (d > toEnd) return false
+        }
+        return true
+      })
+    }
     return result
-  }, [scopedLeads, search, dateFilter])
+  }, [scopedLeads, search, dateFilter, customFrom, customTo])
 
   const todayStr = new Date().toISOString().split('T')[0]
   const isPast6pm = new Date().getHours() >= 18
@@ -120,6 +135,7 @@ export default function LeadInbox() {
           { key: 'today', label: 'Today' },
           { key: 'week', label: 'This week' },
           { key: 'month', label: 'This month' },
+          { key: 'custom', label: 'Custom range' },
         ].map(d => (
           <button key={d.key}
             onClick={() => setDateFilter(d.key)}
@@ -129,6 +145,36 @@ export default function LeadInbox() {
           </button>
         ))}
       </div>
+      {dateFilter === 'custom' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>From</span>
+          <input
+            type="date"
+            className="input"
+            style={{ padding: '4px 8px', fontSize: 12, width: 'auto' }}
+            value={customFrom}
+            onChange={e => setCustomFrom(e.target.value)}
+          />
+          <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>To</span>
+          <input
+            type="date"
+            className="input"
+            style={{ padding: '4px 8px', fontSize: 12, width: 'auto' }}
+            value={customTo}
+            max={new Date().toISOString().split('T')[0]}
+            onChange={e => setCustomTo(e.target.value)}
+          />
+          {(customFrom || customTo) && (
+            <button
+              onClick={() => { setCustomFrom(''); setCustomTo('') }}
+              style={{ background: 'none', border: 'none', color: 'var(--brand)',
+                       cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
       <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 8 }}>
         Showing {filteredLeads.length} of {scopedLeads.length} leads
         {search && <button onClick={() => setSearch('')} style={{ marginLeft: 8, background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Clear</button>}
