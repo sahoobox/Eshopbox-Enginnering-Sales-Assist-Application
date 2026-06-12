@@ -502,7 +502,23 @@ function SequenceTab({ emails, deal }) {
   }
 
   function EmailCard({ email }) {
+    const { authFetch } = useAuth()
     const [expanded, setExpanded] = useState(false)
+    const [creating, setCreating] = useState(false)
+    const [draftCreated, setDraftCreated] = useState(false)
+
+    async function createGmailDraft() {
+      setCreating(true)
+      try {
+        const res = await authFetch(`/api/deals/${deal.id}/emails/${email.email_type}/gmail-draft`, {
+          method: 'POST'
+        })
+        const data = await res.json()
+        if (data.success) setDraftCreated(true)
+        else alert(data.error || 'Failed to create Gmail draft')
+      } finally { setCreating(false) }
+    }
+
     return (
       <div className="card card-pad">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -518,7 +534,13 @@ function SequenceTab({ emails, deal }) {
         )}
         <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
           {email.status === 'draft' && (
-            <button className="btn btn-sm btn-primary">Create Gmail Draft</button>
+            !draftCreated ? (
+              <button className="btn btn-sm btn-primary" onClick={createGmailDraft} disabled={creating}>
+                {creating ? 'Creating…' : 'Create Gmail Draft'}
+              </button>
+            ) : (
+              <span className="pill pill-ok">✓ Draft created in Gmail</span>
+            )
           )}
           <button className="btn btn-sm" onClick={() => setExpanded(e => !e)}>
             {expanded ? 'Collapse' : 'Expand'}
@@ -531,9 +553,14 @@ function SequenceTab({ emails, deal }) {
     )
   }
 
+  const ORDER = ['day1', 'day2', 'day3', 'day4', 'nudge']
+  const sortedEmails = [...emails].sort((a, b) =>
+    ORDER.indexOf(a.email_type) - ORDER.indexOf(b.email_type)
+  )
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {emails.map(email => (
+      {sortedEmails.map(email => (
         <EmailCard key={email.id} email={email} />
       ))}
     </div>
