@@ -10,7 +10,6 @@ export default function DealDetail({ dealId }) {
   const navigate = useNavigate()
   const { deal, emails, loading, error } = useDeal(dealId)
   const [tab, setTab] = useState('activity')
-  const [showDemoForm, setShowDemoForm] = useState(false)
   const [showF2FForm, setShowF2FForm] = useState(false)
   const [showMarkLost, setShowMarkLost] = useState(false)
   const [showMarkOnHold, setShowMarkOnHold] = useState(false)
@@ -61,7 +60,7 @@ export default function DealDetail({ dealId }) {
           {!isTerminal && (
             <>
               {!deal.saLogged && (
-                <button className="btn btn-sm btn-primary" onClick={() => setShowDemoForm(true)}>+ Log Demo</button>
+                <button className="btn btn-sm btn-primary" onClick={() => navigate(`/form?dealId=${deal.id}`)}>+ Log Demo</button>
               )}
               {deal.saLogged && (
                 <button className="btn btn-sm" onClick={() => setShowF2FForm(true)}>+ Log F2F</button>
@@ -177,7 +176,6 @@ export default function DealDetail({ dealId }) {
           </div>
         </div>
       </div>
-      {showDemoForm && <DemoFormModal deal={deal} onClose={() => setShowDemoForm(false)} onSuccess={() => { setShowDemoForm(false); window.location.reload() }} />}
       {showF2FForm && <F2FModal deal={deal} onClose={() => setShowF2FForm(false)} />}
       {showMarkLost && <MarkLostModal deal={deal} onClose={() => setShowMarkLost(false)} onSuccess={() => { setShowMarkLost(false); window.location.reload() }} />}
       {showMarkOnHold && <MarkOnHoldModal deal={deal} onClose={() => setShowMarkOnHold(false)} onSuccess={() => { setShowMarkOnHold(false); window.location.reload() }} />}
