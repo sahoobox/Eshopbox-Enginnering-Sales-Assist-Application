@@ -8,11 +8,13 @@ import { TaskModal } from '../Tasks'
 
 export default function DealDetail({ dealId }) {
   const navigate = useNavigate()
-  const { deal, emails, loading, error } = useDeal(dealId)
+  const { deal, emails, loading, error, refetch: refetchDeal } = useDeal(dealId)
+  const { authFetch } = useAuth()
   const [tab, setTab] = useState('activity')
   const [showF2FForm, setShowF2FForm] = useState(false)
   const [showMarkLost, setShowMarkLost] = useState(false)
   const [showMarkOnHold, setShowMarkOnHold] = useState(false)
+  const [movingStage, setMovingStage] = useState(null)
 
   if (loading) return <div className="main"><Loading text="Loading deal…" /></div>
   if (error || !deal) return (
@@ -27,6 +29,28 @@ export default function DealDetail({ dealId }) {
   const isTerminal = ['Won/Payment Received', 'Lost/Dropped', 'On Hold'].includes(deal.stage)
   const flagLevel = deal.attentionLevel || 'ok'
   const gradeColor = { A: 'ok', B: 'info', C: 'warn', D: 'danger' }[deal.grade] || 'neutral'
+
+  const moveToStage = async (stage) => {
+    if (stage === deal.stage || movingStage) return
+    if (!confirm(`Move deal to "${stage}"?`)) return
+    setMovingStage(stage)
+    try {
+      const res = await authFetch(`/api/deals/${deal.id}/stage`, {
+        method: 'POST',
+        body: JSON.stringify({ stage })
+      })
+      const data = await res.json()
+      if (data.success) {
+        refetchDeal()
+      } else {
+        alert(data.error || 'Failed to move stage')
+      }
+    } catch {
+      alert('Network error. Try again.')
+    } finally {
+      setMovingStage(null)
+    }
+  }
 
   return (
     <div className="main">
@@ -94,9 +118,16 @@ export default function DealDetail({ dealId }) {
             if (idx < currentIdx) cls = 'done'
             else if (idx === currentIdx && !isTerminal) cls = 'current'
             return (
-              <div key={s} className={`stage-step ${cls}`}>
+              <div key={s} className={`stage-step ${cls}`}
+                onClick={() => moveToStage(s)}
+                style={{ cursor: s === deal.stage ? 'default' : 'pointer' }}
+                title={s === deal.stage ? 'Current stage' : `Move to ${s}`}
+              >
                 <div className="ord">{idx + 1}/{stages.length}</div>
-                <div className="sname">{s}</div>
+                <div className="sname">
+                  {s}
+                  {movingStage === s && <span style={{ fontSize: 10, color: 'var(--ink-3)' }}> …</span>}
+                </div>
               </div>
             )
           })}

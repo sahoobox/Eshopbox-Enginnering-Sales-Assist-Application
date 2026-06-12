@@ -34,7 +34,7 @@ export function useDeal(dealId) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  useEffect(() => {
+  const fetchDeal = useCallback(async () => {
     if (!dealId) return
     setLoading(true)
     Promise.all([
@@ -49,5 +49,7 @@ export function useDeal(dealId) {
       .finally(() => setLoading(false))
   }, [dealId, authFetch])
 
-  return { deal, emails, loading, error }
+  useEffect(() => { fetchDeal() }, [fetchDeal])
+
+  return { deal, emails, loading, error, refetch: fetchDeal }
 }
