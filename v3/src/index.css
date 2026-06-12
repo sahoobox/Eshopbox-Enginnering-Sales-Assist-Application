@@ -686,7 +686,7 @@ table.t tr:hover td { background: #faf9f7; }
 .kcol-empty { padding: 18px 12px; text-align: center; font-size: 11.5px; color: var(--ink-3); font-style: italic; }
 
 /* ── Deal card ── */
-.kcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); cursor: pointer; box-shadow: 0 1px 2px rgba(29,29,29,0.04); transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease; position: relative; overflow: hidden; }
+.kcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); cursor: pointer; box-shadow: 0 1px 2px rgba(29,29,29,0.04); transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease; position: relative; overflow: hidden; min-height: 80px; }
 .kcard:hover { border-color: var(--ink-3); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(29,29,29,0.07); }
 .kcard.stale::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--warn); }
 .kcard.critical::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--danger); }
