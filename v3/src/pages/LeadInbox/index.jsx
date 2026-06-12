@@ -23,6 +23,7 @@ export default function LeadInbox() {
   const { leads, loading, error, refetch } = useLeads()
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
+  const [dateFilter, setDateFilter] = useState('all')
 
   const scopedLeads = useMemo(() => {
     if (role === ROLES.MDE || role === ROLES.AE) return leads.filter(l => l.ownerEmail === user?.email)
@@ -47,8 +48,24 @@ export default function LeadInbox() {
         (l.phone || '').toLowerCase().includes(q)
       )
     }
+    if (dateFilter !== 'all') {
+      const now = new Date()
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const startOfWeek = new Date(startOfDay)
+      startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay())
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+      result = result.filter(l => {
+        if (!l.createdAt) return false
+        const d = new Date(l.createdAt)
+        if (dateFilter === 'today') return d >= startOfDay
+        if (dateFilter === 'week') return d >= startOfWeek
+        if (dateFilter === 'month') return d >= startOfMonth
+        return true
+      })
+    }
     return result
-  }, [scopedLeads, search])
+  }, [scopedLeads, search, dateFilter])
 
   const todayStr = new Date().toISOString().split('T')[0]
   const isPast6pm = new Date().getHours() >= 18
@@ -78,7 +95,7 @@ export default function LeadInbox() {
         <StatTile label="SAME-DAY DUE" value={sameDayDue.length} sub="still in New status" warn={sameDayDue.length > 0} />
       </div>
 
-      <div className="callout info" style={{ marginBottom: 16, fontSize: 12.5, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+      <div className="callout" style={{ marginBottom: 16, fontSize: 12.5, display: 'flex', flexWrap: 'wrap', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--line)', borderLeft: '1px solid var(--line)' }}>
         <b>Routing:</b>
         <span>Volume &lt; 500 → <b>Self-Serve / Dormant</b> · no MDE assignment · SDR outreach every 90 days</span>
         <span>·</span>
@@ -95,6 +112,22 @@ export default function LeadInbox() {
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
+      </div>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 500 }}>Date:</span>
+        {[
+          { key: 'all', label: 'All time' },
+          { key: 'today', label: 'Today' },
+          { key: 'week', label: 'This week' },
+          { key: 'month', label: 'This month' },
+        ].map(d => (
+          <button key={d.key}
+            onClick={() => setDateFilter(d.key)}
+            className={`btn btn-sm${dateFilter === d.key ? ' btn-primary' : ''}`}
+          >
+            {d.label}
+          </button>
+        ))}
       </div>
       <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 8 }}>
         Showing {filteredLeads.length} of {scopedLeads.length} leads
