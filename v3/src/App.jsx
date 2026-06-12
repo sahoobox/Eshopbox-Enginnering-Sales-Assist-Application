@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth, ROLES } from './context/AuthContext'
 import Sidebar from './components/layout/Sidebar'
@@ -67,6 +68,42 @@ function AppLayout() {
   )
 }
 
+// Zoho OAuth callback
+function ZohoCallback() {
+  const { authFetch } = useAuth()
+  const [status, setStatus] = useState('Connecting to Zoho CRM…')
+
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get('code')
+    if (!code) {
+      setStatus('Error: No code received from Zoho.')
+      return
+    }
+    authFetch('/auth/zoho/connect', {
+      method: 'POST',
+      body: JSON.stringify({ code })
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          setStatus('Zoho CRM connected! Redirecting…')
+          setTimeout(() => window.location.href = '/settings', 1500)
+        } else {
+          setStatus('Failed to connect Zoho: ' + (data.error || 'Unknown error'))
+        }
+      })
+      .catch(err => setStatus('Error: ' + err.message))
+  }, [])
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', fontFamily: 'inherit' }}>
+      <div style={{ textAlign: 'center', color: 'var(--ink-2)' }}>
+        <div style={{ fontSize: 16, marginBottom: 8 }}>{status}</div>
+      </div>
+    </div>
+  )
+}
+
 // Auth guard
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -97,6 +134,14 @@ export default function App() {
       <Route
         path="/login"
         element={user ? <Navigate to="/" replace /> : <Login />}
+      />
+      <Route
+        path="/zoho-callback"
+        element={
+          <RequireAuth>
+            <ZohoCallback />
+          </RequireAuth>
+        }
       />
       <Route
         path="/*"
