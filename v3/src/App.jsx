@@ -6,6 +6,7 @@ import Login from './pages/Auth/Login'
 import Pipeline from './pages/Pipeline'
 import LeadDetail from './pages/LeadInbox/LeadDetail'
 import DemoForm from './pages/DemoForm'
+import AccountSettings from './pages/AccountSettings'
 import {
   MyDay, LeadInbox, Accounts,
   Tasks, Performance, Settings, NotFound,
@@ -51,6 +52,7 @@ function AppLayout() {
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/form" element={<DemoForm />} />
           <Route path="/form/:dealId" element={<DemoForm />} />
+          <Route path="/settings/account" element={<AccountSettings />} />
 
           {/* Performance — Sales Lead and Admin only */}
           {(role === ROLES.SALES_LEAD_MIDMARKET ||

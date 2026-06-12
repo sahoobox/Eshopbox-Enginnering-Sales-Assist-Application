@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth, ROLES, ROLE_LABELS } from '../../context/AuthContext'
 
@@ -76,6 +77,7 @@ export default function Sidebar({ counts = {} }) {
   const { user, role, devRole, setDevRole, logout } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const [showUserMenu, setShowUserMenu] = useState(false)
 
   const navItems = getNavItems(role, counts)
 
@@ -171,14 +173,51 @@ export default function Sidebar({ counts = {} }) {
       </button>
 
       {/* User card */}
-      <div className="sidebar-user" onClick={logout} title="Click to sign out">
-        <div className={`avatar ${ROLE_AV[role] || ''}`}>
-          {initials(user?.name || 'U')}
+      <div style={{ position: 'relative' }}>
+        <div className="sidebar-user" onClick={() => setShowUserMenu(v => !v)} style={{ cursor: 'pointer' }}>
+          <div className={`avatar ${ROLE_AV[role] || ''}`}>
+            {initials(user?.name || 'U')}
+          </div>
+          <div className="sidebar-user-info">
+            <strong>{user?.name || 'User'}</strong>
+            <span>{ROLE_LABELS[role] || role}</span>
+          </div>
         </div>
-        <div className="sidebar-user-info">
-          <strong>{user?.name || 'User'}</strong>
-          <span>{ROLE_LABELS[role] || role}</span>
-        </div>
+        {showUserMenu && (
+          <div style={{
+            position: 'absolute', bottom: '100%', left: 0, right: 0,
+            background: 'var(--surface)', border: '1px solid var(--line-2)',
+            borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-2)',
+            marginBottom: 4, overflow: 'hidden', zIndex: 200
+          }}>
+            <button
+              onClick={() => { setShowUserMenu(false); navigate('/settings/account') }}
+              style={{
+                width: '100%', padding: '10px 12px', border: 'none',
+                background: 'none', textAlign: 'left', fontSize: 13,
+                color: 'var(--ink)', cursor: 'pointer', fontFamily: 'inherit',
+                fontWeight: 500, borderBottom: '1px solid var(--line)'
+              }}
+              onMouseEnter={e => e.target.style.background = 'var(--surface-2)'}
+              onMouseLeave={e => e.target.style.background = 'none'}
+            >
+              ⚙ Account settings
+            </button>
+            <button
+              onClick={() => { setShowUserMenu(false); logout() }}
+              style={{
+                width: '100%', padding: '10px 12px', border: 'none',
+                background: 'none', textAlign: 'left', fontSize: 13,
+                color: 'var(--ink)', cursor: 'pointer', fontFamily: 'inherit',
+                fontWeight: 500
+              }}
+              onMouseEnter={e => e.target.style.background = 'var(--surface-2)'}
+              onMouseLeave={e => e.target.style.background = 'none'}
+            >
+              Sign out
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   )
