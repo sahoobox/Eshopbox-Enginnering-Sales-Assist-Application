@@ -508,6 +508,19 @@ function SequenceTab({ emails, deal }) {
     const [draftCreated, setDraftCreated] = useState(false)
     const [gmailDraftId, setGmailDraftId] = useState(null)
 
+    useEffect(() => {
+      if (!email.gmail_draft_id || email.status === 'sent') return
+      const interval = setInterval(async () => {
+        const res = await authFetch(`/api/deals/${deal.id}/emails/${email.email_type}/mark-sent`, { method: 'POST' })
+        const data = await res.json()
+        if (data.sent) {
+          clearInterval(interval)
+          window.location.reload()
+        }
+      }, 30000)
+      return () => clearInterval(interval)
+    }, [email.gmail_draft_id, email.status])
+
     async function createGmailDraft() {
       setCreating(true)
       try {
