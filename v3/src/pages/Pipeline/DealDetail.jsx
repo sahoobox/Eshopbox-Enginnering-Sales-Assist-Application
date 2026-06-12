@@ -27,11 +27,22 @@ export default function DealDetail({ dealId }) {
   const stages = SME_STAGES
   const currentIdx = stages.indexOf(deal.stage)
   const isTerminal = ['Won/Payment Received', 'Lost/Dropped', 'On Hold'].includes(deal.stage)
+  const displayStages = stages.filter(s =>
+    !['Won/Payment Received', 'Lost/Dropped', 'On Hold'].includes(s)
+  )
   const flagLevel = deal.attentionLevel || 'ok'
   const gradeColor = { A: 'ok', B: 'info', C: 'warn', D: 'danger' }[deal.grade] || 'neutral'
 
   const moveToStage = async (stage) => {
     if (stage === deal.stage || movingStage) return
+    if (stage === 'Lost/Dropped') {
+      setShowMarkLost(true)
+      return
+    }
+    if (stage === 'On Hold') {
+      setShowMarkOnHold(true)
+      return
+    }
     if (!confirm(`Move deal to "${stage}"?`)) return
     setMovingStage(stage)
     try {
@@ -40,11 +51,8 @@ export default function DealDetail({ dealId }) {
         body: JSON.stringify({ stage })
       })
       const data = await res.json()
-      if (data.success) {
-        refetchDeal()
-      } else {
-        alert(data.error || 'Failed to move stage')
-      }
+      if (data.success) refetchDeal()
+      else alert(data.error || 'Failed to move stage')
     } catch {
       alert('Network error. Try again.')
     } finally {
@@ -109,21 +117,27 @@ export default function DealDetail({ dealId }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: 14 }}>Stage tracker</h3>
-            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>Pipeline · {stages.length} stages</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>Pipeline · {displayStages.length} stages</div>
           </div>
         </div>
         <div className="stages">
-          {stages.map((s, idx) => {
+          {displayStages.map((s, idx) => {
+            const sIdx = stages.indexOf(s)
             let cls = 'future'
-            if (idx < currentIdx) cls = 'done'
-            else if (idx === currentIdx && !isTerminal) cls = 'current'
+            if (isTerminal) {
+              cls = 'done'
+            } else if (sIdx < currentIdx) {
+              cls = 'done'
+            } else if (sIdx === currentIdx) {
+              cls = 'current'
+            }
             return (
               <div key={s} className={`stage-step ${cls}`}
                 onClick={() => moveToStage(s)}
                 style={{ cursor: s === deal.stage ? 'default' : 'pointer' }}
                 title={s === deal.stage ? 'Current stage' : `Move to ${s}`}
               >
-                <div className="ord">{idx + 1}/{stages.length}</div>
+                <div className="ord">{idx + 1}/{displayStages.length}</div>
                 <div className="sname">
                   {s}
                   {movingStage === s && <span style={{ fontSize: 10, color: 'var(--ink-3)' }}> …</span>}
