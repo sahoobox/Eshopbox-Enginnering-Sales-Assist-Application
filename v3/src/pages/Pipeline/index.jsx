@@ -397,7 +397,10 @@ function KanbanView({ deals, pipelineFilter }) {
               <div className="kcol-body">
                 {stageDeals.length === 0
                   ? <div className="kcol-empty">No deals</div>
-                  : stageDeals.map(deal => <DealCard key={deal.id} deal={deal} />)
+                  : stageDeals.map(deal => {
+                    if (stage === 'Proposal Sent') console.log('CARD:', deal.id, deal.brandName, deal.stage, deal.grade)
+                    return <DealCard key={deal.id} deal={deal} />
+                  })
                 }
               </div>
             </div>
