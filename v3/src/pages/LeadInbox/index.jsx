@@ -67,8 +67,8 @@ export default function LeadInbox() {
         <span>Volume &gt; 10,000 → <b>Assigned to AE-Enterprise</b></span>
       </div>
 
-      <div className="table-wrap">
-        <table className="t">
+      <div className="table-wrap" style={{ overflowX: 'auto' }}>
+        <table className="t" style={{ minWidth: 900 }}>
           <thead>
             <tr>
               <th>Brand</th>
@@ -120,7 +120,7 @@ export default function LeadInbox() {
                     }
                   </td>
                   <td>{lead.ownerName || '—'}</td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap', paddingRight: 12 }}>
                     <button
                       className="btn btn-sm btn-danger"
                       disabled={!canConvert}
