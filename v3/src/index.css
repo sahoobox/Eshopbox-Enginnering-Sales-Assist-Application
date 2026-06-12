@@ -630,7 +630,7 @@ table.t tr:hover td { background: #faf9f7; }
   flex-direction: column;
   width: 296px;
   min-width: 296px;
-  max-height: calc(100vh - 220px);
+  max-height: calc(100vh - 180px);
 }
 .kcol-head {
   padding: 12px 14px 10px;
