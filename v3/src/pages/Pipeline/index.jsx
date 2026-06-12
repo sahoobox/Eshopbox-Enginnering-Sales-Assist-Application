@@ -139,11 +139,12 @@ function PipelineList() {
             <button className={pipelineFilter === 'enterprise' ? 'is-on' : ''} onClick={() => setPipelineFilter('enterprise')}>Enterprise</button>
           </div>
         )}
-        <div className="seg" style={{ marginLeft: 'auto' }}>
-          <button className={view === 'kanban' ? 'is-on' : ''} onClick={() => setView('kanban')}>Kanban</button>
-          <button className={view === 'list' ? 'is-on' : ''} onClick={() => setView('list')}>List</button>
-        </div>
-        <div data-legend style={{ position: 'relative' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className="seg">
+            <button className={view === 'kanban' ? 'is-on' : ''} onClick={() => setView('kanban')}>Kanban</button>
+            <button className={view === 'list' ? 'is-on' : ''} onClick={() => setView('list')}>List</button>
+          </div>
+          <div data-legend style={{ position: 'relative' }}>
           <button
             className="btn btn-sm btn-ghost"
             onClick={() => setShowLegend(v => !v)}
@@ -209,6 +210,7 @@ function PipelineList() {
               </button>
             </div>
           )}
+          </div>
         </div>
       </div>
 
