@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { Topbar } from '../../components/ui'
 
@@ -68,13 +68,6 @@ const TEMPLATES = [
   { name: 'Post-Demo Day 5+: Decision nudge',         timing: 'Day 5+',         type: 'Auto',   body: `Hi {FirstName}, we'd love to get your account set up before the busy season. Can we lock in a go-live date this week? Happy to jump on a quick call.` },
 ]
 
-const INTEGRATIONS = [
-  { name: 'Zoho CRM',           desc: 'Source of truth for deals, leads, contacts, and tasks.',         status: 'Connected' },
-  { name: 'Gmail OAuth',        desc: 'Sends sequence emails on behalf of the assigned rep.',            status: 'Connected' },
-  { name: 'WhatsApp Bot',       desc: 'Receives inbound lead messages and routes to rep queue.',         status: 'Connected' },
-  { name: 'SDR Command Center', desc: 'Triggers re-engagement tasks and dormant list management.',       status: 'Integration active' },
-  { name: 'Eshopbox Pulse',     desc: 'Syncs shipment milestones to trigger post-activation follow-ups.',status: 'Integration active' },
-]
 
 const ROLE_PILL = {
   MDE:          'pill-info',
@@ -256,25 +249,98 @@ function EmailTemplatesTab() {
 
 // ── Tab 4: Integrations ───────────────────────────────────
 function IntegrationsTab() {
+  const { authFetch } = useAuth()
+  const [gmailStatus, setGmailStatus] = useState(null)
+  const [zohoStatus, setZohoStatus] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    Promise.all([
+      authFetch('/auth/gmail/status').then(r => r.json()),
+      authFetch('/auth/zoho/status').then(r => r.json()),
+    ]).then(([gmail, zoho]) => {
+      setGmailStatus(gmail)
+      setZohoStatus(zoho)
+    }).finally(() => setLoading(false))
+  }, [])
+
+  async function connectGmail() {
+    const res = await authFetch('/auth/gmail')
+    const data = await res.json()
+    if (data.url) window.location.href = data.url
+  }
+
+  async function disconnectGmail() {
+    if (!confirm('Disconnect Gmail? Email drafts will no longer be created automatically.')) return
+    await authFetch('/auth/gmail/disconnect', { method: 'POST' })
+    setGmailStatus({ connected: false, signature: '' })
+  }
+
+  async function connectZoho() {
+    const res = await authFetch('/auth/zoho/config')
+    const config = await res.json()
+    const params = new URLSearchParams({
+      client_id: config.clientId,
+      redirect_uri: config.redirectUri,
+      response_type: 'code',
+      scope: 'ZohoCRM.modules.deals.ALL,ZohoCRM.modules.contacts.READ,ZohoCRM.modules.activities.ALL,ZohoCRM.settings.fields.READ,ZohoCRM.modules.leads.ALL',
+      access_type: 'offline',
+      prompt: 'consent',
+    })
+    window.location.href = `https://accounts.zoho.com/oauth/v2/auth?${params.toString()}`
+  }
+
+  if (loading) return <div style={{ padding: 24, color: 'var(--ink-3)' }}>Loading integration status…</div>
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-      {INTEGRATIONS.map(intg => (
-        <div key={intg.name} className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 14, fontWeight: 700 }}>{intg.name}</span>
-            <span className="pill pill-ok">{intg.status}</span>
-          </div>
-          <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.5 }}>{intg.desc}</p>
-          <div>
-            <button
-              className="btn btn-sm"
-              onClick={() => alert(`${intg.name} configuration coming soon`)}
-            >
-              Configure
-            </button>
-          </div>
+
+      {/* Zoho CRM */}
+      <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 14, fontWeight: 700 }}>Zoho CRM</span>
+          <span className={`pill ${zohoStatus?.connected ? 'pill-ok' : 'pill-neutral'}`}>
+            {zohoStatus?.connected ? 'Connected' : 'Not connected'}
+          </span>
         </div>
-      ))}
+        <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+          Connect your personal Zoho CRM token to create tasks and log activities on your behalf.
+        </p>
+        <div>
+          <button className="btn btn-sm btn-primary" onClick={connectZoho}>
+            {zohoStatus?.connected ? 'Reconnect Zoho' : 'Connect Zoho'}
+          </button>
+        </div>
+      </div>
+
+      {/* Gmail OAuth */}
+      <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 14, fontWeight: 700 }}>Gmail</span>
+          <span className={`pill ${gmailStatus?.connected ? 'pill-ok' : 'pill-neutral'}`}>
+            {gmailStatus?.connected ? 'Connected' : 'Not connected'}
+          </span>
+        </div>
+        <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+          Connect Gmail to auto-create email drafts in your inbox and track sent status.
+        </p>
+        {gmailStatus?.signature && (
+          <div style={{ fontSize: 11.5, color: 'var(--ink-3)', background: 'var(--surface-2)', padding: '6px 10px', borderRadius: 6, maxHeight: 60, overflow: 'hidden' }}>
+            <b>Signature detected</b> · Will be appended to all drafts
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-sm btn-primary" onClick={connectGmail}>
+            {gmailStatus?.connected ? 'Reconnect Gmail' : 'Connect Gmail'}
+          </button>
+          {gmailStatus?.connected && (
+            <button className="btn btn-sm btn-danger" onClick={disconnectGmail}>
+              Disconnect
+            </button>
+          )}
+        </div>
+      </div>
+
     </div>
   )
 }
