@@ -1292,6 +1292,43 @@ app.post('/api/deals/:id/f2f', requireAuth, async (c) => {
   }
 })
 
+app.post('/api/deals/:id/activities', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const { type, subject, notes } = await c.req.json()
+
+    const activityType = type === 'Call' ? 'Calls' : type === 'Email' ? 'Emails' : 'Events'
+
+    const payload = {
+      Subject: subject,
+      Description: notes || '',
+      Status: 'Completed',
+      What_Id: dealId,
+    }
+
+    const token = await getAccessToken(c.env)
+    const res = await fetch(
+      `https://www.zohoapis.com/crm/v2/${activityType}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Zoho-oauthtoken ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ data: [payload] })
+      }
+    ).then(r => r.json())
+
+    if (res.data?.[0]?.code === 'SUCCESS') {
+      return c.json({ success: true })
+    } else {
+      return c.json({ error: res.data?.[0]?.message || 'Zoho activity creation failed' }, 400)
+    }
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
 app.post('/api/reengage', requireAuth, async (c) => {
   try {
     const { dealContext, angle } = await c.req.json();
