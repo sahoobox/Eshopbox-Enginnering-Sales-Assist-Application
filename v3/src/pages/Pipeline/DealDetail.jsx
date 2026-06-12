@@ -27,9 +27,10 @@ export default function DealDetail({ dealId }) {
   const stages = SME_STAGES
   const currentIdx = stages.indexOf(deal.stage)
   const isTerminal = ['Won/Payment Received', 'Lost/Dropped', 'On Hold'].includes(deal.stage)
-  const displayStages = stages.filter(s =>
+  const mainStages = stages.filter(s =>
     !['Won/Payment Received', 'Lost/Dropped', 'On Hold'].includes(s)
   )
+  const endStages = ['On Hold', 'Won/Payment Received', 'Lost/Dropped']
   const flagLevel = deal.attentionLevel || 'ok'
   const gradeColor = { A: 'ok', B: 'info', C: 'warn', D: 'danger' }[deal.grade] || 'neutral'
 
@@ -117,11 +118,11 @@ export default function DealDetail({ dealId }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: 14 }}>Stage tracker</h3>
-            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>Pipeline · {displayStages.length} stages</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>Pipeline · {mainStages.length} stages</div>
           </div>
         </div>
         <div className="stages">
-          {displayStages.map((s, idx) => {
+          {mainStages.map((s, idx) => {
             const sIdx = stages.indexOf(s)
             let cls = 'future'
             if (isTerminal) {
@@ -137,7 +138,7 @@ export default function DealDetail({ dealId }) {
                 style={{ cursor: s === deal.stage ? 'default' : 'pointer' }}
                 title={s === deal.stage ? 'Current stage' : `Move to ${s}`}
               >
-                <div className="ord">{idx + 1}/{displayStages.length}</div>
+                <div className="ord">{idx + 1}/{mainStages.length}</div>
                 <div className="sname">
                   {s}
                   {movingStage === s && <span style={{ fontSize: 10, color: 'var(--ink-3)' }}> …</span>}
@@ -145,13 +146,30 @@ export default function DealDetail({ dealId }) {
               </div>
             )
           })}
-          {isTerminal && (
-            <div className={`stage-step ${deal.stage === 'Lost/Dropped' ? 'gate' : 'current'}`}
-              style={{ borderColor: `var(--${stageColor(deal.stage)})`, background: `var(--${stageColor(deal.stage)}-bg)`, flex: '0 0 130px' }}>
-              <div className="ord">END</div>
-              <div className="sname" style={{ color: `var(--${stageColor(deal.stage)})` }}>{deal.stage}</div>
-            </div>
-          )}
+        </div>
+        <div style={{ display: 'flex', gap: 4, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
+          {endStages.map(s => {
+            const isActive = deal.stage === s
+            const color = s === 'Won/Payment Received' ? 'ok' : s === 'Lost/Dropped' ? 'danger' : 'warn'
+            return (
+              <div key={s}
+                onClick={() => moveToStage(s)}
+                style={{
+                  flex: 1, padding: '8px 10px', borderRadius: 'var(--radius-sm)',
+                  border: `1.5px solid var(--${isActive ? color : 'line'})`,
+                  background: isActive ? `var(--${color}-bg)` : 'transparent',
+                  cursor: isActive ? 'default' : 'pointer',
+                  fontSize: 11.5, fontWeight: isActive ? 600 : 400,
+                  color: isActive ? `var(--${color})` : 'var(--ink-3)',
+                  textAlign: 'center'
+                }}
+                title={isActive ? 'Current stage' : `Move to ${s}`}
+              >
+                {s}
+                {movingStage === s && <span> …</span>}
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -912,6 +930,7 @@ function MarkLostModal({ deal, onClose, onSuccess }) {
         body: JSON.stringify({ stage: 'Lost/Dropped', reason })
       })
       const data = await res.json()
+      console.log('Mark lost response:', data)
       if (data.success) onSuccess()
       else alert(data.error || 'Failed to mark lost')
     } finally { setSaving(false) }
@@ -960,6 +979,7 @@ function MarkOnHoldModal({ deal, onClose, onSuccess }) {
         body: JSON.stringify({ stage: 'On Hold', reason })
       })
       const data = await res.json()
+      console.log('Mark on hold response:', data)
       if (data.success) onSuccess()
       else alert(data.error || 'Failed to mark on hold')
     } finally { setSaving(false) }
