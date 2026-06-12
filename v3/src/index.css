@@ -219,12 +219,12 @@ p { margin: 0; }
 .controls-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: nowrap;
-  padding: 0;
   margin-bottom: 10px;
   width: 100%;
   box-sizing: border-box;
+  overflow: visible;
 }
 .pipeline-searchbar {
   display: flex;
@@ -269,7 +269,7 @@ p { margin: 0; }
 }
 .pipeline-searchbar-input::placeholder { color: var(--ink-3); }
 .topbar-title-block { flex: 1; min-width: 0; }
-.topbar-actions { display: flex; gap: 8px; align-items: center; }
+.topbar-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; margin-left: auto; }
 .page-title { font-size: 24px; font-weight: 600; margin: 0 0 2px; letter-spacing: -0.01em; }
 .page-sub { font-size: 13px; color: var(--ink-3); }
 
