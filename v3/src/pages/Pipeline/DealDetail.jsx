@@ -518,6 +518,9 @@ function SequenceTab({ emails, deal }) {
         if (data.success) {
           setDraftCreated(true)
           setGmailDraftId(data.draftId)
+          if (data.draftId) {
+            window.open(`https://mail.google.com/mail/#drafts/${data.draftId}`, '_blank')
+          }
         } else alert(data.error || 'Failed to create Gmail draft')
       } finally { setCreating(false) }
     }
