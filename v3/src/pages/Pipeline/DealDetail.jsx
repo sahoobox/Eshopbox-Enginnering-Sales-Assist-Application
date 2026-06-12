@@ -506,6 +506,7 @@ function SequenceTab({ emails, deal }) {
     const [expanded, setExpanded] = useState(false)
     const [creating, setCreating] = useState(false)
     const [draftCreated, setDraftCreated] = useState(false)
+    const [gmailDraftId, setGmailDraftId] = useState(null)
 
     async function createGmailDraft() {
       setCreating(true)
@@ -514,8 +515,10 @@ function SequenceTab({ emails, deal }) {
           method: 'POST'
         })
         const data = await res.json()
-        if (data.success) setDraftCreated(true)
-        else alert(data.error || 'Failed to create Gmail draft')
+        if (data.success) {
+          setDraftCreated(true)
+          setGmailDraftId(data.draftId)
+        } else alert(data.error || 'Failed to create Gmail draft')
       } finally { setCreating(false) }
     }
 
@@ -539,7 +542,19 @@ function SequenceTab({ emails, deal }) {
                 {creating ? 'Creating…' : 'Create Gmail Draft'}
               </button>
             ) : (
-              <span className="pill pill-ok">✓ Draft created in Gmail</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className="pill pill-ok">✓ Draft created in Gmail</span>
+                {gmailDraftId && (
+                  <a
+                    href={`https://mail.google.com/mail/#drafts/${gmailDraftId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-sm"
+                  >
+                    Open in Gmail →
+                  </a>
+                )}
+              </div>
             )
           )}
           <button className="btn btn-sm" onClick={() => setExpanded(e => !e)}>
