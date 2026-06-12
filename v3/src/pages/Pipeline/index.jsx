@@ -70,6 +70,7 @@ function PipelineList() {
   const [pipelineFilter, setPipelineFilter] = useState('midmarket')
   const [search, setSearch] = useState('')
   const [activeFilters, setActiveFilters] = useState([])
+  const [showLegend, setShowLegend] = useState(false)
 
   const currentStages = useMemo(() =>
     isMDE ? SME_STAGES : isAE ? ENT_STAGES : pipelineFilter === 'enterprise' ? ENT_STAGES : SME_STAGES
@@ -104,6 +105,15 @@ function PipelineList() {
 
   const filterBarRef = useRef(null)
 
+  useEffect(() => {
+    if (!showLegend) return
+    const handler = (e) => {
+      if (!e.target.closest('[data-legend]')) setShowLegend(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showLegend])
+
   if (loading) return <div className="main"><Loading text="Fetching deals from Zoho CRM…" /></div>
   if (error) return (
     <div className="main">
@@ -132,6 +142,73 @@ function PipelineList() {
         <div className="seg" style={{ marginLeft: 'auto' }}>
           <button className={view === 'kanban' ? 'is-on' : ''} onClick={() => setView('kanban')}>Kanban</button>
           <button className={view === 'list' ? 'is-on' : ''} onClick={() => setView('list')}>List</button>
+        </div>
+        <div data-legend style={{ position: 'relative' }}>
+          <button
+            className="btn btn-sm btn-ghost"
+            onClick={() => setShowLegend(v => !v)}
+            title="Card legend"
+            style={{ padding: '4px 8px', fontSize: 13 }}
+          >
+            ⓘ
+          </button>
+          {showLegend && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, zIndex: 200,
+              background: 'var(--surface)', border: '1px solid var(--line-2)',
+              borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-2)',
+              padding: '14px 16px', width: 260, marginTop: 6
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                letterSpacing: '0.06em', color: 'var(--ink-3)', marginBottom: 10 }}>
+                Card Legend
+              </div>
+
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 6 }}>
+                Colour strips
+              </div>
+              {[
+                { color: 'var(--ok)', label: 'Grade A — High probability (55–70%)' },
+                { color: 'var(--info)', label: 'Grade B — Medium probability (30–50%)' },
+                { color: 'var(--warn)', label: 'Grade C — Low probability (10–25%)' },
+                { color: 'var(--danger)', label: 'Grade D — Very low probability (<10%)' },
+                { color: 'var(--ok)', opacity: 0.5, label: 'Demo logged in Sales Assist' },
+                { color: 'var(--danger)', opacity: 0.7, label: 'Has critical flags' },
+                { color: 'var(--warn)', opacity: 0.7, label: 'Has attention flags' },
+              ].map((item, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <div style={{
+                    width: 28, height: 5, borderRadius: 2, flexShrink: 0,
+                    background: item.color, opacity: item.opacity || 1
+                  }} />
+                  <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>{item.label}</span>
+                </div>
+              ))}
+
+              <div style={{ borderTop: '1px solid var(--line)', marginTop: 10, paddingTop: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 6 }}>
+                  Left border
+                </div>
+                {[
+                  { color: 'var(--danger)', label: 'Critical — needs immediate attention' },
+                  { color: 'var(--warn)', label: 'Stale — needs attention soon' },
+                ].map((item, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <div style={{ width: 4, height: 20, borderRadius: 2, flexShrink: 0, background: item.color }} />
+                    <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setShowLegend(false)}
+                style={{ marginTop: 8, fontSize: 11, color: 'var(--ink-3)',
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              >
+                Close
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
