@@ -30,6 +30,7 @@ function getNavItems(role, counts = {}) {
       { id: 'tasks',      label: 'Tasks',         path: '/tasks',       section: null },
       { id: 'performance',label: 'Performance',   path: '/performance', section: null },
       { id: 'reports',    label: 'Reports',       path: '/reports',     section: null },
+      { id: 'settings',   label: 'Settings',      path: '/settings',    section: 'Team' },
     )
   }
 
@@ -43,6 +44,7 @@ function getNavItems(role, counts = {}) {
       { id: 'tasks',      label: 'Tasks',         path: '/tasks',       section: null },
       { id: 'performance',label: 'Performance',   path: '/performance', section: null },
       { id: 'reports',    label: 'Reports',       path: '/reports',     section: null },
+      { id: 'settings',   label: 'Settings',      path: '/settings',    section: 'Team' },
     )
   }
 

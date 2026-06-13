@@ -2,18 +2,6 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { Topbar } from '../../components/ui'
 
-const TEAM = [
-  { name: 'Sriya Komal',        email: 'sriya.komal@eshopbox.com',         role: 'MDE',        pipeline: 'Mid-Market', status: 'Active' },
-  { name: 'Mriganki Srivastava',email: 'mriganki.srivastava@eshopbox.com', role: 'MDE',        pipeline: 'Mid-Market', status: 'Active' },
-  { name: 'Shubham Kumar',      email: 'shubham.kumar@eshopbox.com',       role: 'MDE',        pipeline: 'Mid-Market', status: 'Active' },
-  { name: 'Taufeeq Ahmad',      email: 'taufeeq.ahmad@eshopbox.com',       role: 'AE',         pipeline: 'Enterprise', status: 'Active' },
-  { name: 'Afzal Maknoo',       email: 'afzal.maknoo@eshopbox.com',        role: 'AE',         pipeline: 'Enterprise', status: 'Active' },
-  { name: 'Raghwendra Kumar',   email: 'raghwendra.kumar@eshopbox.com',    role: 'MDE',        pipeline: 'Mid-Market', status: 'Active' },
-  { name: 'Jeevan More',        email: 'jeevan.more@eshopbox.com',         role: 'AE',         pipeline: 'Enterprise', status: 'Active' },
-  { name: 'Umang Seth',         email: 'umang.seth@eshopbox.com',          role: 'Sales Lead', pipeline: 'Mid-Market', status: 'Active' },
-  { name: 'Gautam Raheja',      email: 'gautam@eshopbox.com',              role: 'Sales Lead', pipeline: 'Enterprise', status: 'Active' },
-  { name: 'Ankush',             email: 'ankush@eshopbox.com',              role: 'Admin',      pipeline: 'Both',       status: 'Active' },
-]
 
 const RULES = [
   {
@@ -69,18 +57,15 @@ const TEMPLATES = [
 ]
 
 
-const ROLE_PILL = {
-  MDE:          'pill-info',
-  AE:           'pill-neutral',
-  'Sales Lead': 'pill-warn',
-  Admin:        'pill-ok',
-}
-
 const TABS = ['Team', 'Rule Engine', 'Email Templates', 'Integrations']
 
 export default function Settings() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, role } = useAuth()
   const [tab, setTab] = useState('Team')
+
+  const canAccessSettings = isAdmin ||
+    role === 'Sales Lead Mid-Market' ||
+    role === 'Sales Lead Enterprise'
 
   return (
     <div className="main">
@@ -89,9 +74,9 @@ export default function Settings() {
         subtitle="Team management · Rules · Templates"
       />
 
-      {!isAdmin ? (
+      {!canAccessSettings ? (
         <div className="callout danger" style={{ marginTop: 8 }}>
-          Access denied — Settings is only available to admins.
+          Access denied — Settings is only available to admins and sales leads.
         </div>
       ) : (
         <>
@@ -113,41 +98,263 @@ export default function Settings() {
 
 // ── Tab 1: Team ───────────────────────────────────────────
 function TeamTab() {
+  const { authFetch, user, role } = useAuth()
+  const [members, setMembers] = useState([])
+  const [invites, setInvites] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showInvite, setShowInvite] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState('MDE')
+  const [inviting, setInviting] = useState(false)
+  const [inviteLink, setInviteLink] = useState('')
+  const [showRoleModal, setShowRoleModal] = useState(false)
+  const [selectedMember, setSelectedMember] = useState(null)
+  const [newRole, setNewRole] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const isAdmin = role === 'Admin'
+  const isSalesLead = role === 'Sales Lead Mid-Market' || role === 'Sales Lead Enterprise'
+
+  const allowedRoles = isAdmin
+    ? ['MDE', 'AE', 'Sales Lead Mid-Market', 'Sales Lead Enterprise', 'Admin']
+    : ['MDE', 'AE']
+
+  useEffect(() => { fetchTeam() }, [])
+
+  async function fetchTeam() {
+    setLoading(true)
+    try {
+      const res = await authFetch('/auth/team')
+      const data = await res.json()
+      setMembers(data.users || [])
+      setInvites(data.pendingInvites || [])
+    } catch {}
+    finally { setLoading(false) }
+  }
+
+  async function handleInvite() {
+    if (!inviteEmail.trim()) return alert('Enter an email')
+    if (!inviteEmail.endsWith('@eshopbox.com')) return alert('Only @eshopbox.com emails allowed')
+    setInviting(true)
+    try {
+      const res = await authFetch('/auth/invite', {
+        method: 'POST',
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setInviteLink(data.inviteLink)
+        setInviteEmail('')
+        fetchTeam()
+      } else {
+        alert(data.error || 'Failed to send invite')
+      }
+    } finally { setInviting(false) }
+  }
+
+  async function handleRoleChange() {
+    if (!newRole || !selectedMember) return
+    setSaving(true)
+    try {
+      const res = await authFetch(`/auth/team/${selectedMember.id}/role`, {
+        method: 'PUT',
+        body: JSON.stringify({ role: newRole })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setShowRoleModal(false)
+        setSelectedMember(null)
+        fetchTeam()
+      } else {
+        alert(data.error || 'Failed to update role')
+      }
+    } finally { setSaving(false) }
+  }
+
+  async function handleRemove(member) {
+    if (!confirm(`Remove ${member.name} from Sales Assist?`)) return
+    try {
+      const res = await authFetch(`/auth/team/${member.id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) fetchTeam()
+      else alert(data.error || 'Failed to remove member')
+    } catch { alert('Network error') }
+  }
+
+  const ROLE_PILL = {
+    'MDE': 'pill-info',
+    'AE': 'pill-neutral',
+    'Sales Lead Mid-Market': 'pill-warn',
+    'Sales Lead Enterprise': 'pill-warn',
+    'Admin': 'pill-ok',
+  }
+
+  if (loading) return <div style={{ padding: 24, color: 'var(--ink-3)' }}>Loading team…</div>
+
   return (
-    <div className="card">
-      <div className="ws-side-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h4>Team members</h4>
-        <button
-          className="btn btn-sm"
-          onClick={() => alert('Invite flow coming soon')}
-        >
-          + Invite member
-        </button>
-      </div>
-      <div style={{ padding: '0 0 8px' }}>
+    <div>
+      {/* Invite button */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="ws-side-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h4>Team members · {members.filter(m => m.is_active).length}</h4>
+          <button className="btn btn-sm btn-primary" onClick={() => { setShowInvite(true); setInviteLink('') }}>
+            + Invite member
+          </button>
+        </div>
         <table className="t">
           <thead>
             <tr>
               <th>Name</th>
               <th>Email</th>
               <th>Role</th>
-              <th>Pipeline</th>
               <th>Status</th>
+              {isAdmin && <th></th>}
             </tr>
           </thead>
           <tbody>
-            {TEAM.map(m => (
-              <tr key={m.email}>
-                <td style={{ fontWeight: 600, fontSize: 13 }}>{m.name}</td>
+            {members.filter(m => m.is_active).map(m => (
+              <tr key={m.id}>
+                <td style={{ fontWeight: 600, fontSize: 13 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="avatar av-teal" style={{ width: 28, height: 28, fontSize: 11 }}>
+                      {(m.name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
+                    </div>
+                    {m.name}
+                    {m.email === user?.email && <span className="pill pill-neutral" style={{ fontSize: 10 }}>You</span>}
+                  </div>
+                </td>
                 <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{m.email}</td>
                 <td><span className={`pill ${ROLE_PILL[m.role] || 'pill-neutral'}`}>{m.role}</span></td>
-                <td style={{ fontSize: 13 }}>{m.pipeline}</td>
-                <td><span className="pill pill-ok">{m.status}</span></td>
+                <td><span className="pill pill-ok">Active</span></td>
+                {isAdmin && (
+                  <td style={{ textAlign: 'right' }}>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      {m.email !== user?.email && (
+                        <>
+                          <button className="btn btn-sm" onClick={() => { setSelectedMember(m); setNewRole(m.role); setShowRoleModal(true) }}>
+                            Change role
+                          </button>
+                          <button className="btn btn-sm btn-danger" onClick={() => handleRemove(m)}>
+                            Remove
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Pending invites */}
+      {invites.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="ws-side-head"><h4>Pending invites · {invites.length}</h4></div>
+          <table className="t">
+            <thead><tr><th>Email</th><th>Role</th><th>Invited by</th><th>Expires</th></tr></thead>
+            <tbody>
+              {invites.map(inv => (
+                <tr key={inv.id}>
+                  <td style={{ fontSize: 13 }}>{inv.email}</td>
+                  <td><span className={`pill ${ROLE_PILL[inv.role] || 'pill-neutral'}`}>{inv.role}</span></td>
+                  <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{inv.invited_by}</td>
+                  <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                    {new Date(inv.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Invite modal */}
+      {showInvite && (
+        <div className="modal-overlay" onClick={() => setShowInvite(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>Invite team member</h3>
+              <button className="btn-close" onClick={() => setShowInvite(false)}>×</button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {inviteLink ? (
+                <div>
+                  <div className="callout" style={{ marginBottom: 12 }}>
+                    ✓ Invite created successfully! Share this link with the team member:
+                  </div>
+                  <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 14px', fontSize: 12, wordBreak: 'break-all', marginBottom: 10 }}>
+                    {inviteLink}
+                  </div>
+                  <button className="btn btn-sm" onClick={() => { navigator.clipboard.writeText(inviteLink) }}>
+                    Copy link
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>EMAIL ADDRESS *</label>
+                    <input
+                      className="input"
+                      style={{ width: '100%' }}
+                      placeholder="name@eshopbox.com"
+                      value={inviteEmail}
+                      onChange={e => setInviteEmail(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>ROLE *</label>
+                    <select
+                      className="input"
+                      style={{ width: '100%' }}
+                      value={inviteRole}
+                      onChange={e => setInviteRole(e.target.value)}
+                    >
+                      {allowedRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+                  <div className="callout" style={{ fontSize: 12 }}>
+                    An invite link will be generated. Share it with the team member — they'll set their own password.
+                  </div>
+                </>
+              )}
+            </div>
+            {!inviteLink && (
+              <div className="modal-foot">
+                <button className="btn" onClick={() => setShowInvite(false)}>Cancel</button>
+                <button className="btn btn-primary" onClick={handleInvite} disabled={inviting || !inviteEmail}>
+                  {inviting ? 'Creating invite…' : 'Create invite'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Role change modal */}
+      {showRoleModal && selectedMember && (
+        <div className="modal-overlay" onClick={() => setShowRoleModal(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>Change role · {selectedMember.name}</h3>
+              <button className="btn-close" onClick={() => setShowRoleModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>NEW ROLE</label>
+              <select className="input" style={{ width: '100%' }} value={newRole} onChange={e => setNewRole(e.target.value)}>
+                {allowedRoles.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            <div className="modal-foot">
+              <button className="btn" onClick={() => setShowRoleModal(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleRoleChange} disabled={saving || newRole === selectedMember.role}>
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

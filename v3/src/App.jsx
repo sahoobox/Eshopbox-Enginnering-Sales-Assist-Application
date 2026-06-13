@@ -66,8 +66,10 @@ function AppLayout() {
             <Route path="/reports" element={<Reports />} />
           )}
 
-          {/* Settings — Admin only */}
-          {role === ROLES.ADMIN && (
+          {/* Settings — Admin and Sales Lead */}
+          {(role === ROLES.ADMIN ||
+            role === ROLES.SALES_LEAD_MIDMARKET ||
+            role === ROLES.SALES_LEAD_ENTERPRISE) && (
             <Route path="/settings" element={<Settings />} />
           )}
 
