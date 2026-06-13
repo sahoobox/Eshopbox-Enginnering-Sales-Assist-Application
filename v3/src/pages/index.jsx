@@ -15,6 +15,9 @@ export { default as Tasks } from './Tasks'
 // ── Performance ──────────────────────────────────────────
 export { default as Performance } from './Performance'
 
+// ── Reports ──────────────────────────────────────────────
+export { default as Reports } from './Reports'
+
 // ── Settings ─────────────────────────────────────────────
 export { default as Settings } from './Settings'
 

@@ -9,7 +9,7 @@ import DemoForm from './pages/DemoForm'
 import AccountSettings from './pages/AccountSettings'
 import {
   MyDay, LeadInbox, Accounts,
-  Tasks, Performance, Settings, NotFound,
+  Tasks, Performance, Reports, Settings, NotFound,
 } from './pages'
 import { Loading } from './components/ui'
 
@@ -54,11 +54,16 @@ function AppLayout() {
           <Route path="/form/:dealId" element={<DemoForm />} />
           <Route path="/settings/account" element={<AccountSettings />} />
 
-          {/* Performance — Sales Lead and Admin only */}
+          {/* Performance + Reports — Sales Lead and Admin only */}
           {(role === ROLES.SALES_LEAD_MIDMARKET ||
             role === ROLES.SALES_LEAD_ENTERPRISE ||
             role === ROLES.ADMIN) && (
             <Route path="/performance" element={<Performance />} />
+          )}
+          {(role === ROLES.SALES_LEAD_MIDMARKET ||
+            role === ROLES.SALES_LEAD_ENTERPRISE ||
+            role === ROLES.ADMIN) && (
+            <Route path="/reports" element={<Reports />} />
           )}
 
           {/* Settings — Admin only */}

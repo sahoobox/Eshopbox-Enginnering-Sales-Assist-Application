@@ -29,6 +29,7 @@ function getNavItems(role, counts = {}) {
       { id: 'accounts',   label: 'Accounts',      path: '/accounts',    section: null },
       { id: 'tasks',      label: 'Tasks',         path: '/tasks',       section: null },
       { id: 'performance',label: 'Performance',   path: '/performance', section: null },
+      { id: 'reports',    label: 'Reports',       path: '/reports',     section: null },
     )
   }
 
@@ -41,6 +42,7 @@ function getNavItems(role, counts = {}) {
       { id: 'accounts',   label: 'Accounts',      path: '/accounts',    section: null },
       { id: 'tasks',      label: 'Tasks',         path: '/tasks',       section: null },
       { id: 'performance',label: 'Performance',   path: '/performance', section: null },
+      { id: 'reports',    label: 'Reports',       path: '/reports',     section: null },
     )
   }
 
@@ -53,6 +55,7 @@ function getNavItems(role, counts = {}) {
       { id: 'accounts',    label: 'Accounts',      path: '/accounts',    section: null },
       { id: 'tasks',       label: 'Tasks',         path: '/tasks',       section: null },
       { id: 'performance', label: 'Performance',   path: '/performance', section: null },
+      { id: 'reports',     label: 'Reports',       path: '/reports',     section: null },
       { id: 'settings',    label: 'Settings',      path: '/settings',    section: 'Admin' },
     )
   }
