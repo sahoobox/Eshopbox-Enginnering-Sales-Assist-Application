@@ -71,7 +71,27 @@ export default function LeadDetail() {
   }
 
   async function handleConvert() {
-    navigate(`/form?leadId=${leadId}&company=${encodeURIComponent(lead.company || '')}&email=${encodeURIComponent(lead.email || '')}&name=${encodeURIComponent(lead.fullName || '')}`)
+    if (!confirm(`Convert ${lead.company || lead.fullName} to a deal?`)) return
+    setConverting(true)
+    try {
+      const res = await authFetch(`/api/leads/${leadId}/convert`, {
+        method: 'POST'
+      })
+      const data = await res.json()
+      if (data.success) {
+        if (data.dealId) {
+          navigate(`/pipeline/${data.dealId}`)
+        } else {
+          navigate('/leads')
+        }
+      } else {
+        alert(data.error || 'Conversion failed. Please try again.')
+      }
+    } catch {
+      alert('Network error. Please try again.')
+    } finally {
+      setConverting(false)
+    }
   }
 
   async function saveNote() {
@@ -164,8 +184,8 @@ export default function LeadDetail() {
             <button className="btn btn-sm btn-danger" onClick={() => setShowDisqualify(true)} disabled={disqualifying}>
               {disqualifying ? 'Disqualifying…' : 'Disqualify'}
             </button>
-            <button className="btn btn-sm btn-primary" onClick={handleConvert}>
-              Convert to deal →
+            <button className="btn btn-sm btn-primary" onClick={handleConvert} disabled={converting}>
+              {converting ? 'Converting…' : 'Convert to deal →'}
             </button>
           </div>
         </div>
@@ -321,8 +341,8 @@ export default function LeadDetail() {
                   </div>
                 ))}
               </div>
-              <button className="btn btn-primary" style={{ width: '100%', marginTop: 14, justifyContent: 'center' }} onClick={handleConvert}>
-                Convert to deal →
+              <button className="btn btn-primary" style={{ width: '100%', marginTop: 14, justifyContent: 'center' }} onClick={handleConvert} disabled={converting}>
+                {converting ? 'Converting…' : 'Convert to deal →'}
               </button>
             </div>
           </div>
