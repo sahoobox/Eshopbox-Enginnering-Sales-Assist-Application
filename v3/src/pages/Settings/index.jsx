@@ -183,10 +183,18 @@ function TeamTab() {
 
   const ROLE_PILL = {
     'MDE': 'pill-info',
-    'AE': 'pill-neutral',
-    'Sales Lead Mid-Market': 'pill-warn',
+    'AE': 'pill-purple',
+    'Sales Lead Mid-Market': 'pill-ok',
     'Sales Lead Enterprise': 'pill-warn',
-    'Admin': 'pill-ok',
+    'Admin': 'pill-danger',
+  }
+
+  const ROLE_LABEL = {
+    'MDE': 'MDE',
+    'AE': 'AE',
+    'Sales Lead Mid-Market': 'Sales Lead · Mid-Market',
+    'Sales Lead Enterprise': 'Sales Lead · Enterprise',
+    'Admin': 'Admin',
   }
 
   if (loading) return <div style={{ padding: 24, color: 'var(--ink-3)' }}>Loading team…</div>
@@ -208,7 +216,7 @@ function TeamTab() {
               <th>Email</th>
               <th>Role</th>
               <th>Status</th>
-              {isAdmin && <th></th>}
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -224,24 +232,20 @@ function TeamTab() {
                   </div>
                 </td>
                 <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{m.email}</td>
-                <td><span className={`pill ${ROLE_PILL[m.role] || 'pill-neutral'}`}>{m.role}</span></td>
+                <td><span className={`pill ${ROLE_PILL[m.role] || 'pill-neutral'}`}>{ROLE_LABEL[m.role] || m.role}</span></td>
                 <td><span className="pill pill-ok">Active</span></td>
-                {isAdmin && (
-                  <td style={{ textAlign: 'right' }}>
+                <td style={{ textAlign: 'right' }}>
+                  {isAdmin && m.email !== user?.email && (
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                      {m.email !== user?.email && (
-                        <>
-                          <button className="btn btn-sm" onClick={() => { setSelectedMember(m); setNewRole(m.role); setShowRoleModal(true) }}>
-                            Change role
-                          </button>
-                          <button className="btn btn-sm btn-danger" onClick={() => handleRemove(m)}>
-                            Remove
-                          </button>
-                        </>
-                      )}
+                      <button className="btn btn-sm" onClick={() => { setSelectedMember(m); setNewRole(m.role); setShowRoleModal(true) }}>
+                        Change role
+                      </button>
+                      <button className="btn btn-sm btn-danger" onClick={() => handleRemove(m)}>
+                        Remove
+                      </button>
                     </div>
-                  </td>
-                )}
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -258,7 +262,7 @@ function TeamTab() {
               {invites.map(inv => (
                 <tr key={inv.id}>
                   <td style={{ fontSize: 13 }}>{inv.email}</td>
-                  <td><span className={`pill ${ROLE_PILL[inv.role] || 'pill-neutral'}`}>{inv.role}</span></td>
+                  <td><span className={`pill ${ROLE_PILL[inv.role] || 'pill-neutral'}`}>{ROLE_LABEL[inv.role] || inv.role}</span></td>
                   <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{inv.invited_by}</td>
                   <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>
                     {new Date(inv.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
@@ -311,7 +315,7 @@ function TeamTab() {
                       value={inviteRole}
                       onChange={e => setInviteRole(e.target.value)}
                     >
-                      {allowedRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                      {allowedRoles.map(r => <option key={r} value={r}>{ROLE_LABEL[r] || r}</option>)}
                     </select>
                   </div>
                   <div className="callout" style={{ fontSize: 12 }}>
