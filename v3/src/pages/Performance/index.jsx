@@ -29,6 +29,7 @@ export default function Performance() {
 
   const defaultFilter = role === ROLES.SALES_LEAD_ENTERPRISE ? 'enterprise' : 'midmarket'
   const [pipelineFilter, setPipelineFilter] = useState(defaultFilter)
+  const [dateFilter, setDateFilter] = useState('month')
 
   const showToggle = isAdmin || isSalesLead
 
@@ -51,10 +52,22 @@ export default function Performance() {
     return leads
   }, [leads, role, isMDE, isAE, user, pipelineFilter])
 
+  const dateFilteredDeals = useMemo(() => {
+    if (dateFilter === 'all') return scopedDeals
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const startOfQuarter = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
+    const cutoff = dateFilter === 'month' ? startOfMonth : startOfQuarter
+    return scopedDeals.filter(d => {
+      if (!d.createdAt) return true
+      return new Date(d.createdAt) >= cutoff
+    })
+  }, [scopedDeals, dateFilter])
+
   // KPI
-  const activeDeals = scopedDeals.filter(d => !TERMINAL_STAGES.includes(d.stage))
-  const wonDeals = scopedDeals.filter(d => d.stage === 'Won/Payment Received')
-  const demoedDeals = scopedDeals.filter(d => d.demoDate)
+  const activeDeals = dateFilteredDeals.filter(d => !TERMINAL_STAGES.includes(d.stage))
+  const wonDeals = dateFilteredDeals.filter(d => d.stage === 'Won/Payment Received')
+  const demoedDeals = dateFilteredDeals.filter(d => d.demoDate)
   const closeRate = demoedDeals.length > 0 ? (wonDeals.length / demoedDeals.length * 100).toFixed(0) : null
   const closeRateColor = closeRate === null ? 'var(--ink-3)' : closeRate >= 30 ? 'var(--ok)' : closeRate >= 25 ? 'var(--warn)' : 'var(--danger)'
   const avgDays = activeDeals.length > 0
@@ -70,19 +83,19 @@ export default function Performance() {
     : isAE || role === ROLES.SALES_LEAD_ENTERPRISE || pipelineFilter === 'enterprise'
     ? ENT_STAGES
     : COMBINED_STAGES
-  const stageData = stageList.map(s => ({ stage: s, count: scopedDeals.filter(d => d.stage === s).length }))
+  const stageData = stageList.map(s => ({ stage: s, count: dateFilteredDeals.filter(d => d.stage === s).length }))
   const maxCount = Math.max(...stageData.map(s => s.count), 1)
 
   // Deals by source
   const sourceMap = new Map()
-  for (const d of scopedDeals) {
+  for (const d of dateFilteredDeals) {
     const src = d.leadSource || d.source || 'Unknown'
     sourceMap.set(src, (sourceMap.get(src) || 0) + 1)
   }
   const sources = [...sourceMap.entries()].sort((a, b) => b[1] - a[1])
 
   // Lost reasons
-  const lostDeals = scopedDeals.filter(d => d.stage === 'Lost/Dropped')
+  const lostDeals = dateFilteredDeals.filter(d => d.stage === 'Lost/Dropped')
   const lostMap = new Map()
   for (const d of lostDeals) {
     const r = d.lostReason?.trim() || 'No reason given'
@@ -91,13 +104,40 @@ export default function Performance() {
   const lostReasons = [...lostMap.entries()].sort((a, b) => b[1] - a[1])
 
   // Activation health
-  const activationDeals = scopedDeals.filter(d =>
+  const activationDeals = dateFilteredDeals.filter(d =>
     ['Account Setup In Progress', 'Awaiting First Shipment'].includes(d.stage)
   )
 
   // On hold
-  const onHoldDeals = [...scopedDeals.filter(d => d.stage === 'On Hold')]
+  const onHoldDeals = [...dateFilteredDeals.filter(d => d.stage === 'On Hold')]
     .sort((a, b) => (daysAgo(b.stageChangedOn) || 0) - (daysAgo(a.stageChangedOn) || 0))
+
+  // Rep leaderboard
+  const repStats = useMemo(() => {
+    const map = new Map()
+    for (const d of dateFilteredDeals) {
+      const name = d.repName || 'Unknown'
+      const email = d.repEmail || ''
+      if (!map.has(email)) map.set(email, {
+        name, email,
+        total: 0, active: 0, won: 0, lost: 0,
+        logged: 0, gradeA: 0, gradeB: 0, gradeC: 0, gradeD: 0,
+        flags: 0
+      })
+      const r = map.get(email)
+      r.total++
+      if (!TERMINAL_STAGES.includes(d.stage)) r.active++
+      if (d.stage === 'Won/Payment Received') r.won++
+      if (d.stage === 'Lost/Dropped') r.lost++
+      if (d.saLogged) r.logged++
+      if (d.grade === 'A') r.gradeA++
+      else if (d.grade === 'B') r.gradeB++
+      else if (d.grade === 'C') r.gradeC++
+      else r.gradeD++
+      r.flags += (d.flags?.length || 0)
+    }
+    return [...map.values()].sort((a, b) => b.won - a.won || b.active - a.active)
+  }, [dateFilteredDeals])
 
   // Inbound response by rep
   const repMap = new Map()
@@ -120,13 +160,20 @@ export default function Performance() {
         title="Performance"
         subtitle="Pipeline health · conversion · reports"
         actions={
-          showToggle && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <div className="seg">
-              <button className={pipelineFilter === 'midmarket' ? 'is-on' : ''} onClick={() => setPipelineFilter('midmarket')}>Mid-Market</button>
-              <button className={pipelineFilter === 'enterprise' ? 'is-on' : ''} onClick={() => setPipelineFilter('enterprise')}>Enterprise</button>
-              <button className={pipelineFilter === 'both' ? 'is-on' : ''} onClick={() => setPipelineFilter('both')}>Both</button>
+              <button className={dateFilter === 'month' ? 'is-on' : ''} onClick={() => setDateFilter('month')}>This month</button>
+              <button className={dateFilter === 'quarter' ? 'is-on' : ''} onClick={() => setDateFilter('quarter')}>This quarter</button>
+              <button className={dateFilter === 'all' ? 'is-on' : ''} onClick={() => setDateFilter('all')}>All time</button>
             </div>
-          )
+            {showToggle && (
+              <div className="seg">
+                <button className={pipelineFilter === 'midmarket' ? 'is-on' : ''} onClick={() => setPipelineFilter('midmarket')}>Mid-Market</button>
+                <button className={pipelineFilter === 'enterprise' ? 'is-on' : ''} onClick={() => setPipelineFilter('enterprise')}>Enterprise</button>
+                <button className={pipelineFilter === 'both' ? 'is-on' : ''} onClick={() => setPipelineFilter('both')}>Both</button>
+              </div>
+            )}
+          </div>
         }
       />
 
@@ -175,7 +222,7 @@ export default function Performance() {
                       <tr key={src}>
                         <td style={{ fontSize: 13 }}>{src}</td>
                         <td style={{ fontSize: 13 }}>{count}</td>
-                        <td style={{ fontSize: 13, color: 'var(--ink-3)' }}>{Math.round(count / scopedDeals.length * 100)}%</td>
+                        <td style={{ fontSize: 13, color: 'var(--ink-3)' }}>{Math.round(count / dateFilteredDeals.length * 100)}%</td>
                       </tr>
                     ))}
                   </tbody>
@@ -277,6 +324,47 @@ export default function Performance() {
                     </tr>
                   )
                 })}
+              </tbody>
+            </table>
+          )
+        }
+      </ReportCard>
+
+      {/* Rep leaderboard */}
+      <ReportCard title="Rep leaderboard">
+        {repStats.length === 0
+          ? <EmptyNote>No rep data.</EmptyNote>
+          : (
+            <table className="t">
+              <thead>
+                <tr>
+                  <th>Rep</th>
+                  <th>Active</th>
+                  <th>Won</th>
+                  <th>Lost</th>
+                  <th>Logged</th>
+                  <th>A</th>
+                  <th>B</th>
+                  <th>C</th>
+                  <th>D</th>
+                  <th>Flags</th>
+                </tr>
+              </thead>
+              <tbody>
+                {repStats.map(r => (
+                  <tr key={r.email}>
+                    <td style={{ fontSize: 13, fontWeight: 500 }}>{r.name.split(' ')[0]}</td>
+                    <td style={{ fontSize: 13 }}>{r.active}</td>
+                    <td style={{ fontSize: 13, color: 'var(--ok)', fontWeight: r.won > 0 ? 600 : 400 }}>{r.won}</td>
+                    <td style={{ fontSize: 13, color: r.lost > 0 ? 'var(--danger)' : 'var(--ink-3)' }}>{r.lost}</td>
+                    <td style={{ fontSize: 13 }}>{r.logged}</td>
+                    <td style={{ fontSize: 12, color: 'var(--ok)', fontWeight: 600 }}>{r.gradeA}</td>
+                    <td style={{ fontSize: 12, color: 'var(--info)' }}>{r.gradeB}</td>
+                    <td style={{ fontSize: 12, color: 'var(--warn)' }}>{r.gradeC}</td>
+                    <td style={{ fontSize: 12, color: 'var(--danger)' }}>{r.gradeD}</td>
+                    <td style={{ fontSize: 12, color: r.flags > 3 ? 'var(--danger)' : 'var(--ink-3)' }}>{r.flags}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )
