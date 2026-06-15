@@ -112,6 +112,16 @@ function PipelineList() {
     return scopedDeals
   }, [scopedDeals, tileFilter])
 
+  const tileTooltips = {
+    inbox: 'Active deals in a conducted or upcoming stage that need action — your working pipeline.',
+    conducted: 'Deals where the demo has been logged in Sales Assist and the email sequence is running.',
+    upcoming: 'Deals in Upcoming Demo stage — demo is scheduled but not yet conducted.',
+    logged: 'Deals where the demo form has been filled and AI email drafts are ready.',
+    notlogged: 'Active deals past Upcoming Demo stage where no demo has been logged yet.',
+    won: 'Deals marked as Won/Payment Received — closed and confirmed.',
+    all: 'All deals across every stage in your pipeline.',
+  }
+
   const tiles = [
     { key: 'inbox', label: 'INBOX', count: scopedDeals.filter(d => !TERMINAL.includes(d.stage) && (d.flags?.some(f => f.severity === 'critical') || !d.saLogged)).length, sub: 'Needs your attention today' },
     { key: 'conducted', label: 'CONDUCTED', count: scopedDeals.filter(d => d.saLogged).length, sub: 'Demo done, sequence running' },
@@ -242,12 +252,14 @@ function PipelineList() {
           <div
             key={tile.key}
             onClick={() => setTileFilter(tile.key)}
+            title={tileTooltips[tile.key]}
             style={{
               minWidth: 130, padding: '12px 14px',
-              background: tileFilter === tile.key ? 'var(--ink-1)' : 'var(--surface)',
-              color: tileFilter === tile.key ? 'white' : 'var(--ink-1)',
+              background: tileFilter === tile.key ? 'var(--info-bg)' : 'var(--surface)',
+              color: tileFilter === tile.key ? 'var(--info)' : 'var(--ink-1)',
               borderRadius: 'var(--radius-md)',
-              border: `1px solid ${tileFilter === tile.key ? 'var(--ink-1)' : 'var(--line)'}`,
+              border: `2px solid ${tileFilter === tile.key ? 'var(--info)' : 'var(--line)'}`,
+              boxShadow: tileFilter === tile.key ? '0 0 0 3px var(--info-bg)' : 'none',
               cursor: 'pointer', flexShrink: 0
             }}
           >
@@ -259,6 +271,34 @@ function PipelineList() {
           </div>
         ))}
       </div>
+
+      {tileFilter !== 'all' && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '6px 12px', marginBottom: 8,
+          background: 'var(--info-bg)',
+          borderRadius: 'var(--radius-sm)',
+          fontSize: 12.5, color: 'var(--info)',
+          flexShrink: 0
+        }}>
+          <span>⚡</span>
+          <span>
+            <b>Viewing: {tiles.find(t => t.key === tileFilter)?.label}</b>
+            {' · '}
+            {tileTooltips[tileFilter]}
+          </span>
+          <button
+            onClick={() => setTileFilter('all')}
+            style={{
+              marginLeft: 'auto', background: 'none', border: 'none',
+              color: 'var(--info)', cursor: 'pointer', fontSize: 12,
+              fontWeight: 600, flexShrink: 0
+            }}
+          >
+            Show all deals ×
+          </button>
+        </div>
+      )}
 
       <div className="controls-row">
         {showPipelineToggle && (
