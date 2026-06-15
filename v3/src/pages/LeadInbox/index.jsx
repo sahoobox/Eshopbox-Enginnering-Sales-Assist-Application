@@ -171,73 +171,77 @@ export default function LeadInbox() {
         {search && <button onClick={() => setSearch('')} style={{ marginLeft: 8, background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Clear</button>}
       </div>
 
-      <div className="table-wrap" style={{ overflowX: 'auto' }}>
-        <table className="t" style={{ minWidth: 900 }}>
-          <thead>
-            <tr>
-              <th>Brand</th>
-              <th>Contact</th>
-              <th>Volume</th>
-              <th>Source</th>
-              <th>UTM</th>
-              <th>SLA</th>
-              <th>Assigned to</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredLeads.length === 0 && (
-              <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>No leads found</td></tr>
-            )}
-            {filteredLeads.map(lead => {
-              const isToday = lead.createdAt?.startsWith(todayStr)
-              const needsContact = isToday && lead.leadStatus === 'New'
-              const canConvert = lead.leadStatus === 'New'
-              const createdTime = lead.createdAt
-                ? (isToday
-                    ? `Today ${new Date(lead.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })}`
-                    : new Date(lead.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }))
-                : '—'
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {filteredLeads.length === 0 && (
+          <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>
+            No leads found
+          </div>
+        )}
+        {filteredLeads.map(lead => {
+          const isToday = lead.createdAt?.startsWith(todayStr)
+          const needsContact = isToday && lead.leadStatus === 'New'
+          const createdTime = lead.createdAt
+            ? (isToday
+                ? `Today ${new Date(lead.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+                : new Date(lead.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }))
+            : '—'
 
-              return (
-                <tr key={lead.id} onClick={() => navigate(`/leads/${lead.id}`)} style={{ cursor: 'pointer' }}>
-                  <td>
-                    <b>{lead.company || '—'}</b>
-                    <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2 }}>{createdTime}</div>
-                  </td>
-                  <td>
-                    <div>{`${lead.firstName || ''} ${lead.lastName || ''}`.trim() || '—'}</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2 }}>{lead.email}</div>
-                  </td>
-                  <td>{lead.orderVolume || '—'}</td>
-                  <td>
-                    {lead.leadSource
-                      ? <span className="pill pill-neutral">{lead.leadSource}</span>
-                      : <span style={{ color: 'var(--ink-3)' }}>—</span>
-                    }
-                  </td>
-                  <td style={{ color: 'var(--ink-3)', fontSize: 12 }}>{lead.utmSource || 'direct'}</td>
-                  <td>
-                    {needsContact
-                      ? <span className="pill pill-warn">today by 6pm</span>
-                      : <span style={{ color: 'var(--ink-3)' }}>—</span>
-                    }
-                  </td>
-                  <td>{lead.ownerName || '—'}</td>
-                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap', paddingRight: 12 }}>
-                    <button
-                      className="btn btn-sm btn-danger"
-                      disabled={!canConvert}
-                      style={!canConvert ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
-                    >
-                      Convert →
-                    </button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+          return (
+            <div key={lead.id}
+              className="card card-pad"
+              onClick={() => navigate(`/leads/${lead.id}`)}
+              style={{ cursor: 'pointer', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 16, alignItems: 'center' }}
+            >
+              {/* Brand + time */}
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{lead.company || '—'}</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{createdTime}</div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                  {needsContact && <span className="pill pill-warn">today by 6pm</span>}
+                  {lead.leadStatus && <span className="pill pill-neutral">{lead.leadStatus}</span>}
+                </div>
+              </div>
+
+              {/* Contact */}
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 500 }}>{lead.fullName || '—'}</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{lead.email || '—'}</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{lead.phone || '—'}</div>
+              </div>
+
+              {/* Volume + Source + UTM */}
+              <div>
+                <div style={{ fontSize: 13 }}>{lead.orderVolume || '—'}</div>
+                <div style={{ marginTop: 4 }}>
+                  {lead.leadSource
+                    ? <span className="pill pill-neutral">{lead.leadSource}</span>
+                    : <span style={{ color: 'var(--ink-3)', fontSize: 12 }}>—</span>
+                  }
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 4 }}>
+                  {lead.utmSource ? `UTM: ${lead.utmSource}` : 'direct'}
+                  {lead.utmCampaign ? ` · ${lead.utmCampaign}` : ''}
+                </div>
+              </div>
+
+              {/* Assigned to + action */}
+              <div style={{ textAlign: 'right', minWidth: 140 }}>
+                <div style={{ fontSize: 13, fontWeight: 500 }}>{lead.ownerName || '—'}</div>
+                <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2 }}>Assigned</div>
+                <button
+                  className="btn btn-sm btn-primary"
+                  style={{ marginTop: 8 }}
+                  onClick={e => {
+                    e.stopPropagation()
+                    navigate(`/form?leadId=${lead.id}&company=${encodeURIComponent(lead.company || '')}&email=${encodeURIComponent(lead.email || '')}&name=${encodeURIComponent((lead.firstName + ' ' + lead.lastName).trim())}`)
+                  }}
+                >
+                  + Log demo →
+                </button>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
