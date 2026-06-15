@@ -107,8 +107,37 @@ export default function Sidebar({ counts = {} }) {
 
   const isDev = import.meta.env.DEV
 
+  const adminToken = localStorage.getItem('sa_admin_token')
+  const adminUser = (() => {
+    try { return JSON.parse(localStorage.getItem('sa_admin_user') || '{}') } catch { return {} }
+  })()
+
   return (
     <aside className="sidebar">
+      {adminToken && adminUser?.email === 'satyanarayan.sahoo@eshopbox.com' && (
+        <div
+          onClick={() => {
+            localStorage.setItem('sa_token', adminToken)
+            localStorage.setItem('sa_user', localStorage.getItem('sa_admin_user'))
+            localStorage.removeItem('sa_admin_token')
+            localStorage.removeItem('sa_admin_user')
+            window.location.href = '/pipeline'
+          }}
+          style={{
+            background: 'var(--warn)',
+            color: 'white',
+            padding: '8px 12px',
+            fontSize: 12,
+            fontWeight: 600,
+            textAlign: 'center',
+            cursor: 'pointer',
+            borderRadius: 6,
+            marginBottom: 8
+          }}
+        >
+          👁 Viewing as {JSON.parse(localStorage.getItem('sa_user') || '{}')?.name} · Click to exit
+        </div>
+      )}
       {/* Brand */}
       <div className="sidebar-brand">
         <div className="sidebar-brand-mark">SA</div>

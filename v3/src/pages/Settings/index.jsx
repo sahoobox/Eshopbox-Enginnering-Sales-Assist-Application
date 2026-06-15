@@ -171,6 +171,26 @@ function TeamTab() {
     } finally { setSaving(false) }
   }
 
+  async function handleImpersonate(member) {
+    if (!confirm(`View Sales Assist as ${member.name}?`)) return
+    try {
+      const res = await authFetch('/api/admin/impersonate', {
+        method: 'POST',
+        body: JSON.stringify({ email: member.email })
+      })
+      const data = await res.json()
+      if (data.success) {
+        localStorage.setItem('sa_admin_token', localStorage.getItem('sa_token'))
+        localStorage.setItem('sa_admin_user', localStorage.getItem('sa_user'))
+        localStorage.setItem('sa_token', data.token)
+        localStorage.setItem('sa_user', JSON.stringify(data.user))
+        window.location.href = '/'
+      } else {
+        alert(data.error || 'Failed')
+      }
+    } catch { alert('Network error') }
+  }
+
   async function handleRemove(member) {
     if (!confirm(`Remove ${member.name} from Sales Assist?`)) return
     try {
@@ -243,6 +263,15 @@ function TeamTab() {
                       <button className="btn btn-sm btn-danger" onClick={() => handleRemove(m)}>
                         Remove
                       </button>
+                      {user?.email === 'satyanarayan.sahoo@eshopbox.com' && m.email !== user?.email && (
+                        <button
+                          className="btn btn-sm"
+                          onClick={() => handleImpersonate(m)}
+                          style={{ background: 'var(--purple)', color: 'white', border: 'none' }}
+                        >
+                          View as
+                        </button>
+                      )}
                     </div>
                   )}
                 </td>
