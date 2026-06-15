@@ -67,7 +67,8 @@ function PipelineList() {
   const navigate = useNavigate()
 
   const [view, setView] = useState('kanban')
-  const [pipelineFilter, setPipelineFilter] = useState('midmarket')
+  const defaultPipeline = isAE ? 'enterprise' : 'midmarket'
+  const [pipelineFilter, setPipelineFilter] = useState(defaultPipeline)
   const [search, setSearch] = useState('')
   const [activeFilters, setActiveFilters] = useState([])
   const [showLegend, setShowLegend] = useState(false)

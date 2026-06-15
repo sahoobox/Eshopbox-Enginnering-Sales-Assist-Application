@@ -5,20 +5,6 @@ import { useLeads } from '../../hooks/useLeads'
 import { Topbar, Loading } from '../../components/ui'
 import { SME_STAGES, ENT_STAGES, getStagePill, daysAgo } from '../../lib/stageConfig'
 
-const MDE_EMAILS = [
-  'sriya.komal@eshopbox.com',
-  'mriganki.srivastava@eshopbox.com',
-  'shubham.kumar@eshopbox.com',
-  'raghwendra.kumar@eshopbox.com',
-]
-
-const AE_EMAILS = [
-  'taufeeq.ahmad@eshopbox.com',
-  'afzal.maknoo@eshopbox.com',
-  'gautam@eshopbox.com',
-  'jeevan.more@eshopbox.com',
-]
-
 const TERMINAL_STAGES = ['Won/Payment Received', 'Lost/Dropped', 'On Hold']
 const COMBINED_STAGES = [...new Set([...SME_STAGES, ...ENT_STAGES])]
 
@@ -27,30 +13,24 @@ export default function Performance() {
   const { deals, loading: dealsLoading } = useDeals()
   const { leads, loading: leadsLoading } = useLeads()
 
-  const defaultFilter = role === ROLES.SALES_LEAD_ENTERPRISE ? 'enterprise' : 'midmarket'
+  const defaultFilter = (role === ROLES.SALES_LEAD_ENTERPRISE || role === ROLES.AE) ? 'enterprise' : 'midmarket'
   const [pipelineFilter, setPipelineFilter] = useState(defaultFilter)
   const [dateFilter, setDateFilter] = useState('month')
 
   const showToggle = isAdmin || isSalesLead
 
   const scopedDeals = useMemo(() => {
-    if (isMDE || isAE) return deals.filter(d => d.repEmail === user?.email)
-    if (role === ROLES.SALES_LEAD_MIDMARKET) return deals.filter(d => MDE_EMAILS.includes(d.repEmail))
-    if (role === ROLES.SALES_LEAD_ENTERPRISE) return deals.filter(d => AE_EMAILS.includes(d.repEmail))
-    // Admin — toggle filters data
-    if (pipelineFilter === 'midmarket') return deals.filter(d => MDE_EMAILS.includes(d.repEmail))
-    if (pipelineFilter === 'enterprise') return deals.filter(d => AE_EMAILS.includes(d.repEmail))
+    if (role === ROLES.SALES_LEAD_MIDMARKET) return deals.filter(d => d.pipeline === 'Mid-market')
+    if (role === ROLES.SALES_LEAD_ENTERPRISE) return deals.filter(d => d.pipeline === 'Enterprise 2.0')
+    if (pipelineFilter === 'midmarket') return deals.filter(d => d.pipeline === 'Mid-market')
+    if (pipelineFilter === 'enterprise') return deals.filter(d => d.pipeline === 'Enterprise 2.0')
     return deals
-  }, [deals, role, isMDE, isAE, user, pipelineFilter])
+  }, [deals, role, pipelineFilter])
 
   const scopedLeads = useMemo(() => {
-    if (isMDE || isAE) return leads.filter(l => l.ownerEmail === user?.email)
-    if (role === ROLES.SALES_LEAD_MIDMARKET) return leads.filter(l => MDE_EMAILS.includes(l.ownerEmail))
-    if (role === ROLES.SALES_LEAD_ENTERPRISE) return leads.filter(l => AE_EMAILS.includes(l.ownerEmail))
-    if (pipelineFilter === 'midmarket') return leads.filter(l => MDE_EMAILS.includes(l.ownerEmail))
-    if (pipelineFilter === 'enterprise') return leads.filter(l => AE_EMAILS.includes(l.ownerEmail))
+    // Backend already scopes leads by role — trust the server-filtered data
     return leads
-  }, [leads, role, isMDE, isAE, user, pipelineFilter])
+  }, [leads])
 
   const dateFilteredDeals = useMemo(() => {
     if (dateFilter === 'all') return scopedDeals

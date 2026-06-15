@@ -6,18 +6,6 @@ import { Topbar, Loading } from '../../components/ui'
 import { SME_STAGES, ENT_STAGES, daysAgo } from '../../lib/stageConfig'
 import { useState } from 'react'
 
-const MDE_EMAILS = [
-  'sriya.komal@eshopbox.com',
-  'mriganki.srivastava@eshopbox.com',
-  'shubham.kumar@eshopbox.com',
-  'raghwendra.kumar@eshopbox.com',
-]
-const AE_EMAILS = [
-  'taufeeq.ahmad@eshopbox.com',
-  'afzal.maknoo@eshopbox.com',
-  'gautam@eshopbox.com',
-  'jeevan.more@eshopbox.com',
-]
 const TERMINAL_STAGES = ['Won/Payment Received', 'Lost/Dropped', 'On Hold']
 
 export default function Reports() {
@@ -25,7 +13,7 @@ export default function Reports() {
   const { deals, loading: dealsLoading } = useDeals()
   const { leads, loading: leadsLoading } = useLeads()
   const [pipelineFilter, setPipelineFilter] = useState(
-    role === ROLES.SALES_LEAD_ENTERPRISE ? 'enterprise' : 'midmarket'
+    (role === ROLES.SALES_LEAD_ENTERPRISE || role === ROLES.AE) ? 'enterprise' : 'midmarket'
   )
   const [dateFilter, setDateFilter] = useState('month')
   const showToggle = role === ROLES.ADMIN ||
@@ -33,10 +21,10 @@ export default function Reports() {
     role === ROLES.SALES_LEAD_ENTERPRISE
 
   const scopedDeals = useMemo(() => {
-    if (role === ROLES.SALES_LEAD_MIDMARKET) return deals.filter(d => MDE_EMAILS.includes(d.repEmail))
-    if (role === ROLES.SALES_LEAD_ENTERPRISE) return deals.filter(d => AE_EMAILS.includes(d.repEmail))
-    if (pipelineFilter === 'midmarket') return deals.filter(d => MDE_EMAILS.includes(d.repEmail))
-    if (pipelineFilter === 'enterprise') return deals.filter(d => AE_EMAILS.includes(d.repEmail))
+    if (role === ROLES.SALES_LEAD_MIDMARKET) return deals.filter(d => d.pipeline === 'Mid-market')
+    if (role === ROLES.SALES_LEAD_ENTERPRISE) return deals.filter(d => d.pipeline === 'Enterprise 2.0')
+    if (pipelineFilter === 'midmarket') return deals.filter(d => d.pipeline === 'Mid-market')
+    if (pipelineFilter === 'enterprise') return deals.filter(d => d.pipeline === 'Enterprise 2.0')
     return deals
   }, [deals, role, pipelineFilter])
 
@@ -50,12 +38,9 @@ export default function Reports() {
   }, [scopedDeals, dateFilter])
 
   const scopedLeads = useMemo(() => {
-    if (role === ROLES.SALES_LEAD_MIDMARKET) return leads.filter(l => MDE_EMAILS.includes(l.ownerEmail))
-    if (role === ROLES.SALES_LEAD_ENTERPRISE) return leads.filter(l => AE_EMAILS.includes(l.ownerEmail))
-    if (pipelineFilter === 'midmarket') return leads.filter(l => MDE_EMAILS.includes(l.ownerEmail))
-    if (pipelineFilter === 'enterprise') return leads.filter(l => AE_EMAILS.includes(l.ownerEmail))
+    // Backend already scopes leads by role — trust the server-filtered data
     return leads
-  }, [leads, role, pipelineFilter])
+  }, [leads])
 
   // Stage funnel
   const stageList = (role === ROLES.SALES_LEAD_ENTERPRISE || pipelineFilter === 'enterprise') ? ENT_STAGES : SME_STAGES
