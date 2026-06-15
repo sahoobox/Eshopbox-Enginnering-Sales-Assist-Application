@@ -124,7 +124,7 @@ function PipelineList() {
   )
 
   return (
-    <div className="main">
+    <div className="main" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <Topbar
         title={pageTitle()}
         subtitle={`${scopedDeals.length} deals · owner-based visibility`}
@@ -227,21 +227,25 @@ function PipelineList() {
         />
       </div>
 
-      <FilterBar
-        ref={filterBarRef}
-        filters={activeFilters}
-        onChange={setActiveFilters}
-        deals={deals}
-        stages={currentStages}
-        isAdmin={isAdmin}
-        isMidMarketLead={isMidMarketLead}
-        isEnterpriseLead={isEnterpriseLead}
-      />
+      <div style={{ flexShrink: 0 }}>
+        <FilterBar
+          ref={filterBarRef}
+          filters={activeFilters}
+          onChange={setActiveFilters}
+          deals={deals}
+          stages={currentStages}
+          isAdmin={isAdmin}
+          isMidMarketLead={isMidMarketLead}
+          isEnterpriseLead={isEnterpriseLead}
+        />
+      </div>
 
-      {view === 'kanban'
-        ? <KanbanView deals={scopedDeals} pipelineFilter={pipelineFilter} />
-        : <ListView deals={scopedDeals} onOpen={id => navigate(`/pipeline/${id}`)} />
-      }
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {view === 'kanban'
+          ? <KanbanView deals={scopedDeals} pipelineFilter={pipelineFilter} />
+          : <ListView deals={scopedDeals} onOpen={id => navigate(`/pipeline/${id}`)} />
+        }
+      </div>
     </div>
   )
 }
@@ -454,7 +458,7 @@ function KanbanView({ deals, pipelineFilter }) {
     : SME_STAGES
 
   return (
-    <div className="kanban-wrap" style={{ overflowX: 'auto' }}>
+    <div className="kanban-wrap">
       <div className="kanban">
         {stages.map(stage => {
           const stageDeals = deals.filter(d => d.stage === stage)
