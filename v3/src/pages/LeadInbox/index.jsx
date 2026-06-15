@@ -171,17 +171,17 @@ export default function LeadInbox() {
         {search && <button onClick={() => setSearch('')} style={{ marginLeft: 8, background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Clear</button>}
       </div>
 
-      <div className="table-wrap">
-        <table className="t" style={{ minWidth: '100%', tableLayout: 'fixed' }}>
+      <div className="table-wrap" style={{ overflowX: 'auto' }}>
+        <table className="t" style={{ minWidth: 1180, tableLayout: 'fixed' }}>
           <colgroup>
-            <col style={{ width: '20%' }} />
-            <col style={{ width: '18%' }} />
-            <col style={{ width: '15%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '10%' }} />
-            <col style={{ width: '10%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '3%' }} />
+            <col style={{ width: '200px' }} />
+            <col style={{ width: '220px' }} />
+            <col style={{ width: '160px' }} />
+            <col style={{ width: '140px' }} />
+            <col style={{ width: '100px' }} />
+            <col style={{ width: '100px' }} />
+            <col style={{ width: '140px' }} />
+            <col style={{ width: '120px' }} />
           </colgroup>
           <thead>
             <tr>

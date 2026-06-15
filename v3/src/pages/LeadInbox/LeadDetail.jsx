@@ -191,12 +191,6 @@ export default function LeadDetail() {
         </div>
       </div>
 
-      {/* Routing decision */}
-      <div className="callout info" style={{ marginBottom: 14 }}>
-        <b>Routing decision:</b> Volume {lead.orderVolume || '—'} → {routing.desc}.{' '}
-        {lead.ownerName && <b style={{ color: routing.color }}>Assigned to {lead.ownerName}.</b>}
-      </div>
-
       <div className="ws-grid">
         {/* Left */}
         <div className="ws-main">
