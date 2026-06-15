@@ -82,16 +82,10 @@ export function AuthProvider({ children }) {
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Login failed')
-    const roleMap = {
-      'Admin': 'admin',
-      'Sales Lead Mid-Market': 'lead-midmarket',
-      'Sales Lead Enterprise': 'lead-enterprise',
-      'Sales rep': 'mde',
-      'Manager': 'lead-midmarket',
-    }
-    const mappedRole = roleMap[data.user?.role] || 'mde'
+    localStorage.removeItem('sa_token')
+    localStorage.removeItem('sa_user')
     localStorage.setItem('sa_token', data.token)
-    setUser({ ...data.user, role: mappedRole, token: data.token })
+    setUser({ ...data.user, role: data.user?.role || 'mde', token: data.token })
     return data.user
   }, [])
 
