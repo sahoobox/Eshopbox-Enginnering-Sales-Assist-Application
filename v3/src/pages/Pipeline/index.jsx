@@ -366,7 +366,7 @@ function PipelineList() {
 
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {viewTab === 'attention' ? (
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             <table className="t" style={{ width: '100%' }}>
               <thead>
                 <tr>

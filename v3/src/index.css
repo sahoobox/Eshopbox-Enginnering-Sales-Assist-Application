@@ -633,6 +633,7 @@ table.t tr:hover td { background: #faf9f7; }
   width: 296px;
   min-width: 296px;
   height: 100%;
+  overflow-y: auto;
 }
 .kcol-head {
   padding: 12px 14px 10px;
