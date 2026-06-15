@@ -171,8 +171,18 @@ export default function LeadInbox() {
         {search && <button onClick={() => setSearch('')} style={{ marginLeft: 8, background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Clear</button>}
       </div>
 
-      <div className="table-wrap" style={{ overflowX: 'auto' }}>
-        <table className="t" style={{ minWidth: 900 }}>
+      <div className="table-wrap">
+        <table className="t" style={{ minWidth: '100%', tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: '20%' }} />
+            <col style={{ width: '18%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '3%' }} />
+          </colgroup>
           <thead>
             <tr>
               <th>Brand</th>
@@ -201,13 +211,19 @@ export default function LeadInbox() {
 
               return (
                 <tr key={lead.id} onClick={() => navigate(`/leads/${lead.id}`)} style={{ cursor: 'pointer' }}>
-                  <td>
-                    <b>{lead.company || '—'}</b>
+                  <td style={{ overflow: 'hidden' }}>
+                    <b style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {lead.company || '—'}
+                    </b>
                     <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2 }}>{createdTime}</div>
                   </td>
-                  <td>
-                    <div>{`${lead.firstName || ''} ${lead.lastName || ''}`.trim() || '—'}</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2 }}>{lead.email}</div>
+                  <td style={{ overflow: 'hidden' }}>
+                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {lead.fullName || `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || '—'}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {lead.email}
+                    </div>
                   </td>
                   <td>{lead.orderVolume || '—'}</td>
                   <td>
