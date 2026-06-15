@@ -57,15 +57,7 @@ export function AuthProvider({ children }) {
         return r.json()
       })
       .then((data) => {
-        const roleMap = {
-          'Admin': 'admin',
-          'Sales Lead Mid-Market': 'lead-midmarket',
-          'Sales Lead Enterprise': 'lead-enterprise',
-          'Sales rep': 'mde',
-          'Manager': 'lead-midmarket',
-        }
-        const mappedRole = roleMap[data.user?.role] || 'mde'
-        setUser({ ...data.user, role: mappedRole, token })
+        setUser({ ...data.user, token })
         setLoading(false)
       })
       .catch(() => {
