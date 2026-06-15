@@ -108,6 +108,15 @@ export function AuthProvider({ children }) {
         },
       })
       if (res.status === 401) {
+        try {
+          const body = await res.clone().json()
+          if (body.code === 'SESSION_INVALIDATED') {
+            localStorage.removeItem('sa_token')
+            localStorage.removeItem('sa_user')
+            window.location.href = '/login'
+            return res
+          }
+        } catch {}
         logout()
         throw new Error('Session expired')
       }
