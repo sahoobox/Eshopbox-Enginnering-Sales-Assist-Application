@@ -159,6 +159,7 @@ function ForgotPassword({ onBack }) {
 
   const resetPassword = async (e) => {
     e.preventDefault()
+    if (newPass.length < 8) { setError('Password must be at least 8 characters'); return }
     if (newPass !== confirmPass) { setError('Passwords do not match'); return }
     setError('')
     setLoading(true)
