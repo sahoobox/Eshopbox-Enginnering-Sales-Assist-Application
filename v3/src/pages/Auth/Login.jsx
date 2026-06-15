@@ -159,15 +159,15 @@ function ForgotPassword({ onBack }) {
 
   const resetPassword = async (e) => {
     e.preventDefault()
-    if (newPass.length < 8) { setError('Password must be at least 8 characters'); return }
-    if (newPass !== confirmPass) { setError('Passwords do not match'); return }
+    if (newPass.trim().length < 8) { setError('Password must be at least 8 characters'); return }
+    if (newPass.trim() !== confirmPass.trim()) { setError('Passwords do not match'); return }
     setError('')
     setLoading(true)
     try {
       const res = await fetch(`${API_BASE}/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp, newPassword: newPass }),
+        body: JSON.stringify({ email, otp, newPassword: newPass.trim() }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
