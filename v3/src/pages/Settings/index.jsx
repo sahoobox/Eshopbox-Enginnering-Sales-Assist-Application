@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useAuth } from '../../context/AuthContext'
+import { useAuth, ROLES } from '../../context/AuthContext'
 import { Topbar } from '../../components/ui'
 
 
@@ -112,12 +112,12 @@ function TeamTab() {
   const [newRole, setNewRole] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const isAdmin = role === 'Admin'
-  const isSalesLead = role === 'Sales Lead Mid-Market' || role === 'Sales Lead Enterprise'
+  const isAdmin = role === ROLES.ADMIN
+  const isSalesLead = role === ROLES.SALES_LEAD_MIDMARKET || role === ROLES.SALES_LEAD_ENTERPRISE
 
   const allowedRoles = isAdmin
-    ? ['MDE', 'AE', 'Sales Lead Mid-Market', 'Sales Lead Enterprise', 'Admin']
-    : ['MDE', 'AE']
+    ? [ROLES.MDE, ROLES.AE, ROLES.SALES_LEAD_MIDMARKET, ROLES.SALES_LEAD_ENTERPRISE, ROLES.ADMIN]
+    : [ROLES.MDE, ROLES.AE]
 
   useEffect(() => { fetchTeam() }, [])
 
@@ -182,19 +182,19 @@ function TeamTab() {
   }
 
   const ROLE_PILL = {
-    'MDE': 'pill-info',
-    'AE': 'pill-purple',
-    'Sales Lead Mid-Market': 'pill-ok',
-    'Sales Lead Enterprise': 'pill-warn',
-    'Admin': 'pill-danger',
+    [ROLES.MDE]: 'pill-info',
+    [ROLES.AE]: 'pill-purple',
+    [ROLES.SALES_LEAD_MIDMARKET]: 'pill-ok',
+    [ROLES.SALES_LEAD_ENTERPRISE]: 'pill-warn',
+    [ROLES.ADMIN]: 'pill-danger',
   }
 
   const ROLE_LABEL = {
-    'MDE': 'MDE',
-    'AE': 'AE',
-    'Sales Lead Mid-Market': 'Sales Lead · Mid-Market',
-    'Sales Lead Enterprise': 'Sales Lead · Enterprise',
-    'Admin': 'Admin',
+    [ROLES.MDE]: 'MDE',
+    [ROLES.AE]: 'AE',
+    [ROLES.SALES_LEAD_MIDMARKET]: 'Sales Lead · Mid-Market',
+    [ROLES.SALES_LEAD_ENTERPRISE]: 'Sales Lead · Enterprise',
+    [ROLES.ADMIN]: 'Admin',
   }
 
   if (loading) return <div style={{ padding: 24, color: 'var(--ink-3)' }}>Loading team…</div>
