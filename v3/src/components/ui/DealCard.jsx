@@ -57,7 +57,7 @@ export default function DealCard({ deal }) {
   const stageAction = stageActionMap[deal.stage]
 
   return (
-    <div className={cardClass} onClick={() => navigate(`/pipeline/${deal.id}`)}>
+    <div className={cardClass} onClick={() => navigate(`/pipeline/${deal.id}`)} style={{ minHeight: 160, display: 'flex', flexDirection: 'column' }}>
       {/* Grade colour strip at top */}
       <div className="kc-labels">
         <div className={labelClass} />
@@ -65,7 +65,7 @@ export default function DealCard({ deal }) {
         {flagCount > 0 && <div className="kc-label" style={{ background: hasCritical ? 'var(--danger)' : 'var(--warn)', opacity: 0.7 }} />}
       </div>
 
-      <div className="kc-body">
+      <div className="kc-body" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {/* Title + grade badge */}
         <div className="kc-title-row">
           <div className="kc-title">{deal.brandName || deal.dealName}</div>
@@ -74,37 +74,29 @@ export default function DealCard({ deal }) {
 
         {/* Sub info */}
         <div className="kc-sub">
-          {subParts.join(' · ') || deal.repName || '—'}
+          {subParts.length > 0 ? subParts.join(' · ') : '—'}
         </div>
 
         {/* Stage action row */}
-        {stageAction && (
-          <div className="kc-stage-row">
-            <span>{stageAction.ico}</span>
-            <span>{stageAction.text}
-              {deal.followupMeetingDate && deal.stage === 'Follow up Meeting Done'
-                ? ` · ${formatDate(deal.followupMeetingDate)}`
-                : ''}
-            </span>
-          </div>
-        )}
+        <div className="kc-stage-row">
+          <span>{stageAction?.ico || '•'}</span>
+          <span>{stageAction?.text || deal.stage || '—'}</span>
+        </div>
 
         {/* Flag pills */}
-        {(flagCount > 0 || deal.saLogged) && (
-          <div className="kc-pills">
-            {deal.saLogged && (
-              <span className="kc-pill kc-pill-ok">✓ Logged</span>
-            )}
-            {flagCount > 0 && (
-              <span className={`kc-pill ${hasCritical ? 'kc-pill-danger' : 'kc-pill-warn'}`}>
-                {flagCount} flag{flagCount > 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-        )}
+        <div className="kc-pills" style={{ minHeight: 22 }}>
+          {deal.saLogged && (
+            <span className="kc-pill kc-pill-ok">✓ Logged</span>
+          )}
+          {flagCount > 0 && (
+            <span className={`kc-pill ${hasCritical ? 'kc-pill-danger' : 'kc-pill-warn'}`}>
+              {flagCount} flag{flagCount > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
 
         {/* Footer: owner + days */}
-        <div className="kc-footer">
+        <div className="kc-footer" style={{ marginTop: 'auto' }}>
           <div className="kc-owner">
             <div className="avatar av-teal" style={{ width: 20, height: 20, fontSize: 9 }}>
               {ownerInitials}
