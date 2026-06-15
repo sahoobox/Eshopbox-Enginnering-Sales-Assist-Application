@@ -167,7 +167,7 @@ function ForgotPassword({ onBack }) {
       const res = await fetch(`${API_BASE}/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp, newPassword: newPass.trim() }),
+        body: JSON.stringify({ email, otp, password: newPass.trim() }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
