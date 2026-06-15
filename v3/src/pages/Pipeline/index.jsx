@@ -364,7 +364,7 @@ function PipelineList() {
         </button>
       </div>
 
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         {viewTab === 'attention' ? (
           <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             <table className="t" style={{ width: '100%' }}>
@@ -685,7 +685,7 @@ function KanbanView({ deals, pipelineFilter }) {
 // ── List view ─────────────────────────────────────────────
 function ListView({ deals, onOpen }) {
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
       <table className="t">
         <thead>
           <tr>
