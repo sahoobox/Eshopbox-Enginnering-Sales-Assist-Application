@@ -40,24 +40,8 @@ export default function DealCard({ deal }) {
     deal.solutionInterest
   ].filter(Boolean)
 
-  // Next action label from stage
-  const stageActionMap = {
-    'Upcoming Demo': { ico: '📅', text: 'Demo scheduled' },
-    'Demo Done': { ico: '📋', text: 'Proposal pending' },
-    'Proposal Sent': { ico: '⏳', text: 'Awaiting response' },
-    'Follow up Meeting Done': { ico: '✅', text: 'Meeting done' },
-    'Account Setup in Progress': { ico: '⚙️', text: 'Setup in progress' },
-    'Awaiting First Shipment': { ico: '📦', text: 'Awaiting shipment' },
-    'First Shipment Done': { ico: '🚚', text: 'First shipment done' },
-    'Active': { ico: '✅', text: 'Active client' },
-    'On Hold': { ico: '⏸', text: 'On hold' },
-    'Won/Payment Received': { ico: '🏆', text: 'Won' },
-    'Lost/Dropped': { ico: '✗', text: 'Lost' },
-  }
-  const stageAction = stageActionMap[deal.stage]
-
   return (
-    <div className={cardClass} onClick={() => navigate(`/pipeline/${deal.id}`)} style={{ minHeight: 200, display: 'flex', flexDirection: 'column' }}>
+    <div className={cardClass} onClick={() => navigate(`/pipeline/${deal.id}`)} style={{ minHeight: 160, display: 'flex', flexDirection: 'column' }}>
       {/* Grade colour strip at top */}
       <div className="kc-labels">
         <div className={labelClass} />
@@ -75,12 +59,6 @@ export default function DealCard({ deal }) {
         {/* Sub info */}
         <div className="kc-sub">
           {subParts.length > 0 ? subParts.join(' · ') : '—'}
-        </div>
-
-        {/* Stage action row */}
-        <div className="kc-stage-row">
-          <span>{stageAction?.ico || '•'}</span>
-          <span>{stageAction?.text || deal.stage || '—'}</span>
         </div>
 
         {/* Flag pills */}

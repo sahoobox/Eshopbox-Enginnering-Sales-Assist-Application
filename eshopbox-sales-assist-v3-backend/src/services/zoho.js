@@ -72,7 +72,7 @@ const DEAL_FIELDS = [
   'SA_Pricing_Raised', 'SA_F2F_Count', 'Lost_Reason',
   'SA_OMS', 'SA_Shopping_Cart', 'SA_Current_Warehousing',
   'SA_Current_Shipping', 'SA_Demo_Format', 'SA_Segment',
-  'Contact_Name', 'Amount', 'On_Hold_Reason', 'Pipeline'
+  'Contact_Name', 'Amount', 'On_Hold_Reason', 'Pipeline', 'Lead_Source'
 ].join(',');
 
 const DEALS_2_LAYOUT_ID = '6483035000025962021';
@@ -301,21 +301,34 @@ const LEAD_FIELDS = [
   'Disqualified_reason', 'Bad_Timing_Reason', 'Description'
 ].join(',')
 
+const LEADS_CACHE_KEY = 'v3_leads_cache'
+
 export async function getLeads(env) {
+  // Check cache first (15 min TTL)
+  try {
+    const cached = await env.TOKEN_CACHE.get(LEADS_CACHE_KEY)
+    if (cached) return { data: JSON.parse(cached) }
+  } catch {}
+
   const leads = []
   let page = 1
   const token = await getAccessToken(env)
-  while (page <= 200) {
+  while (page <= 50) {
     const res = await fetch(
       `https://www.zohoapis.com/crm/v2.1/Leads?fields=${LEAD_FIELDS}&per_page=100&page=${page}&sort_by=Created_Time&sort_order=desc`,
       { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
     ).then(r => r.json())
-    console.log('getLeads page', page, 'status:', res?.status, 'code:', res?.code, 'data:', res?.data?.length, 'raw:', JSON.stringify(res).slice(0, 300))
     if (!res?.data?.length) break
     leads.push(...res.data)
     if (!res.info?.more_records) break
     page++
   }
+
+  // Cache for 15 minutes
+  try {
+    await env.TOKEN_CACHE.put(LEADS_CACHE_KEY, JSON.stringify(leads), { expirationTtl: 7200 })
+  } catch {}
+
   return { data: leads }
 }
 

@@ -18,7 +18,7 @@ app.use('*', cors({
     'https://salesassist.eshopbox.com',
     'http://localhost:5173',
   ],
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'x-view-as-email', 'x-app-version'],
 }));
 
@@ -59,9 +59,14 @@ app.get('/api/debug', async (c) => {
 app.get('/api/debug/leads', requireAuth, async (c) => {
   const user = c.get('user')
   if (user.email !== 'satyanarayan.sahoo@eshopbox.com') return c.json({ error: 'Forbidden' }, 403)
-  const data = await zohoAPI(c.env, 'GET',
-    '/Leads?per_page=3&sort_by=Created_Time&sort_order=desc')
-  return c.json(data)
+
+  const token = await getAccessToken(c.env)
+  const res = await fetch(
+    'https://www.zohoapis.com/crm/v2.1/Leads?fields=id,Full_Name,Lead_Type,Lead_Status,Owner&per_page=3&sort_by=Created_Time&sort_order=desc',
+    { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
+  ).then(r => r.json())
+
+  return c.json(res)
 })
 
 app.get('/api/debug/pipelines', requireAuth, async (c) => {
@@ -71,6 +76,8 @@ app.get('/api/debug/pipelines', requireAuth, async (c) => {
 
 app.delete('/api/cache', requireAuth, async (c) => {
   await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+  await c.env.TOKEN_CACHE.delete('zoho_access_token')
+  await c.env.TOKEN_CACHE.delete('v3_leads_cache')
   return c.json({ ok: true })
 })
 
@@ -173,10 +180,25 @@ const AE_EMAILS = [
   'gautam@eshopbox.com',
   'jeevan.more@eshopbox.com',
 ]
-function getPipeline(stage, ownerEmail) {
-  if (MDE_EMAILS.includes(ownerEmail)) return 'Mid-market'
-  if (AE_EMAILS.includes(ownerEmail)) return 'Enterprise 2.0'
-  return 'Mid-market'
+async function getMDEEmails(db) {
+  try {
+    const rows = await db.prepare(
+      "SELECT email FROM users WHERE role = 'mde' AND is_active = 1"
+    ).all()
+    return (rows.results || []).map(r => r.email)
+  } catch {
+    return MDE_EMAILS
+  }
+}
+async function getAEEmails(db) {
+  try {
+    const rows = await db.prepare(
+      "SELECT email FROM users WHERE role = 'ae' AND is_active = 1"
+    ).all()
+    return (rows.results || []).map(r => r.email)
+  } catch {
+    return AE_EMAILS
+  }
 }
 
 function mapZohoDeal(d) {
@@ -186,7 +208,7 @@ function mapZohoDeal(d) {
     brandName: d.Deal_Name?.split(' — ')[0] || d.Deal_Name,
     stage: d.Stage,
     stageAligned: ALL_VALID_STAGES.includes(d.Stage),
-    pipeline: d.Pipeline || getPipeline(d.Stage, d.Owner?.email),
+    pipeline: d.Pipeline || '',
     repName: d.Owner?.name || 'Unknown',
     repEmail: d.Owner?.email || '',
 grade: (() => {
@@ -209,6 +231,7 @@ score: (() => {
     pricingRaised: d.SA_Pricing_Raised || false,
     f2fCount: d.SA_F2F_Count || 0,
     saLogged: d.SA_Logged || false,
+    leadSource: d.Lead_Source || '',
     lostReason: d.Lost_Reason || '',
     demoDate: d.Demo_Date || d.Created_Time?.split('T')[0] || '',
     stageChangedOn: d.Modified_Time?.split('T')[0] || '',
@@ -298,7 +321,7 @@ app.post('/auth/login', async (c) => {
 app.post('/auth/invite', requireAuth, async (c) => {
   try {
     const user = c.get('user');
-    if (user?.role !== 'Admin' && user?.role !== 'Manager') return c.json({ error: 'Only admins and managers can invite' }, 403);
+    if (user?.role !== 'admin' && user?.role !== 'lead-midmarket' && user?.role !== 'lead-enterprise') return c.json({ error: 'Only admins and sales leads can invite' }, 403);
     const { email, role } = await c.req.json();
     if (!email.endsWith('@eshopbox.com')) return c.json({ error: 'Only @eshopbox.com emails allowed' }, 400);
     const existing = await getUserByEmail(c.env.DB, email);
@@ -324,11 +347,11 @@ app.post('/auth/invite', requireAuth, async (c) => {
       await c.env.DB.prepare('DELETE FROM users WHERE email = ? AND is_active = 0').bind(email).run();
     }
 
-    const managerAllowed = ['Sales rep', 'Manager', 'Sales Lead Mid-Market', 'Sales Lead Enterprise'];
-    const adminAllowed = ['Sales rep', 'Manager', 'Admin', 'Sales Lead Mid-Market', 'Sales Lead Enterprise'];
-    const assignedRole = user?.role === 'Manager'
-      ? (managerAllowed.includes(role) ? role : 'Sales rep')
-      : (adminAllowed.includes(role) ? role : 'Sales rep');
+    const leadAllowed = ['mde', 'ae'];
+    const adminAllowed = ['mde', 'ae', 'admin', 'lead-midmarket', 'lead-enterprise'];
+    const assignedRole = user?.role === 'admin'
+      ? (adminAllowed.includes(role) ? role : 'mde')
+      : (leadAllowed.includes(role) ? role : 'mde');
 
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -391,7 +414,7 @@ app.get('/auth/team', requireAuth, async (c) => {
 app.put('/auth/team/:id/role', requireAuth, async (c) => {
   try {
     const user = c.get('user');
-    if (user?.role !== 'Admin') return c.json({ error: 'Admins only' }, 403);
+    if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403);
     const { role } = await c.req.json();
     await updateUserRole(c.env.DB, c.req.param('id'), role);
     return c.json({ success: true });
@@ -403,7 +426,7 @@ app.put('/auth/team/:id/role', requireAuth, async (c) => {
 app.put('/auth/team/:id/reactivate', requireAuth, async (c) => {
   try {
     const user = c.get('user');
-    if (user?.role !== 'Admin') return c.json({ error: 'Admins only' }, 403);
+    if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403);
     await c.env.DB.prepare('UPDATE users SET is_active = 1 WHERE id = ?').bind(c.req.param('id')).run();
     return c.json({ success: true });
   } catch (err) {
@@ -414,7 +437,7 @@ app.put('/auth/team/:id/reactivate', requireAuth, async (c) => {
 app.delete('/auth/team/:id', requireAuth, async (c) => {
   try {
     const user = c.get('user');
-    if (user?.role !== 'Admin') return c.json({ error: 'Admins only' }, 403);
+    if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403);
     const id = c.req.param('id');
     const userRow = await c.env.DB.prepare('SELECT email FROM users WHERE id = ?').bind(id).first();
     const inviteRow = await c.env.DB.prepare('SELECT email FROM invites WHERE id = ?').bind(id).first();
@@ -427,6 +450,48 @@ app.delete('/auth/team/:id', requireAuth, async (c) => {
     return c.json({ error: 'Failed to remove member', details: err.message }, 500);
   }
 });
+
+app.post('/api/admin/force-logout', requireAuth, async (c) => {
+  const user = c.get('user')
+  if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403)
+  const timestamp = Date.now().toString()
+  await c.env.TOKEN_CACHE.put('force_logout_after', timestamp)
+  return c.json({ success: true, message: 'All sessions invalidated', timestamp })
+})
+
+app.post('/api/admin/impersonate', requireAuth, async (c) => {
+  try {
+    const user = c.get('user')
+    if (user?.email !== 'satyanarayan.sahoo@eshopbox.com')
+      return c.json({ error: 'Forbidden' }, 403)
+    const { email } = await c.req.json()
+    const targetUser = await getUserByEmail(c.env.DB, email)
+    if (!targetUser) return c.json({ error: 'User not found' }, 404)
+    if (!targetUser.is_active) return c.json({ error: 'User is inactive' }, 404)
+    const token = await sign(
+      {
+        id: targetUser.id,
+        email: targetUser.email,
+        name: targetUser.name,
+        role: targetUser.role,
+        impersonatedBy: user.email
+      },
+      c.env.JWT_SECRET
+    )
+    return c.json({
+      success: true,
+      token,
+      user: {
+        id: targetUser.id,
+        email: targetUser.email,
+        name: targetUser.name,
+        role: targetUser.role
+      }
+    })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
 
 app.post('/auth/zoho/connect', requireAuth, async (c) => {
   try {
@@ -590,13 +655,7 @@ app.get('/api/deals', requireAuth, async (c) => {
   try {
     const user = c.get('user')
 
-    // Impersonation for admin
     let effectiveUser = user
-    const impersonateEmail = c.req.query('as')
-    if (user.role === 'admin' && impersonateEmail) {
-      const impersonated = await getUserByEmail(c.env.DB, impersonateEmail)
-      if (impersonated) effectiveUser = impersonated
-    }
     console.log('effectiveUser:', JSON.stringify(effectiveUser))
 
     const forceRefresh = c.req.query('refresh') === 'true'
@@ -604,15 +663,45 @@ app.get('/api/deals', requireAuth, async (c) => {
 
     const { data: rawDeals } = await getDeals(c.env)
 
+    const [dynamicMDEEmails, dynamicAEEmails] = await Promise.all([
+      getMDEEmails(c.env.DB),
+      getAEEmails(c.env.DB)
+    ])
+
     // Map to deal objects
     let deals = rawDeals.map(d => mapZohoDeal(d))
 
     // Role-based filtering
-    const roleLC = effectiveUser.role?.toLowerCase()
-    const isAdminOrLead = roleLC === 'admin' || roleLC === 'sales lead mid-market' || roleLC === 'sales lead enterprise'
+    const userRole = effectiveUser.role
+    const isAdminOrLead = userRole === 'admin' || userRole === 'lead-midmarket' || userRole === 'lead-enterprise'
+
     if (!isAdminOrLead) {
-      deals = deals.filter(d => d.repEmail === effectiveUser.email)
+      const isMDE = dynamicMDEEmails.includes(effectiveUser.email)
+      const isAE = dynamicAEEmails.includes(effectiveUser.email)
+
+      if (isMDE) {
+        deals = deals.filter(d =>
+          d.repEmail === effectiveUser.email &&
+          d.pipeline === 'Mid-market'
+        )
+      } else if (isAE) {
+        deals = deals.filter(d =>
+          d.repEmail === effectiveUser.email &&
+          d.pipeline === 'Enterprise 2.0'
+        )
+      } else {
+        deals = deals.filter(d => d.repEmail === effectiveUser.email)
+      }
     }
+
+    console.log('DEALS DEBUG:', {
+      email: effectiveUser.email,
+      role: effectiveUser.role,
+      isAdminOrLead,
+      isAE: dynamicAEEmails.includes(effectiveUser.email),
+      dealsCount: deals.length,
+      samplePipelines: [...new Set(deals.slice(0,5).map(d => d.pipeline))]
+    })
 
     // D1 lookups in chunks of 500
     const chunkArray = (arr, size) => Array.from(
@@ -824,7 +913,7 @@ deal.activities = (activitiesRes?.data || []).map(a => ({
       date: a.Created_Time,
       description: a.Description || a.Subject || '',
     }));
-    if (effectiveUser.role === 'Sales rep' && deal.repEmail !== effectiveUser.email) return c.json({ error: 'Access denied' }, 403);
+    if ((effectiveUser.role === 'mde' || effectiveUser.role === 'ae') && deal.repEmail !== effectiveUser.email) return c.json({ error: 'Access denied' }, 403);
     const flags = computeAttentionFlags(deal);
     const attentionLevel = getAttentionLevel(flags);
     console.log('[dealSummary] returning dealSummary for', dealId, ':', dealSummary);
@@ -1061,6 +1150,16 @@ app.post('/api/deals/:id/day2/mark-sent', requireAuth, async (c) => {
          VALUES (?, ?, 'day2', 'sent', datetime('now'), datetime('now'), datetime('now'))`
       ).bind(crypto.randomUUID(), dealId).run();
     }
+    try {
+      const dealRes = await getDeal(c.env, dealId)
+      const currentStage = dealRes?.data?.[0]?.Stage
+      if (currentStage === 'Demo Done') {
+        await updateDeal(c.env, dealId, { Stage: 'Proposal Sent' })
+        await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+      }
+    } catch (e) {
+      console.error('Stage auto-advance failed:', e.message)
+    }
     return c.json({ success: true });
   } catch (err) {
     return c.json({ error: 'Failed to mark day2 as sent', details: err.message }, 500);
@@ -1248,6 +1347,28 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
   }
 })
 
+app.post('/api/deals/:id/stage', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const { stage } = await c.req.json()
+    const VALID_STAGES = [
+      'Upcoming Demo', 'Demo Done', 'Proposal Sent',
+      'Account Setup in Progress', 'Awaiting First Shipment',
+      'First Shipment Done', 'Active', 'On Hold',
+      'Won/Payment Received', 'Lost/Dropped',
+      'Follow up Meeting Done'
+    ]
+    if (!VALID_STAGES.includes(stage)) {
+      return c.json({ error: 'Invalid stage' }, 400)
+    }
+    await updateDeal(c.env, dealId, { Stage: stage })
+    await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+    return c.json({ success: true, stage })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
 app.get('/api/deals/:id/notes', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id')
@@ -1297,18 +1418,17 @@ app.post('/api/deals/:id/activities', requireAuth, async (c) => {
     const dealId = c.req.param('id')
     const { type, subject, notes } = await c.req.json()
 
-    const activityType = type === 'Call' ? 'Calls' : type === 'Email' ? 'Emails' : 'Events'
+    const token = await getAccessToken(c.env)
 
     const payload = {
-      Subject: subject,
-      Description: notes || '',
-      Status: 'Completed',
-      What_Id: dealId,
+      Note_Title: subject,
+      Note_Content: `[${type}] ${notes || ''}`,
+      Parent_Id: dealId,
+      $se_module: 'Deals',
     }
 
-    const token = await getAccessToken(c.env)
     const res = await fetch(
-      `https://www.zohoapis.com/crm/v2/${activityType}`,
+      'https://www.zohoapis.com/crm/v2/Notes',
       {
         method: 'POST',
         headers: {
@@ -1319,10 +1439,15 @@ app.post('/api/deals/:id/activities', requireAuth, async (c) => {
       }
     ).then(r => r.json())
 
+    console.log('Zoho activity response:', JSON.stringify(res))
+
     if (res.data?.[0]?.code === 'SUCCESS') {
       return c.json({ success: true })
     } else {
-      return c.json({ error: res.data?.[0]?.message || 'Zoho activity creation failed' }, 400)
+      return c.json({
+        error: res.data?.[0]?.message || res.message || 'Zoho activity creation failed',
+        details: res
+      }, 400)
     }
   } catch (err) {
     return c.json({ error: err.message }, 500)
@@ -1580,8 +1705,26 @@ async function handleCreateGmailDraft(c) {
     console.log('create-draft threading:', emailType, '| inReplyTo:', inReplyTo, '| references:', references);
     console.log('create-draft: day1ThreadId =', day1ThreadId, '| from D1 directly');
 
-    const htmlBody = emailRow.body.replace(/\n/g, '<br>');
+    let htmlBody = emailRow.body.replace(/\n/g, '<br>');
     console.log('htmlBody preview:', htmlBody?.slice(0, 100))
+
+    // Fetch user's Gmail signature from D1
+    let signature = ''
+    try {
+      const sigRow = await c.env.DB.prepare(
+        'SELECT gmail_signature FROM users WHERE id = ?'
+      ).bind(loggedInUser.id).first()
+      if (sigRow?.gmail_signature) {
+        signature = sigRow.gmail_signature
+      }
+    } catch (e) {
+      console.error('Failed to fetch signature:', e.message)
+    }
+
+    // Append signature to email body
+    if (signature) {
+      htmlBody = htmlBody + '<br><br>--<br>' + signature
+    }
 
     let accessToken;
     try {
@@ -1762,8 +1905,8 @@ app.get('/api/deals/:id/analysis', requireAuth, async (c) => {
 app.post('/api/admin/regenerate-drafts', requireAuth, async (c) => {
   try {
     const user = c.get('user');
-    if (!['Admin', 'Manager'].includes(user?.role)) {
-      return c.json({ error: 'Admins and Managers only' }, 403);
+    if (user?.role !== 'admin') {
+      return c.json({ error: 'Admins only' }, 403);
     }
 
     const draftRows = await c.env.DB.prepare(`
@@ -1947,7 +2090,7 @@ app.get('/api/cron/reminders-pending', async (c) => {
     AND EXISTS (
       SELECT 1 FROM users u
       WHERE u.email = dfd.rep_email
-      AND u.role NOT IN ('Admin', 'Developer')
+      AND u.role NOT IN ('admin')
       AND u.is_active = 1
     )
     AND (
@@ -1985,7 +2128,7 @@ app.get('/api/cron/digest-pending', async (c) => {
     AND EXISTS (
       SELECT 1 FROM users u
       WHERE u.email = dfd.rep_email
-      AND u.role NOT IN ('Admin', 'Developer')
+      AND u.role NOT IN ('admin')
       AND u.is_active = 1
     )
     ORDER BY dfd.rep_email, de.created_at ASC
@@ -2038,7 +2181,7 @@ async function runScheduledEmails(env) {
       if (!rep) {
         // Rep deactivated — reassign to admin
         const manager = await env.DB.prepare(
-          `SELECT email FROM users WHERE role = 'Admin' AND is_active = 1 LIMIT 1`
+          `SELECT email FROM users WHERE role = 'admin' AND is_active = 1 LIMIT 1`
         ).first();
         if (!manager) {
           console.log(`No active manager found for deal ${email.deal_id} — skipping`);
@@ -2193,7 +2336,7 @@ const DEFAULT_RULES = [
 app.get('/api/settings/rules', requireAuth, async (c) => {
   try {
     const user = c.get('user');
-    if (user?.role !== 'Admin') return c.json({ error: 'Admins only' }, 403);
+    if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403);
     let rows = [];
     try {
       const result = await c.env.DB.prepare('SELECT id, active, threshold FROM rules_config').all();
@@ -2215,7 +2358,7 @@ app.get('/api/settings/rules', requireAuth, async (c) => {
 app.put('/api/settings/rules/:id', requireAuth, async (c) => {
   try {
     const user = c.get('user');
-    if (user?.role !== 'Admin') return c.json({ error: 'Admins only' }, 403);
+    if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403);
     const id = c.req.param('id');
     const body = await c.req.json();
     const now = new Date().toISOString();
@@ -2253,7 +2396,7 @@ const DEFAULT_SEQUENCE = [
 app.get('/api/settings/sequence', requireAuth, async (c) => {
   try {
     const user = c.get('user');
-    if (user?.role !== 'Admin') return c.json({ error: 'Admins only' }, 403);
+    if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403);
     let rows = [];
     try {
       const result = await c.env.DB.prepare('SELECT id, days FROM sequence_config').all();
@@ -2272,7 +2415,7 @@ app.get('/api/settings/sequence', requireAuth, async (c) => {
 app.put('/api/settings/sequence/:id', requireAuth, async (c) => {
   try {
     const user = c.get('user');
-    if (user?.role !== 'Admin') return c.json({ error: 'Admins only' }, 403);
+    if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403);
     const id = c.req.param('id');
     const { days } = await c.req.json();
     const now = new Date().toISOString();
@@ -2291,7 +2434,7 @@ app.put('/api/settings/sequence/:id', requireAuth, async (c) => {
 app.post('/api/admin/backfill-tasks', requireAuth, async (c) => {
   try {
     const user = c.get('user');
-    if (user.role !== 'Admin') return c.json({ error: 'Admin only' }, 403);
+    if (user.role !== 'admin') return c.json({ error: 'Admin only' }, 403);
 
     const EXPECTED_TASKS = [
       { subject: 'Day 1 — Send recap email',                daysFromDemo: 1,  anchor: 'demo' },
@@ -2559,7 +2702,15 @@ function mapZohoLead(l) {
 
 app.get('/api/leads', requireAuth, async (c) => {
   try {
+    const forceRefresh = c.req.query('refresh') === 'true'
+    if (forceRefresh) {
+      try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch {}
+    }
     const user = c.get('user')
+    const [dynamicMDEEmails, dynamicAEEmails] = await Promise.all([
+      getMDEEmails(c.env.DB),
+      getAEEmails(c.env.DB)
+    ])
     const res = await getLeads(c.env)
     const allLeads = res?.data || []
     console.log('Total leads from Zoho:', allLeads.length)
@@ -2574,8 +2725,12 @@ app.get('/api/leads', requireAuth, async (c) => {
       .filter(l => ACTIVE_LEAD_STATUSES.includes(l.Lead_Status))
       .filter(l => !SYSTEM_EMAILS.includes(l.Owner?.email))
       .map(mapZohoLead)
-    if (user.role === 'Sales rep') {
+    if (user.role === 'mde' || user.role === 'ae') {
       leads = leads.filter(l => l.ownerEmail === user.email)
+    } else if (user.role === 'lead-midmarket') {
+      leads = leads.filter(l => dynamicMDEEmails.includes(l.ownerEmail))
+    } else if (user.role === 'lead-enterprise') {
+      leads = leads.filter(l => dynamicAEEmails.includes(l.ownerEmail))
     }
     return c.json({ leads, total: leads.length })
   } catch (err) {
@@ -2610,6 +2765,8 @@ app.post('/api/leads/:id/disqualify', requireAuth, async (c) => {
       Lead_Status: 'Disqualified',
       ...(reason ? { Disqualified_reason: reason } : {})
     })
+    // Clear leads cache so inbox refreshes
+    try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch {}
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: 'Failed to disqualify lead', details: err.message }, 500)
@@ -2641,12 +2798,122 @@ app.post('/api/leads/:id/notes', requireAuth, async (c) => {
 
 app.post('/api/leads/:id/convert', requireAuth, async (c) => {
   try {
-    return c.json({
-      success: false,
-      error: 'Lead conversion via Deluge function not yet configured. Please convert in Zoho CRM directly for now.'
-    }, 501)
+    const leadId = c.req.param('id')
+    const token = await getAccessToken(c.env)
+
+    // 1. Get lead details
+    const leadRes = await fetch(
+      `https://www.zohoapis.com/crm/v2/Leads/${leadId}`,
+      { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
+    ).then(r => r.json())
+
+    if (!leadRes?.data?.[0]) return c.json({ error: 'Lead not found' }, 404)
+    const lead = leadRes.data[0]
+
+    const email = lead.Email || ''
+    const company = lead.Company || ''
+    const firstName = lead.First_Name || ''
+    const lastName = lead.Last_Name || ''
+    const phone = lead.Phone || ''
+    const volume = lead.How_many_orders_do_you_ship_in_a_month || ''
+    const leadSource = lead.Lead_Source || ''
+    const ownerId = lead.Owner?.id || ''
+    const pipeline = volume === 'More than 10,000 orders/month' ? 'Enterprise 2.0' : 'Mid-market'
+
+    // 2. Find or create Account
+    let accountId = ''
+    const accountSearch = await fetch(
+      `https://www.zohoapis.com/crm/v2/Accounts/search?criteria=(Account_Name:equals:${encodeURIComponent(company)})`,
+      { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
+    ).then(r => r.json())
+
+    if (accountSearch?.data?.[0]) {
+      accountId = accountSearch.data[0].id
+    } else {
+      const accountCreate = await fetch(
+        'https://www.zohoapis.com/crm/v2/Accounts',
+        {
+          method: 'POST',
+          headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: [{ Account_Name: company, Phone: phone, Owner: { id: ownerId } }] })
+        }
+      ).then(r => r.json())
+      accountId = accountCreate?.data?.[0]?.details?.id || ''
+    }
+
+    // 3. Find or create Contact
+    let contactId = ''
+    const contactSearch = await fetch(
+      `https://www.zohoapis.com/crm/v2/Contacts/search?criteria=(Email:equals:${encodeURIComponent(email)})`,
+      { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
+    ).then(r => r.json())
+
+    if (contactSearch?.data?.[0]) {
+      contactId = contactSearch.data[0].id
+    } else {
+      const contactCreate = await fetch(
+        'https://www.zohoapis.com/crm/v2/Contacts',
+        {
+          method: 'POST',
+          headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: [{
+            First_Name: firstName,
+            Last_Name: lastName || company,
+            Email: email,
+            Phone: phone,
+            Account_Name: { id: accountId },
+            Owner: { id: ownerId }
+          }] })
+        }
+      ).then(r => r.json())
+      contactId = contactCreate?.data?.[0]?.details?.id || ''
+    }
+
+    // 4. Create Deal
+    const dealCreate = await fetch(
+      'https://www.zohoapis.com/crm/v2/Deals',
+      {
+        method: 'POST',
+        headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: [{
+          Deal_Name: company + ' — Inbound',
+          Stage: 'Upcoming Demo',
+          Pipeline: pipeline,
+          Account_Name: { id: accountId },
+          Contact_Name: { id: contactId },
+          Owner: { id: ownerId },
+          How_many_orders_do_you_ship_in_a_month: volume,
+          Lead_Source: leadSource,
+          Layout: { id: '6483035000025962021' }
+        }] })
+      }
+    ).then(r => r.json())
+
+    console.log('Deal create response:', JSON.stringify(dealCreate))
+    const dealId = dealCreate?.data?.[0]?.details?.id || ''
+
+    if (!dealId) {
+      return c.json({ error: 'Failed to create deal', details: dealCreate }, 400)
+    }
+
+    // 5. Mark lead as converted
+    await fetch(
+      `https://www.zohoapis.com/crm/v2/Leads/${leadId}`,
+      {
+        method: 'PUT',
+        headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: [{ Lead_Status: 'Converted' }] })
+      }
+    )
+
+    // 6. Clear caches
+    try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch {}
+    try { await c.env.TOKEN_CACHE.delete('v3_deals_cache') } catch {}
+
+    return c.json({ success: true, dealId, accountId, contactId, pipeline })
   } catch (err) {
-    return c.json({ error: 'Failed to convert lead', details: err.message }, 500)
+    console.error('Convert error:', err.message)
+    return c.json({ error: err.message }, 500)
   }
 })
 
@@ -2676,15 +2943,19 @@ const TASK_AE_EMAILS = ['taufeeq.ahmad@eshopbox.com','afzal.maknoo@eshopbox.com'
 app.get('/api/tasks', requireAuth, async (c) => {
   try {
     const user = c.get('user')
+    const [dynamicMDEEmails, dynamicAEEmails] = await Promise.all([
+      getMDEEmails(c.env.DB),
+      getAEEmails(c.env.DB)
+    ])
     const res = await getTasks(c.env)
     if (!res?.data) return c.json({ tasks: [] })
     let tasks = res.data.map(mapZohoTask)
-    if (user.role === 'Sales rep' || user.role === 'Manager') {
+    if (user.role === 'mde' || user.role === 'ae') {
       tasks = tasks.filter(t => t.ownerEmail === user.email)
-    } else if (user.role === 'Sales Lead Mid-Market') {
-      tasks = tasks.filter(t => TASK_MDE_EMAILS.includes(t.ownerEmail))
-    } else if (user.role === 'Sales Lead Enterprise') {
-      tasks = tasks.filter(t => TASK_AE_EMAILS.includes(t.ownerEmail))
+    } else if (user.role === 'lead-midmarket') {
+      tasks = tasks.filter(t => dynamicMDEEmails.includes(t.ownerEmail))
+    } else if (user.role === 'lead-enterprise') {
+      tasks = tasks.filter(t => dynamicAEEmails.includes(t.ownerEmail))
     }
     return c.json({ tasks, total: tasks.length })
   } catch (err) {
@@ -2701,6 +2972,32 @@ app.get('/api/deals/:id/tasks', requireAuth, async (c) => {
     return c.json({ tasks, total: tasks.length })
   } catch (err) {
     return c.json({ error: 'Failed to fetch deal tasks', details: err.message }, 500)
+  }
+})
+
+app.post('/api/deals/:id/tasks', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const body = await c.req.json()
+    if (!body.subject?.trim()) return c.json({ error: 'Subject required' }, 400)
+
+    const result = await createTask(c.env, dealId, {
+      Subject: body.subject,
+      Due_Date: body.dueDate || new Date(Date.now() + 86400000).toISOString().split('T')[0],
+      Status: 'Not Started',
+      Priority: body.priority || 'Normal',
+      Description: body.description || '',
+    })
+
+    console.log('createTask result:', JSON.stringify(result))
+
+    if (result?.data?.[0]?.code !== 'SUCCESS') {
+      console.error('Zoho task error:', JSON.stringify(result))
+      return c.json({ error: 'Failed to create task in Zoho' }, 500)
+    }
+    return c.json({ success: true, taskId: result.data[0].details.id })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
   }
 })
 
