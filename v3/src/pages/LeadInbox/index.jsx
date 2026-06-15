@@ -110,15 +110,6 @@ export default function LeadInbox() {
         <StatTile label="SAME-DAY DUE" value={sameDayDue.length} sub="still in New status" warn={sameDayDue.length > 0} />
       </div>
 
-      <div className="callout" style={{ marginBottom: 16, fontSize: 12.5, display: 'flex', flexWrap: 'wrap', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--line)', borderLeft: '1px solid var(--line)' }}>
-        <b>Routing:</b>
-        <span>Volume &lt; 500 → <b>Self-Serve / Dormant</b> · no MDE assignment · SDR outreach every 90 days</span>
-        <span>·</span>
-        <span>Volume 501–10,000 + Contact Sales → <b>Round-robin to MDE</b></span>
-        <span>·</span>
-        <span>Volume &gt; 10,000 → <b>Assigned to AE-Enterprise</b></span>
-      </div>
-
       <div style={{ marginBottom: 12 }}>
         <input
           className="search-input"
