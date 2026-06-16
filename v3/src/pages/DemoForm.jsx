@@ -707,7 +707,7 @@ export default function DemoForm() {
   ];
 
   return (
-    <div style={{ maxWidth: 680, margin: "0 auto", padding: "28px 20px 60px" }}>
+    <div style={{ maxWidth: 680, margin: "0 auto", padding: "28px 20px 60px", overflowY: 'visible', overflowX: 'auto' }}>
       <style>{`@keyframes sa-spin{to{transform:rotate(360deg)}}@keyframes sa-pulse{0%,100%{opacity:1}50%{opacity:0.35}}`}</style>
       {syncStarted && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
@@ -785,21 +785,21 @@ export default function DemoForm() {
           </button>
         ))}
       </div>
-      <div style={{ background: C.white, borderRadius: 16, border: `1.5px solid ${C.border}`, padding: "28px 26px 22px" }}>
+      <div style={{ background: C.white, borderRadius: 16, border: `1.5px solid ${C.border}`, padding: "28px 26px 22px", overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
         {sections[sec]}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20, paddingTop: 18, borderTop: `1px solid ${C.border}` }}>
-          <button onClick={() => go(Math.max(sec - 1, 0))} disabled={sec === 0}
-            style={{ padding: "9px 18px", borderRadius: 8, border: `1.5px solid ${C.border}`, background: "transparent", fontSize: 13, fontWeight: 600, color: C.muted, cursor: sec === 0 ? "not-allowed" : "pointer", opacity: sec === 0 ? 0.3 : 1, fontFamily: "inherit" }}>
-            ← Back
-          </button>
-          <span style={{ fontSize: 12, color: C.muted }}>{sec + 1} / {SECTIONS.length}</span>
-          {sec < SECTIONS.length - 1
-            ? <button onClick={() => go(sec + 1)} style={{ padding: "9px 22px", borderRadius: 8, border: "none", background: C.accent, fontSize: 13, fontWeight: 700, color: C.white, cursor: "pointer", fontFamily: "inherit" }}>Continue →</button>
-            : <button onClick={handleSubmit}
-              style={{ padding: "9px 22px", borderRadius: 8, border: "none", background: C.teal, fontSize: 13, fontWeight: 700, color: C.white, cursor: "pointer", fontFamily: "inherit" }}>
-              Analyse & grade →
-            </button>}
-        </div>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+        <button onClick={() => go(Math.max(sec - 1, 0))} disabled={sec === 0}
+          style={{ padding: "9px 18px", borderRadius: 8, border: `1.5px solid ${C.border}`, background: "transparent", fontSize: 13, fontWeight: 600, color: C.muted, cursor: sec === 0 ? "not-allowed" : "pointer", opacity: sec === 0 ? 0.3 : 1, fontFamily: "inherit" }}>
+          ← Back
+        </button>
+        <span style={{ fontSize: 12, color: C.muted }}>{sec + 1} / {SECTIONS.length}</span>
+        {sec < SECTIONS.length - 1
+          ? <button onClick={() => go(sec + 1)} style={{ padding: "9px 22px", borderRadius: 8, border: "none", background: C.accent, fontSize: 13, fontWeight: 700, color: C.white, cursor: "pointer", fontFamily: "inherit" }}>Continue →</button>
+          : <button onClick={handleSubmit}
+            style={{ padding: "9px 22px", borderRadius: 8, border: "none", background: C.teal, fontSize: 13, fontWeight: 700, color: C.white, cursor: "pointer", fontFamily: "inherit" }}>
+            Analyse & grade →
+          </button>}
       </div>
     </div>
   );
