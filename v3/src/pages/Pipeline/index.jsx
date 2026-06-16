@@ -349,7 +349,7 @@ function PipelineList() {
             cursor: 'pointer', fontSize: 13
           }}
         >
-          Health
+          Pipeline
         </button>
         <button
           onClick={() => setViewTab('attention')}
@@ -648,7 +648,7 @@ function KanbanView({ deals, pipelineFilter }) {
     : SME_STAGES
 
   return (
-    <div className="kanban-wrap">
+    <div className="kanban-wrap" style={{ overflowX: 'auto' }}>
       <div className="kanban">
         {stages.map(stage => {
           const stageDeals = deals.filter(d => d.stage === stage)
@@ -668,7 +668,7 @@ function KanbanView({ deals, pipelineFilter }) {
                   </div>
                 )}
               </div>
-              <div className="kcol-body">
+              <div className="kcol-body" style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
                 {stageDeals.length === 0
                   ? <div className="kcol-empty">No deals</div>
                   : stageDeals.map(deal => <DealCard key={deal.id} deal={deal} />)
