@@ -93,7 +93,7 @@ export async function getDeals(env) {
   const token = await getAccessToken(env)
   while (page <= 200) {
     const res = await fetch(
-      `https://www.zohoapis.com/crm/v2.1/Deals?fields=${DEAL_FIELDS}&per_page=200&page=${page}&sort_by=Modified_Time&sort_order=desc`,
+      `https://www.zohoapis.in/crm/v2.1/Deals?fields=${DEAL_FIELDS}&per_page=200&page=${page}&sort_by=Modified_Time&sort_order=desc`,
       { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
     ).then(r => r.json())
     if (!res?.data?.length) break
@@ -117,7 +117,7 @@ export async function getAllDeals(env) {
   const token = await getAccessToken(env)
   while (true) {
     const res = await fetch(
-      `https://www.zohoapis.com/crm/v2.1/Deals?fields=${DEAL_FIELDS}&per_page=200&page=${page}&sort_by=Modified_Time&sort_order=desc`,
+      `https://www.zohoapis.in/crm/v2.1/Deals?fields=${DEAL_FIELDS}&per_page=200&page=${page}&sort_by=Modified_Time&sort_order=desc`,
       { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
     ).then(r => r.json())
     if (!res?.data?.length) break
@@ -158,7 +158,7 @@ export async function getDealTasks(env, dealId) {
 
 export async function createTask(env, dealId, taskData) {
   const token = await getAccessToken(env);
-  const res = await fetch('https://www.zohoapis.com/crm/v2/Tasks', {
+  const res = await fetch('https://www.zohoapis.in/crm/v2.1/Tasks', {
     method: 'POST',
     headers: {
       Authorization: `Zoho-oauthtoken ${token}`,
@@ -214,7 +214,7 @@ function plainTextToHtml(text) {
 
 export async function getAllowedFromAddresses(env, userAccessToken) {
   const token = userAccessToken || await getAccessToken(env);
-  const res = await fetch('https://www.zohoapis.com/crm/v8/settings/emails/actions/from_addresses', {
+  const res = await fetch('https://www.zohoapis.in/crm/v8/settings/emails/actions/from_addresses', {
     headers: {
       Authorization: `Zoho-oauthtoken ${token}`,
       'Content-Type': 'application/json',
@@ -230,7 +230,7 @@ export async function createDealEmailDraft(env, dealId, subject, body, emailType
   const token = userAccessToken || await getAccessToken(env);
   const from = fromAddress?.email || '';
   console.log('draft payload:', JSON.stringify({ __email_drafts: [{ from, to: [{ user_name: '', email: toEmail || '' }], subject, content: htmlBody, rich_text: true }] }));
-  const res = await fetch(`https://www.zohoapis.com/crm/v8/Deals/${dealId}/__email_drafts`, {
+  const res = await fetch(`https://www.zohoapis.in/crm/v8/Deals/${dealId}/__email_drafts`, {
     method: 'POST',
     headers: {
       Authorization: `Zoho-oauthtoken ${token}`,
@@ -251,7 +251,7 @@ export async function createDealEmailDraft(env, dealId, subject, body, emailType
 
 export async function getTask(env, taskId) {
   const token = await getAccessToken(env);
-  const res = await fetch(`https://www.zohoapis.com/crm/v2/Tasks/${taskId}`, {
+  const res = await fetch(`https://www.zohoapis.in/crm/v2.1/Tasks/${taskId}`, {
     headers: {
       Authorization: `Zoho-oauthtoken ${token}`,
       'Content-Type': 'application/json',
@@ -262,7 +262,7 @@ export async function getTask(env, taskId) {
 
 export async function getDealSentEmails(env, dealId, userAccessToken) {
   const token = userAccessToken || await getAccessToken(env);
-  const res = await fetch(`https://www.zohoapis.com/crm/v8/Deals/${dealId}/Emails?type=sent_from_crm`, {
+  const res = await fetch(`https://www.zohoapis.in/crm/v8/Deals/${dealId}/Emails?type=sent_from_crm`, {
     headers: {
       Authorization: `Zoho-oauthtoken ${token}`,
       'Content-Type': 'application/json',
@@ -273,7 +273,7 @@ export async function getDealSentEmails(env, dealId, userAccessToken) {
 
 export async function getEmailContent(env, dealId, messageId, userAccessToken) {
   const token = userAccessToken || await getAccessToken(env);
-  const res = await fetch(`https://www.zohoapis.com/crm/v8/Deals/${dealId}/Emails/${messageId}`, {
+  const res = await fetch(`https://www.zohoapis.in/crm/v8/Deals/${dealId}/Emails/${messageId}`, {
     headers: {
       Authorization: `Zoho-oauthtoken ${token}`,
       'Content-Type': 'application/json',
@@ -324,7 +324,7 @@ export async function getLeads(env) {
   const token = await getAccessToken(env)
   while (page <= 50) {
     const res = await fetch(
-      `https://www.zohoapis.com/crm/v2.1/Leads?fields=${LEAD_FIELDS}&per_page=100&page=${page}&sort_by=Created_Time&sort_order=desc`,
+      `https://www.zohoapis.in/crm/v2.1/Leads?fields=${LEAD_FIELDS}&per_page=100&page=${page}&sort_by=Created_Time&sort_order=desc`,
       { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
     ).then(r => r.json())
     if (!res?.data?.length) break
