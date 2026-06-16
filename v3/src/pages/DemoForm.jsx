@@ -707,7 +707,7 @@ export default function DemoForm() {
   ];
 
   return (
-    <div style={{ maxWidth: 680, margin: "0 auto", padding: "28px 20px 60px", overflowY: 'visible', overflowX: 'auto' }}>
+    <div style={{ maxWidth: 680, margin: "0 auto", padding: "28px 20px 60px" }}>
       <style>{`@keyframes sa-spin{to{transform:rotate(360deg)}}@keyframes sa-pulse{0%,100%{opacity:1}50%{opacity:0.35}}`}</style>
       {syncStarted && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
@@ -785,7 +785,7 @@ export default function DemoForm() {
           </button>
         ))}
       </div>
-      <div style={{ background: C.white, borderRadius: 16, border: `1.5px solid ${C.border}`, padding: "28px 26px 22px", overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+      <div style={{ background: C.white, borderRadius: 16, border: `1.5px solid ${C.border}`, padding: "28px 26px 22px" }}>
         {sections[sec]}
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
