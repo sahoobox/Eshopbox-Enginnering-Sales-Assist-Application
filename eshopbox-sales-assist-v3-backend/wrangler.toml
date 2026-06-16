@@ -4,7 +4,7 @@ compatibility_date = "2025-01-01"
 account_id = "e092a59bfb57a3a9bd5b86f8f1e94430"
 
 [vars]
-ZOHO_API_BASE = "https://www.zohoapis.in/crm/v2.1"
+ZOHO_API_BASE = "https://www.zohoapis.com/crm/v2"
 ZOHO_ACCOUNTS_URL = "https://accounts.zoho.com"
 FRONTEND_URL = "https://eshopbox-sales-assist-v3.pages.dev"
 
