@@ -795,6 +795,7 @@ app.get('/api/deals/search', requireAuth, async (c) => {
 app.get('/api/deals/:id', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id');
+    console.log('Deal fetch requested:', dealId);
     const user = c.get('user');
     let effectiveUser = user;
     if (user.email === 'satyanarayan.sahoo@eshopbox.com') {
@@ -811,6 +812,7 @@ app.get('/api/deals/:id', requireAuth, async (c) => {
       getDealTasks(c.env, dealId),
       getDealActivities(c.env, dealId),
     ]);
+    console.log('Zoho response for', dealId, ':', JSON.stringify(dealRes?.data?.[0] ? 'found' : 'not found'));
     if (!dealRes?.data?.[0]) return c.json({ error: 'Deal not found' }, 404);
 const deal = mapZohoDeal(dealRes.data[0]);
 deal.tasks = tasksRes?.data || [];
@@ -919,6 +921,7 @@ deal.activities = (activitiesRes?.data || []).map(a => ({
     console.log('[dealSummary] returning dealSummary for', dealId, ':', dealSummary);
     return c.json({ ...deal, flags, attentionLevel, dealSummary });
   } catch (err) {
+    console.error('Deal fetch error for', dealId, ':', err.message, err.status, JSON.stringify(err));
     return c.json({ error: 'Failed to fetch deal', details: err.message }, 500);
   }
 });
