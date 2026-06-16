@@ -1648,6 +1648,19 @@ app.post('/api/deals/:id/emails/:emailType/mark-sent', requireAuth, async (c) =>
   }
 });
 
+app.delete('/api/deals/:id/emails/:emailType/draft', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const emailType = c.req.param('emailType')
+    await c.env.DB.prepare(
+      `UPDATE deal_emails SET gmail_draft_id = NULL, gmail_message_id = NULL, gmail_thread_id = NULL, status = 'draft', updated_at = ? WHERE deal_id = ? AND email_type = ?`
+    ).bind(new Date().toISOString(), dealId, emailType).run()
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
 async function handleCreateGmailDraft(c) {
   try {
     const dealId = c.req.param('id');

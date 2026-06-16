@@ -753,7 +753,8 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
     const [expanded, setExpanded] = useState(false)
     const [creating, setCreating] = useState(false)
     const [draftCreated, setDraftCreated] = useState(!!email.gmail_draft_id)
-    const [gmailDraftId, setGmailDraftId] = useState(null)
+    const [gmailDraftId, setGmailDraftId] = useState(email.gmail_draft_id || null)
+    const [recreating, setRecreating] = useState(false)
 
     useEffect(() => {
       if (!email.gmail_draft_id || email.status === 'sent') return
@@ -785,6 +786,15 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
       } finally { setCreating(false) }
     }
 
+    async function recreateDraft() {
+      setRecreating(true)
+      try {
+        await authFetch(`/api/deals/${deal.id}/emails/${email.email_type}/draft`, { method: 'DELETE' })
+        setDraftCreated(false)
+        setGmailDraftId(null)
+      } finally { setRecreating(false) }
+    }
+
     return (
       <div className="card card-pad">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -798,15 +808,15 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
             {email.body?.replace(/<[^>]+>/g, '')}
           </div>
         )}
-        <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-          {email.status === 'draft' && (
+        <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {email.status !== 'sent' && (
             !draftCreated ? (
               <button className="btn btn-sm btn-primary" onClick={createGmailDraft} disabled={creating}>
                 {creating ? 'Creating…' : 'Create Gmail Draft'}
               </button>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className="pill pill-ok">✓ Draft created in Gmail</span>
+              <>
+                <span className="pill pill-ok">✓ Draft in Gmail</span>
                 {gmailDraftId && (
                   <a
                     href={`https://mail.google.com/mail/#drafts/${gmailDraftId}`}
@@ -817,7 +827,15 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
                     Open in Gmail →
                   </a>
                 )}
-              </div>
+                <button
+                  className="btn btn-sm"
+                  style={{ color: 'var(--ink-3)' }}
+                  disabled={recreating}
+                  onClick={recreateDraft}
+                >
+                  {recreating ? 'Resetting…' : 'Recreate'}
+                </button>
+              </>
             )
           )}
           <button className="btn btn-sm" onClick={() => setExpanded(e => !e)}>
