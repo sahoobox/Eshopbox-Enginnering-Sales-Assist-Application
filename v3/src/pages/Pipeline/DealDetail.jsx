@@ -752,7 +752,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
     const { authFetch } = useAuth()
     const [expanded, setExpanded] = useState(false)
     const [creating, setCreating] = useState(false)
-    const [draftCreated, setDraftCreated] = useState(false)
+    const [draftCreated, setDraftCreated] = useState(!!email.gmail_draft_id)
     const [gmailDraftId, setGmailDraftId] = useState(null)
 
     useEffect(() => {
