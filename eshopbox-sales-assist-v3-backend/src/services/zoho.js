@@ -77,6 +77,13 @@ const DEAL_FIELDS = [
 
 const DEALS_2_LAYOUT_ID = '6483035000025962021';
 
+const VALID_STAGES = [
+  'Upcoming Demo', 'Demo Done', 'Proposal Sent',
+  'Account Setup in Progress', 'Awaiting First Shipment',
+  'First Shipment Done', 'Active', 'Follow up Meeting Done',
+  'On Hold', 'Won/Payment Received', 'Lost/Dropped'
+]
+
 export async function getDeals(env) {
   const cached = await env.TOKEN_CACHE.get('v3_deals_cache')
   if (cached) return { data: JSON.parse(cached) }
@@ -92,7 +99,8 @@ export async function getDeals(env) {
     if (!res?.data?.length) break
     const filtered = res.data.filter(d =>
       d.Layout?.id === DEALS_2_LAYOUT_ID &&
-      (d.Pipeline === 'Mid-market' || d.Pipeline === 'Enterprise 2.0')
+      (d.Pipeline === 'Mid-market' || d.Pipeline === 'Enterprise 2.0') &&
+      VALID_STAGES.includes(d.Stage)
     )
     deals.push(...filtered)
     if (!res.info?.more_records) break
@@ -115,7 +123,8 @@ export async function getAllDeals(env) {
     if (!res?.data?.length) break
     const filtered = res.data.filter(d =>
       d.Layout?.id === DEALS_2_LAYOUT_ID &&
-      (d.Pipeline === 'Mid-market' || d.Pipeline === 'Enterprise 2.0')
+      (d.Pipeline === 'Mid-market' || d.Pipeline === 'Enterprise 2.0') &&
+      VALID_STAGES.includes(d.Stage)
     )
     deals.push(...filtered)
     if (!res.info?.more_records) break

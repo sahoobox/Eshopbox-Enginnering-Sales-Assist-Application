@@ -409,16 +409,13 @@ function PipelineList() {
                         </td>
                         <td style={{ fontSize: 13 }}>{deal.repName?.split(' ')[0]}</td>
                         <td><span className="pill pill-neutral" style={{ fontSize: 11 }}>{deal.stage}</span></td>
-                        <td>
+                        <td style={{ maxWidth: 400 }}>
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                            {deal.flags?.slice(0, 3).map((f, i) => (
+                            {deal.flags?.map((f, i) => (
                               <span key={i} className={`pill ${f.severity === 'critical' ? 'pill-danger' : f.severity === 'warning' ? 'pill-warn' : 'pill-info'}`} style={{ fontSize: 10.5 }}>
                                 {f.title}
                               </span>
                             ))}
-                            {deal.flags?.length > 3 && (
-                              <span className="pill pill-neutral" style={{ fontSize: 10.5 }}>+{deal.flags.length - 3}</span>
-                            )}
                           </div>
                         </td>
                         <td style={{ fontSize: 13, fontWeight: 600, color: days >= 14 ? 'var(--danger)' : days >= 7 ? 'var(--warn)' : 'var(--ink-2)' }}>
