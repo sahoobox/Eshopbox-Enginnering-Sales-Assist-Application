@@ -38,7 +38,13 @@ export function useDeal(dealId) {
     if (!dealId) return
     setLoading(true)
     Promise.all([
-      authFetch(`/api/deals/${dealId}`).then(r => r.json()),
+      authFetch(`/api/deals/${dealId}`).then(async r => {
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}))
+          throw new Error(err.error || `Failed to load deal (${r.status})`)
+        }
+        return r.json()
+      }),
       authFetch(`/api/deals/${dealId}/emails`).then(r => r.json()),
     ])
       .then(([dealData, emailData]) => {
