@@ -564,11 +564,7 @@ function IntegrationsTab() {
         <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.5 }}>
           Connect Gmail to auto-create email drafts in your inbox and track sent status.
         </p>
-        {gmailStatus?.signature && (
-          <div style={{ fontSize: 11.5, color: 'var(--ink-3)', background: 'var(--surface-2)', padding: '6px 10px', borderRadius: 6, maxHeight: 60, overflow: 'hidden' }}>
-            <b>Signature detected</b> · Will be appended to all drafts
-          </div>
-        )}
+
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-sm btn-primary" onClick={connectGmail}>
             {gmailStatus?.connected ? 'Reconnect Gmail' : 'Connect Gmail'}

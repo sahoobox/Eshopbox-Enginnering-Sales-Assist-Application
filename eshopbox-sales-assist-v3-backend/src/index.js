@@ -1710,24 +1710,6 @@ async function handleCreateGmailDraft(c) {
     let htmlBody = emailRow.body.replace(/\n/g, '<br>');
     console.log('htmlBody preview:', htmlBody?.slice(0, 100))
 
-    // Fetch user's Gmail signature from D1
-    let signature = ''
-    try {
-      const sigRow = await c.env.DB.prepare(
-        'SELECT gmail_signature FROM users WHERE id = ?'
-      ).bind(loggedInUser.id).first()
-      if (sigRow?.gmail_signature) {
-        signature = sigRow.gmail_signature
-      }
-    } catch (e) {
-      console.error('Failed to fetch signature:', e.message)
-    }
-
-    // Append signature to email body
-    if (signature) {
-      htmlBody = htmlBody + '<br><br>--<br>' + signature
-    }
-
     let accessToken;
     try {
       accessToken = await getGmailAccessToken(c.env, loggedInUser.id);
@@ -2627,23 +2609,6 @@ app.get('/auth/gmail/callback', async (c) => {
   await c.env.DB.prepare(
     'UPDATE users SET gmail_access_token = ?, gmail_refresh_token = ?, gmail_token_expiry = ? WHERE id = ?'
   ).bind(tokenData.access_token, tokenData.refresh_token || null, expiry, payload.id).run();
-
-  try {
-    const sigRes = await fetch(
-      `https://gmail.googleapis.com/gmail/v1/users/me/settings/sendAs`,
-      { headers: { Authorization: `Bearer ${tokenData.access_token}` } }
-    )
-    const sigData = await sigRes.json()
-    const primaryAlias = sigData.sendAs?.find(a => a.isPrimary)
-    const signature = primaryAlias?.signature || ''
-    if (signature) {
-      await c.env.DB.prepare(
-        'UPDATE users SET gmail_signature = ? WHERE id = ?'
-      ).bind(signature, payload.id).run()
-    }
-  } catch (e) {
-    console.error('Failed to fetch Gmail signature:', e.message)
-  }
 
   return c.redirect('https://eshopbox-sales-assist-v3.pages.dev/settings?gmail=connected');
 });
