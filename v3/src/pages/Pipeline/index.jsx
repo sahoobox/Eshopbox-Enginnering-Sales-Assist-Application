@@ -72,7 +72,7 @@ function PipelineList() {
   const [search, setSearch] = useState('')
   const [activeFilters, setActiveFilters] = useState([])
   const [showLegend, setShowLegend] = useState(false)
-  const [tileFilter, setTileFilter] = useState('all')
+  const [tileFilter, setTileFilter] = useState('inbox')
   const [viewTab, setViewTab] = useState('health')
 
   const TERMINAL = ['Won/Payment Received', 'Lost/Dropped', 'On Hold']
