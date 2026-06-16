@@ -778,14 +778,14 @@ export default function DemoForm() {
         <h1 style={{ fontSize: 22, fontWeight: 800, color: C.ink, margin: "0 0 4px", letterSpacing: "-0.02em" }}>Log post-demo</h1>
         <div style={{ fontSize: 13, color: C.muted }}>Fill in immediately after the demo while it's fresh.</div>
       </div>
-      <div style={{ display: "flex", gap: 0, overflowX: "auto", borderBottom: `1px solid ${C.border}`, marginBottom: 22 }}>
+      <div style={{ display: "flex", gap: 0, overflowX: "auto", overflowY: "hidden", borderBottom: `1px solid ${C.border}`, marginBottom: 22, flexWrap: "nowrap" }}>
         {SECTIONS.map((s, i) => (
-          <button key={i} onClick={() => go(i)} style={{ padding: "7px 12px", border: "none", borderBottom: `2.5px solid ${i === sec ? C.accent : "transparent"}`, background: "transparent", fontSize: 12, fontWeight: i === sec ? 700 : 400, color: i === sec ? C.accent : i < sec ? C.teal : C.muted, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "all 0.15s", marginBottom: -1 }}>
+          <button key={i} onClick={() => go(i)} style={{ padding: "7px 10px", border: "none", borderBottom: `2.5px solid ${i === sec ? C.accent : "transparent"}`, background: "transparent", fontSize: 12, fontWeight: i === sec ? 700 : 400, color: i === sec ? C.accent : i < sec ? C.teal : C.muted, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "all 0.15s", marginBottom: -1 }}>
             {i < sec ? "✓ " : ""}{s}
           </button>
         ))}
       </div>
-      <div style={{ background: C.white, borderRadius: 16, border: `1.5px solid ${C.border}`, padding: "28px 26px 22px" }}>
+      <div style={{ background: C.white, borderRadius: 16, border: `1.5px solid ${C.border}`, padding: "28px 26px 22px", overflowY: "auto", maxHeight: "calc(100vh - 260px)" }}>
         {sections[sec]}
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
