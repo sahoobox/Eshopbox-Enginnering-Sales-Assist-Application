@@ -1216,6 +1216,7 @@ app.post('/api/deals/:id/generate-content', requireAuth, async (c) => {
       if (e.code === 'CLAUDE_RATE_LIMIT') return c.json({ error: 'Claude is busy — please try again in a minute' }, 429);
       if (e.code === 'CLAUDE_OVERLOADED') return c.json({ error: 'Claude is temporarily overloaded — please try again in a few minutes' }, 503);
       console.error('Email draft generation failed:', e.message);
+      return c.json({ error: 'Email generation failed: ' + (e.message || 'unknown error'), emailsGenerated: 0 }, 500);
     }
 
     let analysis = null;
@@ -1272,6 +1273,7 @@ app.post('/api/deals/:id/generate-content', requireAuth, async (c) => {
         emailsGenerated = 4;
       } catch (e) {
         console.error('Email D1 insert failed:', e.message);
+        return c.json({ error: 'Email generation failed: ' + (e.message || 'unknown error'), emailsGenerated: 0 }, 500);
       }
     }
 

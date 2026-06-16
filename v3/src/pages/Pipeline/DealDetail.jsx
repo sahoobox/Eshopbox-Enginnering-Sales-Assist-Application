@@ -277,7 +277,14 @@ export default function DealDetail({ dealId }) {
           {tab === 'tasks' && <TasksTab dealId={deal.id} />}
           {tab === 'flags' && <FlagsTab deal={deal} />}
           {tab === 'demo' && <DemoInfoTab deal={deal} />}
-          {tab === 'sequence' && <SequenceTab emails={emails} deal={deal} />}
+          {tab === 'sequence' && <SequenceTab emails={emails} deal={deal} onRetryGenerate={async () => {
+            const res = await authFetch(`/api/deals/${deal.id}/generate-content`, { method: 'POST' })
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({}))
+              throw new Error(body.error || `Generation failed (${res.status})`)
+            }
+            await refetchDeal()
+          }} />}
           {tab === 'coach' && <CoachTab deal={deal} />}
           {tab === 'notes' && <NotesTab dealId={deal.id} />}
           {tab === 'contact' && <ContactTab deal={deal} />}
@@ -693,7 +700,7 @@ function DemoInfoTab({ deal }) {
   )
 }
 
-function SequenceTab({ emails, deal }) {
+function SequenceTab({ emails, deal, onRetryGenerate }) {
   const typeLabel = {
     day1: 'Day 1 · Personalised Recap',
     day2: 'Day 2 · Pricing Proposal',
@@ -702,6 +709,8 @@ function SequenceTab({ emails, deal }) {
     nudge: 'Mtg +7 · Nudge'
   }
   const statusPill = { sent: 'pill-ok', scheduled: 'pill-info', draft: 'pill-neutral', failed: 'pill-danger' }
+  const [retrying, setRetrying] = useState(false)
+  const [retryError, setRetryError] = useState(null)
 
   if (!deal.saLogged) {
     return (
@@ -714,7 +723,27 @@ function SequenceTab({ emails, deal }) {
   if (emails.length === 0) {
     return (
       <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>
-        No email drafts yet. They will be generated after logging demo.
+        <div style={{ marginBottom: 12 }}>No email drafts yet. Generation may have failed after logging the demo.</div>
+        {retryError && (
+          <div style={{ marginBottom: 10, fontSize: 12, color: 'var(--danger)' }}>{retryError}</div>
+        )}
+        <button
+          className="btn btn-sm btn-primary"
+          disabled={retrying}
+          onClick={async () => {
+            setRetrying(true)
+            setRetryError(null)
+            try {
+              await onRetryGenerate()
+            } catch (e) {
+              setRetryError(e.message || 'Generation failed — please try again')
+            } finally {
+              setRetrying(false)
+            }
+          }}
+        >
+          {retrying ? 'Generating…' : '↻ Retry email generation'}
+        </button>
       </div>
     )
   }
