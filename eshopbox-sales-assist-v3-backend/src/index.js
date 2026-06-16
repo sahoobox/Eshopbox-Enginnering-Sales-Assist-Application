@@ -2330,7 +2330,7 @@ const DEFAULT_RULES = [
   { id: 'r9',  name: 'Decision nudge sent, no response',    severity: 'warning',  active: true, threshold: 3,    desc: 'Meeting+7 nudge sent but prospect silent 3+ days.' },
   { id: 'r10', name: 'Grade A, no in-person meeting',       severity: 'warning',  active: true, threshold: null, desc: 'Grade A deal but no F2F yet — high-impact missed.' },
   { id: 'r11', name: 'Lost deal, no reason logged',         severity: 'warning',  active: true, threshold: null, desc: 'Deal marked Lost but no loss reason entered.' },
-  { id: 'r12', name: 'Qualified to buy, no demo scheduled', severity: 'warning',  active: true, threshold: 10,   desc: 'Sat in Qualified to buy 10+ days without booking a demo.' },
+  { id: 'r12', name: 'Upcoming demo overdue',               severity: 'warning',  active: true, threshold: 10,   desc: 'Sat in Upcoming Demo 10+ days without logging a demo.' },
 ];
 
 app.get('/api/settings/rules', requireAuth, async (c) => {

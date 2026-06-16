@@ -160,6 +160,16 @@ if (deal.stage === 'Follow up Meeting Done' && deal.saLogged && daysSinceActivit
     });
   }
 
+  // Rule 12 — Upcoming demo overdue
+  if (deal.stage === 'Upcoming Demo' && !deal.demoDate && daysAgoStage >= 10) {
+    flags.push({
+      severity: 'warning',
+      title: 'Upcoming demo overdue',
+      desc: `Deal has been in Upcoming Demo for ${daysAgoStage} days with no demo logged.`,
+      rule: 'r12',
+    });
+  }
+
   // Dedup — keep highest severity per rule
   const seen = new Set();
   const deduped = flags.filter(f => {

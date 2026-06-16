@@ -247,27 +247,27 @@ function PipelineList() {
       />
 
       {/* Filter tiles */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, overflowX: 'auto', flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'nowrap', width: '100%', overflow: 'hidden', flexShrink: 0 }}>
         {tiles.map(tile => (
           <div
             key={tile.key}
             onClick={() => setTileFilter(tile.key)}
             title={tileTooltips[tile.key]}
             style={{
-              minWidth: 130, padding: '12px 14px',
+              flex: 1, minWidth: 0, padding: '8px 10px',
               background: tileFilter === tile.key ? 'var(--info-bg)' : 'var(--surface)',
               color: tileFilter === tile.key ? 'var(--info)' : 'var(--ink-1)',
               borderRadius: 'var(--radius-md)',
               border: `2px solid ${tileFilter === tile.key ? 'var(--info)' : 'var(--line)'}`,
               boxShadow: tileFilter === tile.key ? '0 0 0 3px var(--info-bg)' : 'none',
-              cursor: 'pointer', flexShrink: 0
+              cursor: 'pointer'
             }}
           >
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', opacity: 0.7, marginBottom: 4 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', opacity: 0.7, marginBottom: 4 }}>
               {tile.label}
             </div>
-            <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1 }}>{tile.count}</div>
-            <div style={{ fontSize: 11, marginTop: 4, opacity: 0.7 }}>{tile.sub}</div>
+            <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1 }}>{tile.count}</div>
+            <div style={{ fontSize: 10, marginTop: 4, opacity: 0.7 }}>{tile.sub}</div>
           </div>
         ))}
       </div>
