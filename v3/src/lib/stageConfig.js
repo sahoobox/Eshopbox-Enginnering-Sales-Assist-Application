@@ -9,7 +9,6 @@ export const SME_STAGES = [
   'First Shipment Done',
   'Active',
   'On Hold',
-  'Won/Payment Received',
   'Lost/Dropped',
 ]
 

@@ -36,15 +36,19 @@ export default function DealDetail({ dealId }) {
 
   const stages = deal.pipeline === 'Enterprise 2.0' ? ENT_STAGES : SME_STAGES
   const currentIdx = stages.indexOf(deal.stage)
-  const isTerminal = ['Won/Payment Received', 'Lost/Dropped', 'On Hold'].includes(deal.stage)
+  const isTerminal = deal.pipeline === 'Enterprise 2.0'
+    ? ['Won/Payment Received', 'Lost/Dropped', 'On Hold'].includes(deal.stage)
+    : ['Active', 'Lost/Dropped', 'On Hold'].includes(deal.stage)
   const mainStages = stages.filter(s =>
     !['Won/Payment Received', 'Lost/Dropped', 'On Hold'].includes(s)
   )
-  const endStages = ['On Hold', 'Won/Payment Received', 'Lost/Dropped']
+  const endStages = deal.pipeline === 'Enterprise 2.0'
+    ? ['On Hold', 'Won/Payment Received', 'Lost/Dropped']
+    : ['On Hold', 'Lost/Dropped']
   const moveableStages = deal.pipeline === 'Enterprise 2.0'
     ? ['Follow up Meeting Done', 'Active', 'Won/Payment Received']
     : ['Account Setup in Progress', 'Awaiting First Shipment',
-       'First Shipment Done', 'Active', 'Won/Payment Received']
+       'First Shipment Done', 'Active']
   const availableStages = moveableStages.filter(s => s !== deal.stage)
   const flagLevel = deal.attentionLevel || 'ok'
   const gradeColor = { A: 'ok', B: 'info', C: 'warn', D: 'danger' }[deal.grade] || 'neutral'
@@ -218,7 +222,7 @@ export default function DealDetail({ dealId }) {
               >
                 <div className="ord">{idx + 1}/{mainStages.length}</div>
                 <div className="sname">
-                  {s}
+                  {s === 'Active' && deal.pipeline !== 'Enterprise 2.0' ? 'Active / Won' : s}
                   {movingStage === s && <span style={{ fontSize: 10, color: 'var(--ink-3)' }}> …</span>}
                 </div>
               </div>

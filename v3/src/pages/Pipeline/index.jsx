@@ -77,6 +77,9 @@ function PipelineList() {
 
   const TERMINAL = ['Won/Payment Received', 'Lost/Dropped', 'On Hold']
 
+  const isEnterprise = pipelineFilter === 'enterprise'
+  const wonStage = isEnterprise ? 'Won/Payment Received' : 'Active'
+
   const currentStages = useMemo(() =>
     isMDE ? SME_STAGES : isAE ? ENT_STAGES : pipelineFilter === 'enterprise' ? ENT_STAGES : SME_STAGES
   , [isMDE, isAE, pipelineFilter])
@@ -108,7 +111,7 @@ function PipelineList() {
     if (tileFilter === 'notlogged') return scopedDeals.filter(d =>
       !d.saLogged && !TERMINAL.includes(d.stage) && d.stage !== 'Upcoming Demo'
     )
-    if (tileFilter === 'won') return scopedDeals.filter(d => d.stage === 'Won/Payment Received')
+    if (tileFilter === 'won') return scopedDeals.filter(d => d.stage === wonStage)
     return scopedDeals
   }, [scopedDeals, tileFilter])
 
@@ -118,7 +121,7 @@ function PipelineList() {
     upcoming: 'Deals in Upcoming Demo stage — demo is scheduled but not yet conducted.',
     logged: 'Deals where the demo form has been filled and AI email drafts are ready.',
     notlogged: 'Active deals past Upcoming Demo stage where no demo has been logged yet.',
-    won: 'Deals marked as Won/Payment Received — closed and confirmed.',
+    won: isEnterprise ? 'Deals marked as Won/Payment Received — closed and confirmed.' : 'Deals in Active stage — activated and won.',
     all: 'All deals across every stage in your pipeline.',
   }
 
@@ -128,7 +131,7 @@ function PipelineList() {
     { key: 'upcoming', label: 'UPCOMING', count: scopedDeals.filter(d => d.stage === 'Upcoming Demo').length, sub: 'Scheduled, not yet done' },
     { key: 'logged', label: 'DEMO LOGGED', count: scopedDeals.filter(d => d.saLogged).length, sub: 'Form filled, drafts ready' },
     { key: 'notlogged', label: 'NOT LOGGED', count: scopedDeals.filter(d => !d.saLogged && !TERMINAL.includes(d.stage) && d.stage !== 'Upcoming Demo').length, sub: 'Form pending, drafts blocked' },
-    { key: 'won', label: 'WON', count: scopedDeals.filter(d => d.stage === 'Won/Payment Received').length, sub: 'Closed and payment confirmed' },
+    { key: 'won', label: isEnterprise ? 'WON' : 'ACTIVE / WON', count: scopedDeals.filter(d => d.stage === wonStage).length, sub: isEnterprise ? 'Closed and payment confirmed' : 'Activated and won' },
     { key: 'all', label: 'ALL DEALS', count: scopedDeals.length, sub: 'Every deal across all stages' },
   ]
 
