@@ -442,7 +442,13 @@ export default function DemoForm() {
     let draftsWarning = false;
     try {
       const genRes = await authFetch(`/api/deals/${syncResult.dealId}/generate-content`, { method: 'POST' });
-      if (!genRes.ok) throw new Error('Content generation failed');
+      if (!genRes.ok) {
+        const errData = await genRes.json().catch(() => ({}));
+        const errMsg = errData.error || 'Content generation failed';
+        console.error('generate-content failed:', errMsg);
+        draftsWarning = true;
+        setSyncDraftsWarning(true);
+      }
     } catch {
       draftsWarning = true;
       setSyncDraftsWarning(true);
@@ -721,7 +727,7 @@ export default function DemoForm() {
                 <div style={{ fontSize: 18, fontWeight: 600, color: '#22c55e', marginBottom: 6 }}>Demo logged successfully!</div>
                 {syncDraftsWarning ? (
                   <div style={{ fontSize: 13, color: C.warn, lineHeight: 1.6 }}>
-                    Email drafts are being generated —<br />check the Emails tab in a few minutes.
+                    Email drafts could not be generated. Open the deal and use the Retry button on the Sequence tab.
                   </div>
                 ) : (
                   <div style={{ fontSize: 13, color: C.muted }}>Redirecting you now…</div>
