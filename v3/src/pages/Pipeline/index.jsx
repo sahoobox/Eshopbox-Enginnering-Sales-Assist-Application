@@ -167,7 +167,7 @@ function PipelineList() {
   )
 
   return (
-    <div className="main" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div className="main" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Topbar
         title="All Deals"
         subtitle="Grade, stage and flag overview across all your deals"
@@ -367,7 +367,7 @@ function PipelineList() {
         </button>
       </div>
 
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         {viewTab === 'attention' ? (
           <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             <table className="t" style={{ width: '100%' }}>
@@ -648,7 +648,7 @@ function KanbanView({ deals, pipelineFilter }) {
     : SME_STAGES
 
   return (
-    <div className="kanban-wrap" style={{ overflowX: 'auto' }}>
+    <div className="kanban-wrap" style={{ overflowX: 'auto', overflowY: 'auto' }}>
       <div className="kanban">
         {stages.map(stage => {
           const stageDeals = deals.filter(d => d.stage === stage)
