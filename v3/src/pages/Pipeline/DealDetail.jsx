@@ -277,7 +277,7 @@ export default function DealDetail({ dealId }) {
           <div className="tabs">
             {[
               { id: 'activity', label: 'Timeline', count: deal.activities?.length },
-              { id: 'tasks', label: 'Activities', count: deal.tasks?.length },
+              { id: 'tasks', label: 'Activities', count: (deal.tasks?.length || 0) + (deal.meetings?.length || 0) + (deal.calls?.length || 0) },
               { id: 'flags', label: 'Flags', count: deal.flags?.length },
               { id: 'demo', label: 'Demo Info' },
               { id: 'sequence', label: 'Sequence' },
@@ -453,9 +453,9 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
   const calls = deal?.calls || []
 
   const allActivities = [
-    ...tasks.map(t => ({ id: t.id, type: 'Task', date: t.dueDate, done: t.isComplete, _t: t })),
-    ...meetings.map(m => ({ id: m.id, type: 'Meeting', date: m.from, done: m.status === 'Completed', _m: m })),
-    ...calls.map(c => ({ id: c.id, type: 'Call', date: c.timing, done: c.status === 'Completed', _c: c })),
+    ...tasks.map(t => ({ id: t.id, type: 'Task', date: t.dueDate, taskStatus: t.status, done: t.status === 'Completed', _t: t })),
+    ...meetings.map(m => ({ id: m.id, type: 'Meeting', date: m.from, status: m.status, done: m.status === 'Completed', _m: m })),
+    ...calls.map(c => ({ id: c.id, type: 'Call', date: c.timing, status: c.status, done: c.status === 'Completed', _c: c })),
   ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 
   const typeBadge = (label) => (
@@ -510,13 +510,13 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
           {allActivities.map((item, idx) => {
             if (item.type === 'Task') {
               const t = item._t
-              const isOverdue = t.dueDate && t.dueDate < todayStr && !t.isComplete
+              const isOverdue = t.dueDate && t.dueDate < todayStr && !item.done
               return (
                 <div key={item.id || idx} className="card card-pad"
-                  style={{ opacity: t.isComplete ? 0.5 : 1, color: t.isComplete ? 'var(--ink-3)' : 'inherit' }}
+                  style={{ opacity: item.done ? 0.5 : 1, color: item.done ? 'var(--ink-3)' : 'inherit' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <input type="checkbox" checked={t.isComplete} onChange={() => toggleTask(t.id, t.isComplete)}
+                    <input type="checkbox" checked={item.done} onChange={() => toggleTask(t.id, item.done)}
                       style={{ cursor: 'pointer', width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
@@ -529,7 +529,7 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
                         <span>Status: {t.status || 'Not Started'}</span>
                         {t.ownerName && <span>Assigned: {t.ownerName}</span>}
                       </div>
-                      {t.description && <div style={{ fontSize: 12.5, color: t.isComplete ? 'var(--ink-3)' : 'var(--ink-2)', lineHeight: 1.5, marginTop: 2 }}>{t.description}</div>}
+                      {t.description && <div style={{ fontSize: 12.5, color: item.done ? 'var(--ink-3)' : 'var(--ink-2)', lineHeight: 1.5, marginTop: 2 }}>{t.description}</div>}
                     </div>
                   </div>
                 </div>
@@ -541,11 +541,12 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
               return (
                 <div key={item.id || idx} className="card card-pad" style={{ opacity: item.done ? 0.5 : 1 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <span style={{ fontSize: 16, marginTop: 1, flexShrink: 0 }}>🤝</span>
+                    <input type="checkbox" checked={item.done} onChange={() => {}}
+                      style={{ cursor: 'default', width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 600, fontSize: 13.5 }}>{m.title}</span>
-                        {typeBadge('Meeting')}
+                        {typeBadge('🤝 Meeting')}
                         {m.status && typeBadge(m.status)}
                       </div>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: m.description ? 6 : 0 }}>
@@ -566,11 +567,12 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
               return (
                 <div key={item.id || idx} className="card card-pad" style={{ opacity: item.done ? 0.5 : 1 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <span style={{ fontSize: 16, marginTop: 1, flexShrink: 0 }}>📞</span>
+                    <input type="checkbox" checked={item.done} onChange={() => {}}
+                      style={{ cursor: 'default', width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 600, fontSize: 13.5 }}>{c.subject}</span>
-                        {typeBadge('Call')}
+                        {typeBadge('📞 Call')}
                         {c.status && typeBadge(c.status)}
                       </div>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: (c.agenda || c.description) ? 6 : 0 }}>
