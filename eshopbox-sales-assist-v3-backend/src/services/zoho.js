@@ -61,8 +61,14 @@ export async function zohoAPI(env, method, path, body = null) {
   const res = await fetch(`${env.ZOHO_API_BASE}${path}`, options);
   const text = await res.text()
   console.log('Zoho raw response status:', res.status, 'body length:', text.length, 'body preview:', text.slice(0, 300))
-  const data = JSON.parse(text)
-  return data;
+  if (!text || text.trim() === '') {
+    return null  // 204 No Content — return null, don't throw
+  }
+  if (!res.ok) {
+    console.error('Zoho API error:', res.status, text.slice(0, 200))
+    return null
+  }
+  return JSON.parse(text)
 }
 
 const DEAL_FIELDS = [
@@ -72,8 +78,6 @@ const DEAL_FIELDS = [
   'SA_Pain_Points', 'SA_Solution_Interest', 'SA_Brand_Type',
   'SA_Logged', 'Demo_Date', 'SA_Followup_Meeting_Date',
   'SA_Pricing_Raised', 'SA_F2F_Count', 'Lost_Reason',
-  'SA_OMS', 'SA_Shopping_Cart', 'SA_Current_Warehousing',
-  'SA_Current_Shipping', 'SA_Demo_Format', 'SA_Segment',
   'Contact_Name', 'Amount', 'On_Hold_Reason', 'Pipeline', 'Lead_Source'
 ].join(',');
 

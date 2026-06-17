@@ -812,10 +812,12 @@ app.get('/api/deals/:id', requireAuth, async (c) => {
       getDealTasks(c.env, dealId),
       getDealActivities(c.env, dealId),
     ]);
+    const tasks = tasksRes?.data || [];
+    const activities = activitiesRes?.data || [];
     console.log('Zoho response for', dealId, ':', JSON.stringify(dealRes?.data?.[0] ? 'found' : 'not found'));
     if (!dealRes?.data?.[0]) return c.json({ error: 'Deal not found' }, 404);
 const deal = mapZohoDeal(dealRes.data[0]);
-deal.tasks = tasksRes?.data || [];
+deal.tasks = tasks;
 
 // Fetch email statuses and deal summary from D1 in parallel
 const [emailRows, formRow] = await Promise.all([
@@ -909,7 +911,7 @@ if (!dealSummary) {
   }
 }
 
-deal.activities = (activitiesRes?.data || []).map(a => ({
+deal.activities = activities.map(a => ({
       id: a.id,
       type: a.Activity_Type || 'Note',
       date: a.Created_Time,
