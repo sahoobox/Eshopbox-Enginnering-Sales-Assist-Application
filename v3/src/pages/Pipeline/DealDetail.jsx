@@ -872,14 +872,14 @@ function CoachTab({ deal }) {
   const gradeColor = { A: 'ok', B: 'info', C: 'warn', D: 'danger' }
 
   const scoreItems = [
-    { label: 'Pain Clarity', score: parseInt(d?.painClarity) || 0, max: 3 },
-    { label: 'DM Present', score: parseInt(d?.dmPresent) || 0, max: 3 },
-    { label: 'Budget Signal', score: parseInt(d?.budgetSignal) || 0, max: 2 },
-    { label: 'Purchase Timeline', score: parseInt(d?.purchaseTimeline) || 0, max: 3 },
-    { label: 'Engagement', score: parseInt(d?.engagementLevel) || 0, max: 2 },
-    { label: 'Champion Strength', score: parseInt(d?.championStrength) || 0, max: 2 },
-    { label: 'Next Step', score: parseInt(d?.nextStep) || 0, max: 2 },
-    { label: 'In-person Meeting', score: deal.f2fCount > 0 ? 2 : 0, max: 2 },
+    { label: 'Pain Clarity', score: parseInt(d?.painClarity ?? deal.demoInfo?.painClarity) || 0, max: 3 },
+    { label: 'DM Present', score: parseInt(d?.dmPresent ?? deal.demoInfo?.dmPresent) || 0, max: 3 },
+    { label: 'Budget Signal', score: parseInt(d?.budgetSignal ?? deal.demoInfo?.budgetSignal) || 0, max: 2 },
+    { label: 'Purchase Timeline', score: parseInt(d?.purchaseTimeline ?? deal.demoInfo?.purchaseTimeline) || 0, max: 3 },
+    { label: 'Engagement', score: parseInt(d?.engagementLevel ?? deal.demoInfo?.engagementLevel) || 0, max: 2 },
+    { label: 'Champion Strength', score: parseInt(d?.championStrength ?? deal.demoInfo?.championStrength) || 0, max: 2 },
+    { label: 'Next Step', score: parseInt(d?.nextStep ?? deal.demoInfo?.nextStep) || 0, max: 2 },
+    { label: 'In-person Meeting', score: (d?.f2fCount ?? deal.f2fCount ?? 0) > 0 ? 2 : 0, max: 2 },
   ]
   const totalScore = d?.score || deal.score || 0
   const grade = d?.grade || deal.grade || 'D'
@@ -892,7 +892,14 @@ function CoachTab({ deal }) {
     )
   }
 
-  const aiAnalysis = d?.aiAnalysis || ''
+  let parsedAnalysis = null
+  try {
+    const raw = d?.aiAnalysis || deal.aiAnalysis || ''
+    if (raw) parsedAnalysis = typeof raw === 'string'
+      ? JSON.parse(raw) : raw
+  } catch(e) {
+    parsedAnalysis = null
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -943,18 +950,73 @@ function CoachTab({ deal }) {
       </div>
 
       {/* AI Coach Recommendations */}
-      {aiAnalysis ? (
-        <div className="card card-pad">
-          <div className="ws-side-head" style={{ marginBottom: 12 }}><h4>Coach Recommendations</h4></div>
-          <div style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--ink-2)', whiteSpace: 'pre-wrap' }}>
-            {aiAnalysis}
+      <div className="card card-pad">
+        <div className="ws-side-head" style={{ marginBottom: 12 }}><h4>Coach Recommendations</h4></div>
+        {parsedAnalysis ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {parsedAnalysis.strengths?.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700,
+                  color: 'var(--teal)', letterSpacing: '0.08em',
+                  marginBottom: 8 }}>STRENGTHS</div>
+                {parsedAnalysis.strengths.map((s, i) => (
+                  <div key={i} style={{ fontSize: 13,
+                    color: 'var(--ink-2)', lineHeight: 1.6,
+                    padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+                    ✓ {s}
+                  </div>
+                ))}
+              </div>
+            )}
+            {parsedAnalysis.risks?.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700,
+                  color: 'var(--accent)', letterSpacing: '0.08em',
+                  marginBottom: 8 }}>RISKS</div>
+                {parsedAnalysis.risks.map((r, i) => (
+                  <div key={i} style={{ fontSize: 13,
+                    color: 'var(--ink-2)', lineHeight: 1.6,
+                    padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+                    ⚠ {r}
+                  </div>
+                ))}
+              </div>
+            )}
+            {parsedAnalysis.nextMeeting?.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700,
+                  color: 'var(--info)', letterSpacing: '0.08em',
+                  marginBottom: 8 }}>NEXT MEETING AGENDA</div>
+                {parsedAnalysis.nextMeeting.map((n, i) => (
+                  <div key={i} style={{ fontSize: 13,
+                    color: 'var(--ink-2)', lineHeight: 1.6,
+                    padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+                    → {n}
+                  </div>
+                ))}
+              </div>
+            )}
+            {parsedAnalysis.repAdvice?.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700,
+                  color: 'var(--ink-1)', letterSpacing: '0.08em',
+                  marginBottom: 8 }}>REP ADVICE</div>
+                {parsedAnalysis.repAdvice.map((a, i) => (
+                  <div key={i} style={{ fontSize: 13,
+                    color: 'var(--ink-2)', lineHeight: 1.6,
+                    padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+                    • {a}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      ) : (
-        <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>
-          No coach recommendations stored for this demo.
-        </div>
-      )}
+        ) : (
+          <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>
+            No coaching analysis available. Log the demo to generate.
+          </div>
+        )}
+      </div>
     </div>
   )
 }
