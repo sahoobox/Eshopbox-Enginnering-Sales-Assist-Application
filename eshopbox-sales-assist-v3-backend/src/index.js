@@ -4,7 +4,7 @@ import { requireAuth } from './middleware/auth.js';
 import { sign, verify } from './middleware/jwt.js';
 import { getUserByEmail, createUser, createInvite, getInviteByToken, markInviteAccepted, getAllUsers, deactivateUser, updateUserRole, getPendingInvites } from './db/users.js';
 import { calculateGrade, scoreToGrade } from './services/grading.js';
-import { zohoAPI, createDeal, createTask, getDeals, getAllDeals, getDeal, getDealTasks, getDealActivities, updateDeal, searchDeals, sendDealEmail, createDealEmailDraft, getAllowedFromAddresses, getAccessTokenForUser, getAccessToken, getDealSentEmails, getEmailContent, getTask, getLeads, getLead, updateLead, getLeadActivities, createLeadActivity, getLeadNotes, createLeadNote, getTasks, createGenericTask, updateTaskStatus, getDealNotes, createZohoEvent, createZohoCall } from './services/zoho.js';
+import { zohoAPI, createDeal, createTask, getDeals, getAllDeals, getDeal, getDealTasks, getDealActivities, updateDeal, searchDeals, sendDealEmail, createDealEmailDraft, getAllowedFromAddresses, getAccessTokenForUser, getAccessToken, getDealSentEmails, getEmailContent, getTask, getLeads, getLead, updateLead, getLeadActivities, createLeadActivity, getLeadNotes, createLeadNote, getTasks, createGenericTask, updateTaskStatus, getDealNotes, createZohoEvent, createZohoCall, getDealMeetings, getDealCalls } from './services/zoho.js';
 import { generateEmailDrafts, generateReengagement, generateDealAnalysis, generateDealSummary } from './services/claude.js';
 import { computeAttentionFlags, getAttentionLevel } from './services/attentionRules.js';
 import { sendGmailEmail, sendGmailEmailWithToken, createGmailDraft, checkDraftSent, getRealMessageId } from './services/gmail.js';
@@ -806,11 +806,13 @@ app.get('/api/deals/:id', requireAuth, async (c) => {
         if (viewAsUser) effectiveUser = viewAsUser;
       }
     }
-    const [dealRes, tasksRes, activitiesRes, notesRes] = await Promise.all([
+    const [dealRes, tasksRes, activitiesRes, notesRes, meetingsRes, callsRes] = await Promise.all([
       getDeal(c.env, dealId),
       getDealTasks(c.env, dealId),
       getDealActivities(c.env, dealId),
       getDealNotes(c.env, dealId),
+      getDealMeetings(c.env, dealId),
+      getDealCalls(c.env, dealId),
     ]);
     const tasks = tasksRes?.data || [];
     const activities = activitiesRes?.data || [];
@@ -922,6 +924,17 @@ deal.activities = activities.map(a => ({
       date: n.Created_Time,
       description: n.Note_Content || n.Note_Title || '',
       createdBy: n.Created_By?.name || '',
+    }));
+    deal.meetings = (meetingsRes?.data || []).map(m => ({
+      id: m.id, title: m.Event_Title || '', venue: m.Venue || '',
+      from: m.Start_DateTime, to: m.End_DateTime, description: m.Description || '',
+      status: m.Status || '', createdBy: m.Created_By?.name || '',
+    }));
+    deal.calls = (callsRes?.data || []).map(cl => ({
+      id: cl.id, subject: cl.Subject || '', purpose: cl.Call_Purpose || '',
+      agenda: cl.Call_Agenda || '', result: cl.Call_Result || '',
+      timing: cl.Call_Start_Time, status: cl.Call_Status || '',
+      description: cl.Description || '', createdBy: cl.Created_By?.name || '',
     }));
     if ((effectiveUser.role === 'mde' || effectiveUser.role === 'ae') && deal.repEmail !== effectiveUser.email) return c.json({ error: 'Access denied' }, 403);
     const flags = computeAttentionFlags(deal);

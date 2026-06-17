@@ -6,6 +6,13 @@ import { Loading, Empty, Pill } from '../../components/ui'
 import { SME_STAGES, ENT_STAGES, getStagePill, stageColor, initials, formatDate, daysAgo } from '../../lib/stageConfig'
 import { TaskModal } from '../Tasks'
 
+function formatDateTime(dt) {
+  if (!dt) return ''
+  try {
+    return new Date(dt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
+  } catch { return dt }
+}
+
 export default function DealDetail({ dealId }) {
   const navigate = useNavigate()
   const { deal, emails, loading, error, refetch: refetchDeal } = useDeal(dealId)
@@ -286,7 +293,7 @@ export default function DealDetail({ dealId }) {
           </div>
 
           {tab === 'activity' && <TimelineTab deal={deal} />}
-          {tab === 'tasks' && <ActivitiesTab dealId={deal.id} />}
+          {tab === 'tasks' && <ActivitiesTab dealId={deal.id} deal={deal} onRefresh={refetchDeal} />}
           {tab === 'flags' && <FlagsTab deal={deal} />}
           {tab === 'demo' && <DemoInfoTab deal={deal} />}
           {tab === 'sequence' && <SequenceTab emails={emails} deal={deal} onRetryGenerate={async () => {
@@ -403,7 +410,7 @@ function EmailsTab({ emails, deal }) {
   )
 }
 
-function ActivitiesTab({ dealId }) {
+function ActivitiesTab({ dealId, deal, onRefresh }) {
   const { authFetch } = useAuth()
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
@@ -441,6 +448,19 @@ function ActivitiesTab({ dealId }) {
       : t
     ))
   }
+
+  const meetings = deal?.meetings || []
+  const calls = deal?.calls || []
+
+  const allActivities = [
+    ...tasks.map(t => ({ id: t.id, type: 'Task', date: t.dueDate, done: t.isComplete, _t: t })),
+    ...meetings.map(m => ({ id: m.id, type: 'Meeting', date: m.from, done: m.status === 'Completed', _m: m })),
+    ...calls.map(c => ({ id: c.id, type: 'Call', date: c.timing, done: c.status === 'Completed', _c: c })),
+  ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+
+  const typeBadge = (label) => (
+    <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--ink-3)', flexShrink: 0 }}>{label}</span>
+  )
 
   if (loading) return <div className="card card-pad" style={{ color: 'var(--ink-3)' }}>Loading activities…</div>
 
@@ -483,44 +503,91 @@ function ActivitiesTab({ dealId }) {
         </div>
       </div>
 
-      {tasks.length === 0 ? (
+      {allActivities.length === 0 ? (
         <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>No activities on this deal.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {tasks.map(task => {
-            const isOverdue = task.dueDate && task.dueDate < todayStr && !task.isComplete
-            return (
-              <div key={task.id} className="card card-pad"
-                style={{ opacity: task.isComplete ? 0.5 : 1, color: task.isComplete ? 'var(--ink-3)' : 'inherit' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <input
-                    type="checkbox"
-                    checked={task.isComplete}
-                    onChange={() => toggleTask(task.id, task.isComplete)}
-                    style={{ cursor: 'pointer', width: 16, height: 16, marginTop: 2, flexShrink: 0 }}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13.5, marginBottom: 4 }}>{task.subject}</div>
-                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: task.description ? 6 : 0 }}>
-                      {task.dueDate && (
-                        <span style={{ color: isOverdue ? 'var(--danger)' : 'var(--ink-3)' }}>
-                          Due: {formatDate(task.dueDate)}
-                        </span>
-                      )}
-                      {task.priority && <span>Priority: {task.priority}</span>}
-                      <span>Status: {task.status || 'Not Started'}</span>
-                      {task.ownerName && <span>Assigned to: {task.ownerName}</span>}
-                    </div>
-                    {task.description && (
-                      <div style={{ fontSize: 12.5, color: task.isComplete ? 'var(--ink-3)' : 'var(--ink-2)', lineHeight: 1.5, marginTop: 2 }}>
-                        {task.description}
+          {allActivities.map((item, idx) => {
+            if (item.type === 'Task') {
+              const t = item._t
+              const isOverdue = t.dueDate && t.dueDate < todayStr && !t.isComplete
+              return (
+                <div key={item.id || idx} className="card card-pad"
+                  style={{ opacity: t.isComplete ? 0.5 : 1, color: t.isComplete ? 'var(--ink-3)' : 'inherit' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <input type="checkbox" checked={t.isComplete} onChange={() => toggleTask(t.id, t.isComplete)}
+                      style={{ cursor: 'pointer', width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 600, fontSize: 13.5 }}>{t.subject}</span>
+                        {typeBadge('📋 Task')}
                       </div>
-                    )}
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: t.description ? 6 : 0 }}>
+                        {t.dueDate && <span style={{ color: isOverdue ? 'var(--danger)' : 'var(--ink-3)' }}>Due: {formatDate(t.dueDate)}</span>}
+                        {t.priority && <span>Priority: {t.priority}</span>}
+                        <span>Status: {t.status || 'Not Started'}</span>
+                        {t.ownerName && <span>Assigned: {t.ownerName}</span>}
+                      </div>
+                      {t.description && <div style={{ fontSize: 12.5, color: t.isComplete ? 'var(--ink-3)' : 'var(--ink-2)', lineHeight: 1.5, marginTop: 2 }}>{t.description}</div>}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )
+              )
+            }
+
+            if (item.type === 'Meeting') {
+              const m = item._m
+              return (
+                <div key={item.id || idx} className="card card-pad" style={{ opacity: item.done ? 0.5 : 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <span style={{ fontSize: 16, marginTop: 1, flexShrink: 0 }}>🤝</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 600, fontSize: 13.5 }}>{m.title}</span>
+                        {typeBadge('Meeting')}
+                        {m.status && typeBadge(m.status)}
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: m.description ? 6 : 0 }}>
+                        {m.venue && <span>Venue: {m.venue}</span>}
+                        {m.from && <span>From: {formatDateTime(m.from)}</span>}
+                        {m.to && <span>To: {formatDateTime(m.to)}</span>}
+                        {m.createdBy && <span>By: {m.createdBy}</span>}
+                      </div>
+                      {m.description && <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5, marginTop: 2 }}>{m.description}</div>}
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+
+            if (item.type === 'Call') {
+              const c = item._c
+              return (
+                <div key={item.id || idx} className="card card-pad" style={{ opacity: item.done ? 0.5 : 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <span style={{ fontSize: 16, marginTop: 1, flexShrink: 0 }}>📞</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 600, fontSize: 13.5 }}>{c.subject}</span>
+                        {typeBadge('Call')}
+                        {c.status && typeBadge(c.status)}
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: (c.agenda || c.description) ? 6 : 0 }}>
+                        {c.timing && <span>{formatDateTime(c.timing)}</span>}
+                        {c.purpose && c.purpose !== 'None' && <span>Purpose: {c.purpose}</span>}
+                        {c.result && c.result !== 'None' && <span>Result: {c.result}</span>}
+                        {c.createdBy && <span>By: {c.createdBy}</span>}
+                      </div>
+                      {c.agenda && <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5, marginTop: 2 }}>Agenda: {c.agenda}</div>}
+                      {c.description && <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5, marginTop: 2 }}>{c.description}</div>}
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+
+            return null
           })}
         </div>
       )}
@@ -541,14 +608,14 @@ function ActivitiesTab({ dealId }) {
         <MeetingModal
           dealId={dealId}
           onClose={() => setShowMeetingModal(false)}
-          onSuccess={() => { setShowMeetingModal(false) }}
+          onSuccess={() => { setShowMeetingModal(false); onRefresh?.() }}
         />
       )}
       {showCallModal && (
         <CallModal
           dealId={dealId}
           onClose={() => setShowCallModal(false)}
-          onSuccess={() => { setShowCallModal(false) }}
+          onSuccess={() => { setShowCallModal(false); onRefresh?.() }}
         />
       )}
     </>
@@ -1528,6 +1595,7 @@ function MeetingModal({ dealId, onClose, onSuccess }) {
 
   async function submit() {
     if (!form.title.trim() || !form.from || !form.to) return alert('Title, From and To are required')
+    if (form.to <= form.from) return alert('End time must be after start time')
     setSaving(true)
     try {
       const res = await authFetch(`/api/deals/${dealId}/meeting`, {
@@ -1560,7 +1628,7 @@ function MeetingModal({ dealId, onClose, onSuccess }) {
             </div>
             <div>
               <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>From *</label>
-              <input type="datetime-local" value={form.from} onChange={e => set('from', e.target.value)} className="input" style={{ width: '100%' }} />
+              <input type="datetime-local" value={form.from} onChange={e => set('from', e.target.value)} min={new Date().toISOString().slice(0, 16)} className="input" style={{ width: '100%' }} />
             </div>
             <div>
               <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>To *</label>
@@ -1649,7 +1717,9 @@ function CallModal({ dealId, onClose, onSuccess }) {
               <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>
                 {callMode === 'log' ? 'Call Timing *' : 'Scheduled For *'}
               </label>
-              <input type="datetime-local" value={form.callTiming} onChange={e => set('callTiming', e.target.value)} className="input" style={{ width: '100%' }} />
+              <input type="datetime-local" value={form.callTiming} onChange={e => set('callTiming', e.target.value)}
+                {...(callMode === 'log' ? { max: new Date().toISOString().slice(0, 16) } : { min: new Date().toISOString().slice(0, 16) })}
+                className="input" style={{ width: '100%' }} />
             </div>
             <div>
               <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Description</label>

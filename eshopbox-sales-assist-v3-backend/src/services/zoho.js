@@ -463,3 +463,11 @@ export async function createZohoCall(env, dealId, callData) {
   if (callData.callResult) payload.Call_Result = callData.callResult
   return zohoAPI(env, 'POST', '/Calls', { data: [payload] })
 }
+
+export async function getDealMeetings(env, dealId) {
+  return zohoAPI(env, 'GET', `/Events/search?criteria=(What_Id:equals:${dealId})&fields=id,Event_Title,Venue,Start_DateTime,End_DateTime,Description,Status,Created_By`)
+}
+
+export async function getDealCalls(env, dealId) {
+  return zohoAPI(env, 'GET', `/Calls/search?criteria=(What_Id:equals:${dealId})&fields=id,Subject,Call_Purpose,Call_Agenda,Call_Result,Call_Start_Time,Call_Status,Description,Created_By`)
+}
