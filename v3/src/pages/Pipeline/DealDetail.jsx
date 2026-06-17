@@ -204,30 +204,38 @@ export default function DealDetail({ dealId }) {
           </div>
         </div>
         <div className="stages">
-          {mainStages.map((s, idx) => {
-            const sIdx = stages.indexOf(s)
-            let cls = 'future'
-            if (isTerminal) {
-              cls = 'done'
-            } else if (sIdx < currentIdx) {
-              cls = 'done'
-            } else if (sIdx === currentIdx) {
-              cls = 'current'
-            }
-            return (
-              <div key={s} className={`stage-step ${cls}`}
-                onClick={() => moveToStage(s)}
-                style={{ cursor: s === deal.stage ? 'default' : 'pointer' }}
-                title={s === deal.stage ? 'Current stage' : `Move to ${s}`}
-              >
-                <div className="ord">{idx + 1}/{mainStages.length}</div>
-                <div className="sname">
-                  {s === 'Active' && deal.pipeline !== 'Enterprise 2.0' ? 'Active / Won' : s}
-                  {movingStage === s && <span style={{ fontSize: 10, color: 'var(--ink-3)' }}> …</span>}
+          {(() => {
+            const LOCKED_STAGES = ['Upcoming Demo', 'Demo Done', 'Proposal Sent']
+            return mainStages.map((s, idx) => {
+              const sIdx = stages.indexOf(s)
+              const isLocked = LOCKED_STAGES.includes(s)
+              let cls = 'future'
+              if (isTerminal) {
+                cls = 'done'
+              } else if (sIdx < currentIdx) {
+                cls = 'done'
+              } else if (sIdx === currentIdx) {
+                cls = 'current'
+              }
+              return (
+                <div key={s} className={`stage-step ${cls}`}
+                  onClick={isLocked || s === deal.stage ? undefined : () => moveToStage(s)}
+                  style={{ cursor: isLocked || s === deal.stage ? 'default' : 'pointer' }}
+                  title={
+                    s === deal.stage ? 'Current stage'
+                    : isLocked ? 'This stage is set automatically'
+                    : `Move to ${s}`
+                  }
+                >
+                  <div className="ord">{idx + 1}/{mainStages.length}</div>
+                  <div className="sname">
+                    {s === 'Active' && deal.pipeline !== 'Enterprise 2.0' ? 'Active / Won' : s}
+                    {movingStage === s && <span style={{ fontSize: 10, color: 'var(--ink-3)' }}> …</span>}
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })
+          })()}
         </div>
         <div style={{ display: 'flex', gap: 4, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
           {endStages.map(s => {
