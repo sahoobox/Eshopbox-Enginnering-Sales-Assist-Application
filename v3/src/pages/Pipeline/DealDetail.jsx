@@ -911,7 +911,18 @@ function CoachTab({ deal }) {
     { label: 'Next Step', score: scoreField('nextStep', d?.nextStep ?? deal.demoInfo?.nextStep), max: 2 },
     { label: 'In-person Meeting', score: scoreField('f2f', '', d ?? deal.demoInfo), max: 3 },
   ]
-  const totalScore = d?.score || deal.score || 0
+  const breakdown = [
+    scoreField('painClarity', d?.painClarity ?? deal.demoInfo?.painClarity),
+    scoreField('dmPresent', d?.dmPresent ?? deal.demoInfo?.dmPresent),
+    scoreField('budgetSignal', d?.budgetSignal ?? deal.demoInfo?.budgetSignal),
+    scoreField('purchaseTimeline', d?.purchaseTimeline ?? deal.demoInfo?.purchaseTimeline),
+    scoreField('engagementLevel', d?.engagementLevel ?? deal.demoInfo?.engagementLevel),
+    scoreField('championStrength', d?.championStrength ?? deal.demoInfo?.championStrength),
+    scoreField('nextStep', d?.nextStep ?? deal.demoInfo?.nextStep),
+    scoreField('f2f', '', d ?? deal.demoInfo),
+  ]
+  const computedScore = breakdown.reduce((a, b) => a + b, 0)
+  const totalScore = computedScore
   const grade = d?.grade || deal.grade || 'D'
 
   if (!deal.saLogged) {
