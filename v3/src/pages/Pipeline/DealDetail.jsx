@@ -854,15 +854,62 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
   }
 
   const ORDER = ['day1', 'day2', 'day3', 'day4', 'nudge']
-  const sortedEmails = [...emails].sort((a, b) =>
-    ORDER.indexOf(a.email_type) - ORDER.indexOf(b.email_type)
-  )
+
+  function Day2Placeholder() {
+    const { authFetch } = useAuth()
+    const [marking, setMarking] = useState(false)
+
+    async function markSent() {
+      setMarking(true)
+      try {
+        await authFetch(`/api/deals/${deal.id}/day2/mark-sent`, { method: 'POST' })
+        window.location.reload()
+      } catch {
+        alert('Failed to mark as sent. Please try again.')
+        setMarking(false)
+      }
+    }
+
+    return (
+      <div className="card card-pad" style={{ borderLeft: '3px solid var(--line-2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <b style={{ fontSize: 13.5 }}>{typeLabel['day2']}</b>
+          <span className="pill pill-neutral">manual</span>
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 12 }}>
+          Send your pricing proposal to the prospect — mark it here once sent
+        </div>
+        <button className="btn btn-sm btn-primary" onClick={markSent} disabled={marking}>
+          {marking ? 'Marking…' : 'Mark Proposal Sent'}
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {sortedEmails.map(email => (
-        <EmailCard key={email.id} email={email} />
-      ))}
+      {ORDER.map(type => {
+        const emailData = emails.find(e => e.email_type === type)
+        if (type === 'day2') {
+          if (!emailData) return <Day2Placeholder key="day2" />
+          if (emailData.status === 'sent') {
+            return (
+              <div key="day2" className="card card-pad">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                  <b style={{ fontSize: 13.5 }}>{typeLabel['day2']}</b>
+                  <span className="pill pill-ok">sent</span>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--ok)', marginTop: 4 }}>
+                  ✓ Sent{emailData.sent_at ? ` on ${formatDate(emailData.sent_at)}` : ''}
+                </div>
+              </div>
+            )
+          }
+          return <EmailCard key={emailData.id} email={emailData} />
+        }
+        if (!emailData) return null
+        return <EmailCard key={emailData.id} email={emailData} />
+      })}
     </div>
   )
 }
