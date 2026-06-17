@@ -867,18 +867,40 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
   )
 }
 
+function scoreField(field, value) {
+  const v = value || ''
+  switch(field) {
+    case 'painClarity':
+      return { 'clear': 3, 'partial': 2, 'vague': 1, 'none': 0 }[v] ?? 0
+    case 'dmPresent':
+      return { 'yes': 3, 'champion': 2, 'unknown': 1, 'no': 0 }[v] ?? 0
+    case 'budgetSignal':
+      return { 'confirmed': 2, 'implied': 1, 'none': 0 }[v] ?? 0
+    case 'purchaseTimeline':
+      return { 'month': 3, 'quarter': 2, '6m': 1, 'none': 0 }[v] ?? 0
+    case 'engagementLevel':
+      return { 'high': 2, 'medium': 1, 'low': 0 }[v] ?? 0
+    case 'championStrength':
+      return { 'strong': 2, 'medium': 1, 'weak': 0 }[v] ?? 0
+    case 'nextStep':
+      return { 'booked': 2, 'vague': 1, 'none': 0 }[v] ?? 0
+    default:
+      return 0
+  }
+}
+
 function CoachTab({ deal }) {
   const d = deal.demoInfo
   const gradeColor = { A: 'ok', B: 'info', C: 'warn', D: 'danger' }
 
   const scoreItems = [
-    { label: 'Pain Clarity', score: parseInt(d?.painClarity ?? deal.demoInfo?.painClarity) || 0, max: 3 },
-    { label: 'DM Present', score: parseInt(d?.dmPresent ?? deal.demoInfo?.dmPresent) || 0, max: 3 },
-    { label: 'Budget Signal', score: parseInt(d?.budgetSignal ?? deal.demoInfo?.budgetSignal) || 0, max: 2 },
-    { label: 'Purchase Timeline', score: parseInt(d?.purchaseTimeline ?? deal.demoInfo?.purchaseTimeline) || 0, max: 3 },
-    { label: 'Engagement', score: parseInt(d?.engagementLevel ?? deal.demoInfo?.engagementLevel) || 0, max: 2 },
-    { label: 'Champion Strength', score: parseInt(d?.championStrength ?? deal.demoInfo?.championStrength) || 0, max: 2 },
-    { label: 'Next Step', score: parseInt(d?.nextStep ?? deal.demoInfo?.nextStep) || 0, max: 2 },
+    { label: 'Pain Clarity', score: scoreField('painClarity', d?.painClarity ?? deal.demoInfo?.painClarity), max: 3 },
+    { label: 'DM Present', score: scoreField('dmPresent', d?.dmPresent ?? deal.demoInfo?.dmPresent), max: 3 },
+    { label: 'Budget Signal', score: scoreField('budgetSignal', d?.budgetSignal ?? deal.demoInfo?.budgetSignal), max: 2 },
+    { label: 'Purchase Timeline', score: scoreField('purchaseTimeline', d?.purchaseTimeline ?? deal.demoInfo?.purchaseTimeline), max: 3 },
+    { label: 'Engagement', score: scoreField('engagementLevel', d?.engagementLevel ?? deal.demoInfo?.engagementLevel), max: 2 },
+    { label: 'Champion Strength', score: scoreField('championStrength', d?.championStrength ?? deal.demoInfo?.championStrength), max: 2 },
+    { label: 'Next Step', score: scoreField('nextStep', d?.nextStep ?? deal.demoInfo?.nextStep), max: 2 },
     { label: 'In-person Meeting', score: (d?.f2fCount ?? deal.f2fCount ?? 0) > 0 ? 2 : 0, max: 2 },
   ]
   const totalScore = d?.score || deal.score || 0
