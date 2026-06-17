@@ -429,3 +429,37 @@ export async function createGenericTask(env, taskData) {
 export async function updateTaskStatus(env, taskId, status) {
   return zohoAPI(env, 'PUT', `/Tasks/${taskId}`, { data: [{ Status: status }] })
 }
+
+export async function getDealNotes(env, dealId) {
+  return zohoAPI(env, 'GET', `/Notes/search?criteria=(Parent_Id:equals:${dealId})&fields=id,Note_Title,Note_Content,Created_Time,Created_By`)
+}
+
+export async function createZohoEvent(env, dealId, eventData) {
+  return zohoAPI(env, 'POST', '/Events', {
+    data: [{
+      Event_Title: eventData.title,
+      Venue: eventData.venue,
+      Start_DateTime: eventData.from,
+      End_DateTime: eventData.to,
+      Description: eventData.description || '',
+      What_Id: dealId,
+      '$se_module': 'Deals',
+    }]
+  })
+}
+
+export async function createZohoCall(env, dealId, callData) {
+  const payload = {
+    Subject: callData.subject,
+    Call_Type: 'Outbound',
+    Call_Status: callData.callStatus,
+    Call_Purpose: callData.callPurpose,
+    Call_Agenda: callData.callAgenda || '',
+    Call_Start_Time: callData.callTiming,
+    Description: callData.description || '',
+    What_Id: dealId,
+    '$se_module': 'Deals',
+  }
+  if (callData.callResult) payload.Call_Result = callData.callResult
+  return zohoAPI(env, 'POST', '/Calls', { data: [payload] })
+}

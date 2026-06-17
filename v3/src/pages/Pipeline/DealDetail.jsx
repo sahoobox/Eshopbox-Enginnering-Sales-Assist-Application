@@ -269,8 +269,8 @@ export default function DealDetail({ dealId }) {
         <div className="ws-main">
           <div className="tabs">
             {[
-              { id: 'activity', label: 'Activity', count: deal.activities?.length },
-              { id: 'tasks', label: 'Tasks', count: deal.tasks?.length },
+              { id: 'activity', label: 'Timeline', count: deal.activities?.length },
+              { id: 'tasks', label: 'Activities', count: deal.tasks?.length },
               { id: 'flags', label: 'Flags', count: deal.flags?.length },
               { id: 'demo', label: 'Demo Info' },
               { id: 'sequence', label: 'Sequence' },
@@ -285,8 +285,8 @@ export default function DealDetail({ dealId }) {
             ))}
           </div>
 
-          {tab === 'activity' && <ActivityTab deal={deal} />}
-          {tab === 'tasks' && <TasksTab dealId={deal.id} />}
+          {tab === 'activity' && <TimelineTab deal={deal} />}
+          {tab === 'tasks' && <ActivitiesTab dealId={deal.id} />}
           {tab === 'flags' && <FlagsTab deal={deal} />}
           {tab === 'demo' && <DemoInfoTab deal={deal} />}
           {tab === 'sequence' && <SequenceTab emails={emails} deal={deal} onRetryGenerate={async () => {
@@ -345,28 +345,41 @@ export default function DealDetail({ dealId }) {
 
 // ── Tab components ─────────────────────────────────────────
 
-function ActivityTab({ deal }) {
+function TimelineTab({ deal }) {
   const activities = deal.activities || []
+  const notes = deal.notes || []
   const iconMap = {
-    demo: '🎯', email: '✉', note: '✎', meeting: '◉', call: '☏', task: '✓', stage: '→', flag: '⚑', webhook: '⇄',
+    call: '☏', Call: '☏', meeting: '◉', Meeting: '◉', note: '✎', Note: '✎',
+    task: '✓', Task: '✓', email: '✉', Email: '✉',
+    demo: '🎯', stage: '→', flag: '⚑', webhook: '⇄',
   }
+
+  const allItems = [
+    ...activities,
+    ...notes,
+  ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 
   return (
     <>
-      {activities.length === 0 ? (
+      {allItems.length === 0 ? (
         <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>
           {deal.saLogged
-            ? 'Activities are loaded from Zoho CRM. If none appear, there may be no logged activities in Zoho for this deal.'
+            ? 'Activities and notes from Zoho CRM will appear here.'
             : 'No activity yet on this deal.'}
         </div>
       ) : (
         <div className="card">
           <div className="tl">
-            {activities.map((act, i) => (
-              <div key={i} className="tl-row">
-                <div className="time">{formatDate(act.date)}</div>
-                <div className="tl-icon">{iconMap[act.type?.toLowerCase()] || '·'}</div>
-                <div className="act" dangerouslySetInnerHTML={{ __html: act.description || '' }} />
+            {allItems.map((item, i) => (
+              <div key={item.id || i} className="tl-row">
+                <div className="time">{formatDate(item.date)}</div>
+                <div className="tl-icon">{iconMap[item.type] || iconMap[item.type?.toLowerCase()] || '·'}</div>
+                <div className="act">
+                  <div dangerouslySetInnerHTML={{ __html: item.description || '' }} />
+                  {item.createdBy && (
+                    <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>{item.createdBy}</div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -426,12 +439,24 @@ function EmailsTab({ emails, deal }) {
   )
 }
 
-function TasksTab({ dealId }) {
+function ActivitiesTab({ dealId }) {
   const { authFetch } = useAuth()
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showModal, setShowModal] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [showTaskModal, setShowTaskModal] = useState(false)
+  const [showMeetingModal, setShowMeetingModal] = useState(false)
+  const [showCallModal, setShowCallModal] = useState(false)
   const todayStr = new Date().toISOString().split('T')[0]
+
+  useEffect(() => {
+    if (!showDropdown) return
+    const handler = (e) => {
+      if (!e.target.closest('[data-activity-dropdown]')) setShowDropdown(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showDropdown])
 
   const fetchTasks = useCallback(async () => {
     setLoading(true)
@@ -445,69 +470,121 @@ function TasksTab({ dealId }) {
 
   useEffect(() => { fetchTasks() }, [fetchTasks])
 
-  async function completeTask(taskId) {
-    await authFetch(`/api/tasks/${taskId}/complete`, { method: 'PATCH' })
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, isComplete: true, status: 'Completed' } : t))
+  async function toggleTask(taskId, isComplete) {
+    await authFetch(`/api/tasks/${taskId}/${isComplete ? 'reopen' : 'complete'}`, { method: 'PATCH' })
+    setTasks(prev => prev.map(t => t.id === taskId
+      ? { ...t, isComplete: !isComplete, status: isComplete ? 'Not Started' : 'Completed' }
+      : t
+    ))
   }
 
-  async function reopenTask(taskId) {
-    await authFetch(`/api/tasks/${taskId}/reopen`, { method: 'PATCH' })
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, isComplete: false, status: 'Not Started' } : t))
-  }
-
-  if (loading) return <div className="card card-pad" style={{ color: 'var(--ink-3)' }}>Loading tasks…</div>
+  if (loading) return <div className="card card-pad" style={{ color: 'var(--ink-3)' }}>Loading activities…</div>
 
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <button className="btn btn-sm btn-primary" onClick={() => setShowModal(true)}>+ Add task</button>
+        <div data-activity-dropdown style={{ position: 'relative' }}>
+          <button className="btn btn-sm btn-primary" onClick={() => setShowDropdown(v => !v)}>
+            + New Activity ▾
+          </button>
+          {showDropdown && (
+            <div style={{
+              position: 'absolute', top: '100%', right: 0, zIndex: 200,
+              background: 'var(--surface)', border: '1px solid var(--line-2)',
+              borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-2)',
+              marginTop: 4, minWidth: 140, overflow: 'hidden'
+            }}>
+              {['Task', 'Meeting', 'Call'].map(item => (
+                <button key={item}
+                  onClick={() => {
+                    setShowDropdown(false)
+                    if (item === 'Task') setShowTaskModal(true)
+                    else if (item === 'Meeting') setShowMeetingModal(true)
+                    else setShowCallModal(true)
+                  }}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    padding: '10px 14px', border: 'none', background: 'none',
+                    fontSize: 13, cursor: 'pointer', color: 'var(--ink)',
+                    fontFamily: 'inherit'
+                  }}
+                  onMouseEnter={e => e.target.style.background = 'var(--surface-2)'}
+                  onMouseLeave={e => e.target.style.background = 'none'}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
       {tasks.length === 0 ? (
-        <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>No tasks on this deal.</div>
+        <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>No activities on this deal.</div>
       ) : (
-        <div className="table-wrap">
-          <table className="t">
-            <thead><tr><th style={{ width: 32 }}></th><th>Task</th><th>Due</th><th>Priority</th><th></th></tr></thead>
-            <tbody>
-              {tasks.map(task => {
-                const isOverdue = task.dueDate && task.dueDate < todayStr && !task.isComplete
-                return (
-                  <tr key={task.id} style={{ opacity: task.isComplete ? 0.5 : 1 }}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={task.isComplete}
-                        onChange={() => task.isComplete ? reopenTask(task.id) : completeTask(task.id)}
-                        style={{ cursor: 'pointer', width: 16, height: 16 }}
-                      />
-                    </td>
-                    <td><b style={{ textDecoration: task.isComplete ? 'line-through' : 'none' }}>{task.subject}</b></td>
-                    <td style={{ color: isOverdue ? 'var(--danger)' : 'var(--ink-2)', fontWeight: isOverdue ? 600 : 400, fontSize: 13 }}>
-                      {task.dueDate ? formatDate(task.dueDate) : '—'}
-                    </td>
-                    <td>{task.priority || '—'}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      {!task.isComplete && (
-                        <button className="btn btn-sm" onClick={() => completeTask(task.id)}>Mark done</button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {tasks.map(task => {
+            const isOverdue = task.dueDate && task.dueDate < todayStr && !task.isComplete
+            return (
+              <div key={task.id} className="card card-pad"
+                style={{ opacity: task.isComplete ? 0.5 : 1, color: task.isComplete ? 'var(--ink-3)' : 'inherit' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <input
+                    type="checkbox"
+                    checked={task.isComplete}
+                    onChange={() => toggleTask(task.id, task.isComplete)}
+                    style={{ cursor: 'pointer', width: 16, height: 16, marginTop: 2, flexShrink: 0 }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13.5, marginBottom: 4 }}>{task.subject}</div>
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: task.description ? 6 : 0 }}>
+                      {task.dueDate && (
+                        <span style={{ color: isOverdue ? 'var(--danger)' : 'var(--ink-3)' }}>
+                          Due: {formatDate(task.dueDate)}
+                        </span>
                       )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                      {task.priority && <span>Priority: {task.priority}</span>}
+                      <span>Status: {task.status || 'Not Started'}</span>
+                      {task.ownerName && <span>Assigned to: {task.ownerName}</span>}
+                    </div>
+                    {task.description && (
+                      <div style={{ fontSize: 12.5, color: task.isComplete ? 'var(--ink-3)' : 'var(--ink-2)', lineHeight: 1.5, marginTop: 2 }}>
+                        {task.description}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
-      {showModal && (
+
+      {showTaskModal && (
         <TaskModal
           dealId={dealId}
-          onClose={() => setShowModal(false)}
+          onClose={() => setShowTaskModal(false)}
           onSubmit={async (data) => {
             const res = await authFetch('/api/tasks', { method: 'POST', body: JSON.stringify(data) })
             const json = await res.json()
-            if (json.success) { setShowModal(false); fetchTasks() }
+            if (json.success) { setShowTaskModal(false); fetchTasks() }
             else alert(json.error || 'Failed to create task')
           }}
+        />
+      )}
+      {showMeetingModal && (
+        <MeetingModal
+          dealId={dealId}
+          onClose={() => setShowMeetingModal(false)}
+          onSuccess={() => { setShowMeetingModal(false) }}
+        />
+      )}
+      {showCallModal && (
+        <CallModal
+          dealId={dealId}
+          onClose={() => setShowCallModal(false)}
+          onSuccess={() => { setShowCallModal(false) }}
         />
       )}
     </>
@@ -1434,6 +1511,165 @@ function DemoFormModal({ deal, onClose, onSuccess }) {
                 </button>
             }
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const CALL_PURPOSE_OPTIONS = [
+  'None', 'Intro/first contact', 'Discovery call', 'Request for demo',
+  'Follow-up Call', 'Pricing Discussion', 'Proposal Review',
+  'Negotiations', 'Contract Review/Signature',
+]
+
+const CALL_RESULT_OPTIONS = [
+  'None', 'Connected', 'No answer/busy', 'Requested Callback',
+  'Requested more info', 'Not interested', 'No business/brand',
+]
+
+function MeetingModal({ dealId, onClose, onSuccess }) {
+  const { authFetch } = useAuth()
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({ title: '', venue: 'Online', from: '', to: '', description: '' })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  async function submit() {
+    if (!form.title.trim() || !form.from || !form.to) return alert('Title, From and To are required')
+    setSaving(true)
+    try {
+      const res = await authFetch(`/api/deals/${dealId}/meeting`, {
+        method: 'POST',
+        body: JSON.stringify(form)
+      })
+      const data = await res.json()
+      if (data.success) onSuccess()
+      else alert(data.error || 'Failed to create meeting')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-head"><h3>Log Meeting</h3><button className="btn-close" onClick={onClose}>✕</button></div>
+        <div className="modal-body">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Title *</label>
+              <input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Meeting title" className="input" style={{ width: '100%' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Meeting Venue</label>
+              <select value={form.venue} onChange={e => set('venue', e.target.value)} className="input" style={{ width: '100%' }}>
+                <option value="In-office">In-office</option>
+                <option value="Client location">Client location</option>
+                <option value="Online">Online</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>From *</label>
+              <input type="datetime-local" value={form.from} onChange={e => set('from', e.target.value)} className="input" style={{ width: '100%' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>To *</label>
+              <input type="datetime-local" value={form.to} onChange={e => set('to', e.target.value)} className="input" style={{ width: '100%' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Description</label>
+              <textarea value={form.description} onChange={e => set('description', e.target.value)} placeholder="Optional notes…" className="input" style={{ width: '100%', minHeight: 70, resize: 'vertical' }} />
+            </div>
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving}>
+            {saving ? 'Saving…' : 'Log Meeting'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CallModal({ dealId, onClose, onSuccess }) {
+  const { authFetch } = useAuth()
+  const [callMode, setCallMode] = useState('log')
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({
+    callPurpose: 'None',
+    callAgenda: '',
+    callResult: 'None',
+    callTiming: '',
+    description: '',
+  })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  async function submit() {
+    if (!form.callTiming) return alert('Call timing is required')
+    setSaving(true)
+    try {
+      const endpoint = callMode === 'log' ? 'log-call' : 'schedule-call'
+      const res = await authFetch(`/api/deals/${dealId}/${endpoint}`, {
+        method: 'POST',
+        body: JSON.stringify(form)
+      })
+      const data = await res.json()
+      if (data.success) onSuccess()
+      else alert(data.error || 'Failed to log call')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-head"><h3>Log Call</h3><button className="btn-close" onClick={onClose}>✕</button></div>
+        <div className="modal-body">
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <button
+              className={`btn btn-sm${callMode === 'log' ? ' btn-primary' : ''}`}
+              onClick={() => setCallMode('log')}
+            >Log a Call</button>
+            <button
+              className={`btn btn-sm${callMode === 'schedule' ? ' btn-primary' : ''}`}
+              onClick={() => setCallMode('schedule')}
+            >Schedule a Call</button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Call Purpose *</label>
+              <select value={form.callPurpose} onChange={e => set('callPurpose', e.target.value)} className="input" style={{ width: '100%' }}>
+                {CALL_PURPOSE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Call Agenda</label>
+              <input value={form.callAgenda} onChange={e => set('callAgenda', e.target.value)} placeholder="Agenda…" className="input" style={{ width: '100%' }} />
+            </div>
+            {callMode === 'log' && (
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Call Result *</label>
+                <select value={form.callResult} onChange={e => set('callResult', e.target.value)} className="input" style={{ width: '100%' }}>
+                  {CALL_RESULT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+            )}
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>
+                {callMode === 'log' ? 'Call Timing *' : 'Scheduled For *'}
+              </label>
+              <input type="datetime-local" value={form.callTiming} onChange={e => set('callTiming', e.target.value)} className="input" style={{ width: '100%' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Description</label>
+              <textarea value={form.description} onChange={e => set('description', e.target.value)} placeholder="Optional notes…" className="input" style={{ width: '100%', minHeight: 70, resize: 'vertical' }} />
+            </div>
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving}>
+            {saving ? 'Saving…' : callMode === 'log' ? 'Log Call' : 'Schedule Call'}
+          </button>
         </div>
       </div>
     </div>

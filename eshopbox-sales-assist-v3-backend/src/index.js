@@ -4,7 +4,7 @@ import { requireAuth } from './middleware/auth.js';
 import { sign, verify } from './middleware/jwt.js';
 import { getUserByEmail, createUser, createInvite, getInviteByToken, markInviteAccepted, getAllUsers, deactivateUser, updateUserRole, getPendingInvites } from './db/users.js';
 import { calculateGrade, scoreToGrade } from './services/grading.js';
-import { zohoAPI, createDeal, createTask, getDeals, getAllDeals, getDeal, getDealTasks, getDealActivities, updateDeal, searchDeals, sendDealEmail, createDealEmailDraft, getAllowedFromAddresses, getAccessTokenForUser, getAccessToken, getDealSentEmails, getEmailContent, getTask, getLeads, getLead, updateLead, getLeadActivities, createLeadActivity, getLeadNotes, createLeadNote, getTasks, createGenericTask, updateTaskStatus } from './services/zoho.js';
+import { zohoAPI, createDeal, createTask, getDeals, getAllDeals, getDeal, getDealTasks, getDealActivities, updateDeal, searchDeals, sendDealEmail, createDealEmailDraft, getAllowedFromAddresses, getAccessTokenForUser, getAccessToken, getDealSentEmails, getEmailContent, getTask, getLeads, getLead, updateLead, getLeadActivities, createLeadActivity, getLeadNotes, createLeadNote, getTasks, createGenericTask, updateTaskStatus, getDealNotes, createZohoEvent, createZohoCall } from './services/zoho.js';
 import { generateEmailDrafts, generateReengagement, generateDealAnalysis, generateDealSummary } from './services/claude.js';
 import { computeAttentionFlags, getAttentionLevel } from './services/attentionRules.js';
 import { sendGmailEmail, sendGmailEmailWithToken, createGmailDraft, checkDraftSent, getRealMessageId } from './services/gmail.js';
@@ -806,10 +806,11 @@ app.get('/api/deals/:id', requireAuth, async (c) => {
         if (viewAsUser) effectiveUser = viewAsUser;
       }
     }
-    const [dealRes, tasksRes, activitiesRes] = await Promise.all([
+    const [dealRes, tasksRes, activitiesRes, notesRes] = await Promise.all([
       getDeal(c.env, dealId),
       getDealTasks(c.env, dealId),
       getDealActivities(c.env, dealId),
+      getDealNotes(c.env, dealId),
     ]);
     const tasks = tasksRes?.data || [];
     const activities = activitiesRes?.data || [];
@@ -914,6 +915,13 @@ deal.activities = activities.map(a => ({
       type: a.Activity_Type || 'Note',
       date: a.Created_Time,
       description: a.Description || a.Subject || '',
+    }));
+    deal.notes = (notesRes?.data || []).map(n => ({
+      id: n.id,
+      type: 'Note',
+      date: n.Created_Time,
+      description: n.Note_Content || n.Note_Title || '',
+      createdBy: n.Created_By?.name || '',
     }));
     if ((effectiveUser.role === 'mde' || effectiveUser.role === 'ae') && deal.repEmail !== effectiveUser.email) return c.json({ error: 'Access denied' }, 403);
     const flags = computeAttentionFlags(deal);
@@ -1454,6 +1462,47 @@ app.post('/api/deals/:id/activities', requireAuth, async (c) => {
         details: res
       }, 400)
     }
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.post('/api/deals/:id/meeting', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const body = await c.req.json()
+    await createZohoEvent(c.env, dealId, body)
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.post('/api/deals/:id/log-call', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const body = await c.req.json()
+    await createZohoCall(c.env, dealId, {
+      ...body,
+      callStatus: 'Completed',
+      subject: `Call - ${body.callPurpose}`,
+    })
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.post('/api/deals/:id/schedule-call', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const body = await c.req.json()
+    await createZohoCall(c.env, dealId, {
+      ...body,
+      callStatus: 'Scheduled',
+      subject: `Scheduled Call - ${body.callPurpose}`,
+    })
+    return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
   }
