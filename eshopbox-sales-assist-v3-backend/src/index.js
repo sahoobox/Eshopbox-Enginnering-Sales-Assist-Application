@@ -793,8 +793,8 @@ app.get('/api/deals/search', requireAuth, async (c) => {
 });
 
 app.get('/api/deals/:id', requireAuth, async (c) => {
+  const dealId = c.req.param('id');
   try {
-    const dealId = c.req.param('id');
     console.log('Deal fetch requested:', dealId);
     const user = c.get('user');
     let effectiveUser = user;
@@ -920,9 +920,9 @@ deal.activities = (activitiesRes?.data || []).map(a => ({
     const attentionLevel = getAttentionLevel(flags);
     console.log('[dealSummary] returning dealSummary for', dealId, ':', dealSummary);
     return c.json({ ...deal, flags, attentionLevel, dealSummary });
-  } catch (err) {
-    console.error('Deal fetch error for', dealId, ':', err.message, err.status, JSON.stringify(err));
-    return c.json({ error: 'Failed to fetch deal', details: err.message }, 500);
+  } catch (e) {
+    console.error('Deal fetch crashed:', e.message, e.stack)
+    return c.json({ error: 'Failed to fetch deal', details: e.message }, 500)
   }
 });
 
