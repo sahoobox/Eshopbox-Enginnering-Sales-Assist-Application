@@ -795,7 +795,6 @@ app.get('/api/deals/search', requireAuth, async (c) => {
 app.get('/api/deals/:id', requireAuth, async (c) => {
   const dealId = c.req.param('id');
   try {
-    console.log('Deal fetch requested:', dealId);
     const user = c.get('user');
     let effectiveUser = user;
     if (user.email === 'satyanarayan.sahoo@eshopbox.com') {
@@ -814,7 +813,6 @@ app.get('/api/deals/:id', requireAuth, async (c) => {
     ]);
     const tasks = tasksRes?.data || [];
     const activities = activitiesRes?.data || [];
-    console.log('Zoho response for', dealId, ':', JSON.stringify(dealRes?.data?.[0] ? 'found' : 'not found'));
     if (!dealRes?.data?.[0]) return c.json({ error: 'Deal not found' }, 404);
 const deal = mapZohoDeal(dealRes.data[0]);
 deal.tasks = tasks;

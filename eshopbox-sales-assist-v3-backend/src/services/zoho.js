@@ -60,7 +60,6 @@ export async function zohoAPI(env, method, path, body = null) {
   if (body) options.body = JSON.stringify(body);
   const res = await fetch(`${env.ZOHO_API_BASE}${path}`, options);
   const text = await res.text()
-  console.log('Zoho raw response status:', res.status, 'body length:', text.length, 'body preview:', text.slice(0, 300))
   if (!text || text.trim() === '') {
     return null  // 204 No Content — return null, don't throw
   }
