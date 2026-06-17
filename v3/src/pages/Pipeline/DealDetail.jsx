@@ -298,7 +298,7 @@ export default function DealDetail({ dealId }) {
             await refetchDeal()
           }} />}
           {tab === 'coach' && <CoachTab deal={deal} />}
-          {tab === 'notes' && <NotesTab dealId={deal.id} />}
+          {tab === 'notes' && <NotesTab dealId={deal.id} deal={deal} />}
           {tab === 'contact' && <ContactTab deal={deal} />}
         </div>
 
@@ -346,46 +346,10 @@ export default function DealDetail({ dealId }) {
 // ── Tab components ─────────────────────────────────────────
 
 function TimelineTab({ deal }) {
-  const activities = deal.activities || []
-  const notes = deal.notes || []
-  const iconMap = {
-    call: '☏', Call: '☏', meeting: '◉', Meeting: '◉', note: '✎', Note: '✎',
-    task: '✓', Task: '✓', email: '✉', Email: '✉',
-    demo: '🎯', stage: '→', flag: '⚑', webhook: '⇄',
-  }
-
-  const allItems = [
-    ...activities,
-    ...notes,
-  ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-
   return (
-    <>
-      {allItems.length === 0 ? (
-        <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>
-          {deal.saLogged
-            ? 'Activities and notes from Zoho CRM will appear here.'
-            : 'No activity yet on this deal.'}
-        </div>
-      ) : (
-        <div className="card">
-          <div className="tl">
-            {allItems.map((item, i) => (
-              <div key={item.id || i} className="tl-row">
-                <div className="time">{formatDate(item.date)}</div>
-                <div className="tl-icon">{iconMap[item.type] || iconMap[item.type?.toLowerCase()] || '·'}</div>
-                <div className="act">
-                  <div dangerouslySetInnerHTML={{ __html: item.description || '' }} />
-                  {item.createdBy && (
-                    <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>{item.createdBy}</div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </>
+    <div style={{ padding: 24, textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>
+      Timeline coming soon — will show all deal activity in chronological order.
+    </div>
   )
 }
 
@@ -1115,9 +1079,9 @@ function CoachTab({ deal }) {
   )
 }
 
-function NotesTab({ dealId }) {
+function NotesTab({ dealId, deal }) {
   const { authFetch } = useAuth()
-  const [notes, setNotes] = useState([])
+  const [d1Notes, setD1Notes] = useState([])
   const [newNote, setNewNote] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -1125,7 +1089,7 @@ function NotesTab({ dealId }) {
   useEffect(() => {
     authFetch(`/api/deals/${dealId}/notes`)
       .then(r => r.json())
-      .then(d => setNotes(d.notes || []))
+      .then(d => setD1Notes(d.notes || []))
       .finally(() => setLoading(false))
   }, [dealId])
 
@@ -1139,11 +1103,28 @@ function NotesTab({ dealId }) {
       })
       const data = await res.json()
       if (data.success) {
-        setNotes(prev => [data.note, ...prev])
+        setD1Notes(prev => [data.note, ...prev])
         setNewNote('')
       }
     } finally { setSaving(false) }
   }
+
+  const allNotes = [
+    ...(d1Notes || []).map(n => ({
+      id: n.id,
+      content: n.content,
+      authorName: n.authorName,
+      date: n.createdAt,
+      source: 'salesassist',
+    })),
+    ...(deal?.notes || []).map(n => ({
+      id: n.id,
+      content: n.description,
+      authorName: n.createdBy,
+      date: n.date,
+      source: 'zoho',
+    })),
+  ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 
   if (loading) return <div className="card card-pad" style={{ color: 'var(--ink-3)' }}>Loading notes…</div>
 
@@ -1162,14 +1143,25 @@ function NotesTab({ dealId }) {
           </button>
         </div>
       </div>
-      {notes.length === 0 ? (
+      {allNotes.length === 0 ? (
         <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>No notes yet.</div>
       ) : (
-        notes.map((note, i) => (
-          <div key={i} className="card card-pad">
+        allNotes.map((note, i) => (
+          <div key={note.id || i} className="card card-pad">
             <div style={{ fontSize: 13, lineHeight: 1.6 }}>{note.content}</div>
-            <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 6 }}>
-              {note.authorName} · {formatDate(note.createdAt)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                {note.authorName && `${note.authorName} · `}{formatDate(note.date)}
+              </span>
+              {note.source === 'salesassist' ? (
+                <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: 'var(--ok-bg, #e6f4ea)', color: 'var(--ok, #1a7f37)', letterSpacing: '0.04em' }}>
+                  Sales Assist
+                </span>
+              ) : (
+                <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: 'var(--info-bg, #e8f0fe)', color: 'var(--info, #1a56db)', letterSpacing: '0.04em' }}>
+                  Zoho CRM
+                </span>
+              )}
             </div>
           </div>
         ))
