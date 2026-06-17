@@ -65,6 +65,16 @@ export default function LeadInbox() {
     return utms
   }, [scopedLeads])
 
+  const statusOptions = useMemo(() =>
+    [...new Set(scopedLeads.map(l => l.leadStatus).filter(Boolean))].sort()
+  , [scopedLeads])
+
+  const sourceOptions = useMemo(() =>
+    [...new Set(scopedLeads.map(l => l.leadSource).filter(Boolean))].sort()
+  , [scopedLeads])
+
+  const showOwnerFilter = role === ROLES.ADMIN || role === ROLES.SALES_LEAD_MIDMARKET || role === ROLES.SALES_LEAD_ENTERPRISE
+
   const filteredLeads = useMemo(() => {
     let result = scopedLeads
 
@@ -205,18 +215,12 @@ export default function LeadInbox() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <select style={dropdownStyle} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="all">All Status</option>
-          <option value="New">New</option>
-          <option value="Contacted">Contacted</option>
-          <option value="Qualified">Qualified</option>
-          <option value="Disqualified">Disqualified</option>
+          {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
         <select style={dropdownStyle} value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}>
           <option value="all">All Source</option>
-          <option value="Contact Sales">Contact Sales</option>
-          <option value="Sign Up">Sign Up</option>
-          <option value="Inbound Website">Inbound Website</option>
-          <option value="Outbound">Outbound</option>
+          {sourceOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
         <select style={dropdownStyle} value={volumeFilter} onChange={e => setVolumeFilter(e.target.value)}>
@@ -227,10 +231,12 @@ export default function LeadInbox() {
           <option value="10,000+ orders/month">10,000+ orders/month</option>
         </select>
 
-        <select style={dropdownStyle} value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)}>
-          <option value="all">All Reps</option>
-          {uniqueOwners.map(name => <option key={name} value={name}>{name}</option>)}
-        </select>
+        {showOwnerFilter && (
+          <select style={dropdownStyle} value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)}>
+            <option value="all">All Reps</option>
+            {uniqueOwners.map(name => <option key={name} value={name}>{name}</option>)}
+          </select>
+        )}
 
         <select style={dropdownStyle} value={utmFilter} onChange={e => setUtmFilter(e.target.value)}>
           <option value="all">All UTM</option>
