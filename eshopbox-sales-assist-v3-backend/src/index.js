@@ -1467,11 +1467,22 @@ app.post('/api/deals/:id/activities', requireAuth, async (c) => {
   }
 })
 
+function toZohoDateTime(dtLocal) {
+  if (!dtLocal) return null
+  const d = new Date(dtLocal)
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00+05:30`
+}
+
 app.post('/api/deals/:id/meeting', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id')
     const body = await c.req.json()
-    const zohoRes = await createZohoEvent(c.env, dealId, body)
+    const zohoRes = await createZohoEvent(c.env, dealId, {
+      ...body,
+      from: toZohoDateTime(body.from),
+      to: toZohoDateTime(body.to),
+    })
     console.log('Zoho response:', JSON.stringify(zohoRes))
     if (!zohoRes || zohoRes.data?.[0]?.status === 'error') {
       console.error('Zoho error:', JSON.stringify(zohoRes))
@@ -1491,6 +1502,7 @@ app.post('/api/deals/:id/log-call', requireAuth, async (c) => {
       ...body,
       callStatus: 'Completed',
       subject: `Call - ${body.callPurpose}`,
+      callTiming: toZohoDateTime(body.callTiming),
     })
     console.log('Zoho response:', JSON.stringify(zohoRes))
     if (!zohoRes || zohoRes.data?.[0]?.status === 'error') {
@@ -1511,6 +1523,7 @@ app.post('/api/deals/:id/schedule-call', requireAuth, async (c) => {
       ...body,
       callStatus: 'Scheduled',
       subject: `Scheduled Call - ${body.callPurpose}`,
+      callTiming: toZohoDateTime(body.callTiming),
     })
     console.log('Zoho response:', JSON.stringify(zohoRes))
     if (!zohoRes || zohoRes.data?.[0]?.status === 'error') {
