@@ -1471,7 +1471,12 @@ app.post('/api/deals/:id/meeting', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id')
     const body = await c.req.json()
-    await createZohoEvent(c.env, dealId, body)
+    const zohoRes = await createZohoEvent(c.env, dealId, body)
+    console.log('Zoho response:', JSON.stringify(zohoRes))
+    if (!zohoRes || zohoRes.data?.[0]?.status === 'error') {
+      console.error('Zoho error:', JSON.stringify(zohoRes))
+      return c.json({ error: 'Zoho API error', details: zohoRes }, 500)
+    }
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
@@ -1482,11 +1487,16 @@ app.post('/api/deals/:id/log-call', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id')
     const body = await c.req.json()
-    await createZohoCall(c.env, dealId, {
+    const zohoRes = await createZohoCall(c.env, dealId, {
       ...body,
       callStatus: 'Completed',
       subject: `Call - ${body.callPurpose}`,
     })
+    console.log('Zoho response:', JSON.stringify(zohoRes))
+    if (!zohoRes || zohoRes.data?.[0]?.status === 'error') {
+      console.error('Zoho error:', JSON.stringify(zohoRes))
+      return c.json({ error: 'Zoho API error', details: zohoRes }, 500)
+    }
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
@@ -1497,11 +1507,16 @@ app.post('/api/deals/:id/schedule-call', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id')
     const body = await c.req.json()
-    await createZohoCall(c.env, dealId, {
+    const zohoRes = await createZohoCall(c.env, dealId, {
       ...body,
       callStatus: 'Scheduled',
       subject: `Scheduled Call - ${body.callPurpose}`,
     })
+    console.log('Zoho response:', JSON.stringify(zohoRes))
+    if (!zohoRes || zohoRes.data?.[0]?.status === 'error') {
+      console.error('Zoho error:', JSON.stringify(zohoRes))
+      return c.json({ error: 'Zoho API error', details: zohoRes }, 500)
+    }
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
