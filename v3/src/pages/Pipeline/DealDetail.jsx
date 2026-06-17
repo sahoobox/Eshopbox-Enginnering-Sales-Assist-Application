@@ -346,12 +346,7 @@ export default function DealDetail({ dealId }) {
 // ── Tab components ─────────────────────────────────────────
 
 function ActivityTab({ deal }) {
-  const { authFetch } = useAuth()
   const activities = deal.activities || []
-  const [logType, setLogType] = useState(null)
-  const [logSubject, setLogSubject] = useState('')
-  const [logNotes, setLogNotes] = useState('')
-  const [logSaving, setLogSaving] = useState(false)
   const iconMap = {
     demo: '🎯', email: '✉', note: '✎', meeting: '◉', call: '☏', task: '✓', stage: '→', flag: '⚑', webhook: '⇄',
   }
@@ -374,80 +369,6 @@ function ActivityTab({ deal }) {
                 <div className="act" dangerouslySetInnerHTML={{ __html: act.description || '' }} />
               </div>
             ))}
-          </div>
-        </div>
-      )}
-      <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
-        <button className="btn btn-sm" onClick={() => setLogType('Call')}>+ Log call</button>
-        <button className="btn btn-sm" onClick={() => setLogType('Email')}>+ Log email</button>
-        <button className="btn btn-sm" onClick={() => setLogType('Note')}>+ Log note</button>
-      </div>
-      {logType && (
-        <div className="modal-overlay" onClick={() => setLogType(null)}>
-          <div className="modal-box" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
-            <div className="modal-head">
-              <h3>Log {logType}</h3>
-              <button className="btn-close" onClick={() => setLogType(null)}>×</button>
-            </div>
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Type</div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {['Call', 'Email', 'Note'].map(t => (
-                    <button key={t} onClick={() => setLogType(t)}
-                      style={{ padding: '6px 16px', borderRadius: 20, border: `1.5px solid ${logType === t ? 'var(--ok)' : 'var(--line-2)'}`, background: logType === t ? 'var(--ok-bg)' : 'transparent', color: logType === t ? 'var(--ok)' : 'var(--ink-2)', fontWeight: logType === t ? 600 : 400, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Subject</div>
-                <input
-                  className="input"
-                  style={{ width: '100%' }}
-                  placeholder="What happened..."
-                  value={logSubject}
-                  onChange={e => setLogSubject(e.target.value)}
-                />
-              </div>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Notes</div>
-                <textarea
-                  className="input"
-                  style={{ width: '100%', minHeight: 100, resize: 'vertical' }}
-                  placeholder="Detail..."
-                  value={logNotes}
-                  onChange={e => setLogNotes(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="modal-foot">
-              <button className="btn" onClick={() => setLogType(null)}>Cancel</button>
-              <button className="btn btn-primary" disabled={logSaving || !logSubject.trim()}
-                onClick={async () => {
-                  setLogSaving(true)
-                  try {
-                    const res = await authFetch(`/api/deals/${deal.id}/activities`, {
-                      method: 'POST',
-                      body: JSON.stringify({ type: logType, subject: logSubject, notes: logNotes })
-                    })
-                    const data = await res.json()
-                    if (data.success) {
-                      setLogType(null)
-                      setLogSubject('')
-                      setLogNotes('')
-                      window.location.reload()
-                    } else {
-                      alert(data.error || 'Failed to log activity')
-                    }
-                  } finally {
-                    setLogSaving(false)
-                  }
-                }}>
-                {logSaving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
           </div>
         </div>
       )}
