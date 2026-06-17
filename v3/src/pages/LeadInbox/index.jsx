@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useLeads } from '../../hooks/useLeads'
@@ -20,33 +20,263 @@ const AE_EMAILS = [
 
 const PAGE_SIZE = 50
 
-const dropdownStyle = {
-  height: 34,
-  fontSize: 13,
-  padding: '0 8px',
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  background: 'var(--surface)',
-  color: 'var(--ink-1)',
-  cursor: 'pointer',
-  outline: 'none',
+// ── Lead filter matching ──────────────────────────────────
+function matchLeadSingle(lead, f) {
+  const val = f.values
+  switch (f.field) {
+    case 'status':
+      return val.includes(lead.leadStatus || '')
+    case 'source':
+      return val.includes(lead.leadSource || '')
+    case 'volume':
+      return val.includes(lead.orderVolume || '')
+    case 'owner':
+      return val.includes(lead.ownerName || '')
+    case 'utm':
+      return val.includes(lead.utmSource || '')
+    case 'createdAt': {
+      if (!lead.createdAt) return false
+      const d = new Date(lead.createdAt)
+      const now = new Date()
+      if (f.preset === 'today') {
+        return d.toDateString() === now.toDateString()
+      }
+      if (f.preset === 'week') {
+        const start = new Date(now)
+        start.setDate(now.getDate() - 7)
+        return d >= start
+      }
+      if (f.preset === 'month') {
+        return d.getMonth() === now.getMonth() &&
+               d.getFullYear() === now.getFullYear()
+      }
+      if (f.preset === 'custom' && f.from && f.to) {
+        return d >= new Date(f.from) &&
+               d <= new Date(f.to + 'T23:59:59')
+      }
+      return true
+    }
+    default:
+      return true
+  }
 }
 
+function matchLeadFilters(lead, filters) {
+  return filters.every(f => {
+    const match = matchLeadSingle(lead, f)
+    return f.op === 'is' ? match : !match
+  })
+}
+
+function leadChipLabel(f) {
+  const v = f.values?.join(', ') || ''
+  const labels = {
+    status: 'Status', source: 'Source',
+    volume: 'Volume', owner: 'Assigned To',
+    utm: 'UTM', createdAt: 'Date Created',
+  }
+  const opLbl = f.op === 'is' ? 'is' : 'is not'
+  if (f.field === 'createdAt') {
+    if (f.preset === 'custom')
+      return `Date ${opLbl} ${f.from || '…'} – ${f.to || '…'}`
+    const presetLabels = { today: 'Today', week: 'This week', month: 'This month' }
+    return `Date ${opLbl} ${presetLabels[f.preset] || f.preset}`
+  }
+  return `${labels[f.field] || f.field} ${opLbl} ${v}`
+}
+
+// ── Lead Filter Bar ───────────────────────────────────────
+const LeadFilterBar = forwardRef(function LeadFilterBar({ filters, onChange, leads, showOwnerFilter }, ref) {
+  const [open, setOpen] = useState(null)
+  const [step, setStep] = useState('field')
+  const [draft, setDraft] = useState(null)
+  const dropRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = e => { if (dropRef.current && !dropRef.current.contains(e.target)) close() }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const close = () => { setOpen(null); setDraft(null); setStep('field') }
+
+  useImperativeHandle(ref, () => ({ openAdd }))
+
+  const FIELDS = [
+    { key: 'status', label: 'Status', type: 'multi',
+      opts: [...new Set(leads.map(l => l.leadStatus).filter(Boolean))].sort() },
+    { key: 'source', label: 'Source', type: 'multi',
+      opts: [...new Set(leads.map(l => l.leadSource).filter(Boolean))].sort() },
+    { key: 'volume', label: 'Order Volume', type: 'multi',
+      opts: [...new Set(leads.map(l => l.orderVolume).filter(Boolean))].sort() },
+    ...(showOwnerFilter ? [{ key: 'owner', label: 'Assigned To', type: 'multi',
+      opts: [...new Set(leads.map(l => l.ownerName).filter(Boolean))].sort() }] : []),
+    { key: 'utm', label: 'UTM Source', type: 'multi',
+      opts: [...new Set(leads.map(l => l.utmSource).filter(Boolean))].sort() },
+    { key: 'createdAt', label: 'Date Created', type: 'date' },
+  ]
+
+  const fieldDef = key => FIELDS.find(f => f.key === key)
+
+  const openAdd = () => {
+    setDraft({ field: null, op: 'is', values: [], preset: null, from: '', to: '' })
+    setStep('field')
+    setOpen({ mode: 'add' })
+  }
+
+  const openEdit = filter => {
+    setDraft({ ...filter })
+    setStep('value')
+    setOpen({ mode: 'edit', id: filter.id })
+  }
+
+  const applyDraft = () => {
+    if (!draft?.field) return
+    if (open.mode === 'add') {
+      onChange([...filters, { ...draft, id: String(Date.now()) }])
+    } else {
+      onChange(filters.map(f => f.id === open.id ? { ...draft, id: open.id } : f))
+    }
+    close()
+  }
+
+  const toggleValue = val => setDraft(d => ({
+    ...d,
+    values: d.values.includes(val) ? d.values.filter(v => v !== val) : [...d.values, val],
+  }))
+
+  const activeDef = draft?.field ? fieldDef(draft.field) : null
+  const canApply = draft?.field && (
+    activeDef?.type === 'date'
+      ? draft.preset && (draft.preset !== 'custom' || (draft.from || draft.to))
+      : draft.values.length > 0
+  )
+
+  return (
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+      {filters.map(f => (
+        <span key={f.id} style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <button
+            className={`filter-chip${open?.id === f.id ? ' filter-chip-active' : ''}`}
+            onClick={() => openEdit(f)}
+          >
+            {leadChipLabel(f)}
+          </button>
+          <button
+            className="filter-chip-remove"
+            onClick={e => { e.stopPropagation(); onChange(filters.filter(x => x.id !== f.id)) }}
+          >×</button>
+        </span>
+      ))}
+
+      {filters.length > 0 && (
+        <button className="filter-clear-btn" onClick={() => onChange([])}>Clear all</button>
+      )}
+
+      {open && (
+        <div ref={dropRef} className="filter-dropdown">
+          {step === 'field' ? (
+            <>
+              <div className="fdd-title">Filter by</div>
+              {FIELDS.map(f => (
+                <button key={f.key} className="fdd-field-opt" onClick={() => {
+                  setDraft(d => ({ ...d, field: f.key, values: [], preset: null, from: '', to: '' }))
+                  setStep('value')
+                }}>
+                  {f.label}
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              <div className="fdd-header">
+                {open.mode === 'add' && (
+                  <button className="fdd-back" onClick={() => setStep('field')}>← Back</button>
+                )}
+                <span className="fdd-title" style={{ padding: 0 }}>{activeDef?.label}</span>
+              </div>
+
+              <div className="fdd-op-row">
+                {['is', 'is not'].map(op => (
+                  <button
+                    key={op}
+                    className={`fdd-op${draft.op === op ? ' active' : ''}`}
+                    onClick={() => setDraft(d => ({ ...d, op }))}
+                  >{op}</button>
+                ))}
+              </div>
+
+              {activeDef?.type === 'multi' && (
+                <div className="fdd-opts">
+                  {activeDef.opts.map(opt => (
+                    <label key={opt} className="fdd-opt-row">
+                      <input
+                        type="checkbox"
+                        checked={draft.values.includes(opt)}
+                        onChange={() => toggleValue(opt)}
+                      />
+                      <span>{opt}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {activeDef?.type === 'date' && (
+                <div className="fdd-date">
+                  <div className="fdd-presets">
+                    {[
+                      { label: 'Today', value: 'today' },
+                      { label: 'This week', value: 'week' },
+                      { label: 'This month', value: 'month' },
+                      { label: 'Custom range', value: 'custom' },
+                    ].map(p => (
+                      <button
+                        key={p.value}
+                        className={`fdd-preset${draft.preset === p.value ? ' active' : ''}`}
+                        onClick={() => setDraft(d => ({ ...d, preset: p.value, from: '', to: '' }))}
+                      >{p.label}</button>
+                    ))}
+                  </div>
+                  {draft.preset === 'custom' && (
+                    <div className="fdd-date-inputs">
+                      <input type="date" value={draft.from || ''}
+                        onChange={e => setDraft(d => ({ ...d, from: e.target.value }))} />
+                      <span style={{ color: 'var(--ink-3)' }}>–</span>
+                      <input type="date" value={draft.to || ''}
+                        onChange={e => setDraft(d => ({ ...d, to: e.target.value }))} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="fdd-footer">
+                <button
+                  className="btn btn-sm"
+                  style={{ background: 'var(--brand)', color: '#fff', borderColor: 'var(--brand)' }}
+                  onClick={applyDraft}
+                  disabled={!canApply}
+                >Apply</button>
+                <button className="btn btn-sm" onClick={close}>Cancel</button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+})
+
+// ── Lead Inbox page ───────────────────────────────────────
 export default function LeadInbox() {
   const { role, user } = useAuth()
   const { leads, loading, error, refetch } = useLeads()
   const navigate = useNavigate()
 
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [sourceFilter, setSourceFilter] = useState('all')
-  const [volumeFilter, setVolumeFilter] = useState('all')
-  const [ownerFilter, setOwnerFilter] = useState('all')
-  const [utmFilter, setUtmFilter] = useState('all')
-  const [dateFilter, setDateFilter] = useState('all')
-  const [customFrom, setCustomFrom] = useState('')
-  const [customTo, setCustomTo] = useState('')
+  const [activeFilters, setActiveFilters] = useState([])
   const [page, setPage] = useState(1)
+  const filterBarRef = useRef(null)
 
   const scopedLeads = useMemo(() => {
     if (role === ROLES.MDE || role === ROLES.AE) return leads.filter(l => l.ownerEmail === user?.email)
@@ -55,25 +285,9 @@ export default function LeadInbox() {
     return leads
   }, [leads, role, user])
 
-  const uniqueOwners = useMemo(() => {
-    const names = [...new Set(scopedLeads.map(l => l.ownerName).filter(Boolean))].sort()
-    return names
-  }, [scopedLeads])
-
-  const uniqueUtms = useMemo(() => {
-    const utms = [...new Set(scopedLeads.map(l => l.utmSource).filter(Boolean))].sort()
-    return utms
-  }, [scopedLeads])
-
-  const statusOptions = useMemo(() =>
-    [...new Set(scopedLeads.map(l => l.leadStatus).filter(Boolean))].sort()
-  , [scopedLeads])
-
-  const sourceOptions = useMemo(() =>
-    [...new Set(scopedLeads.map(l => l.leadSource).filter(Boolean))].sort()
-  , [scopedLeads])
-
-  const showOwnerFilter = role === ROLES.ADMIN || role === ROLES.SALES_LEAD_MIDMARKET || role === ROLES.SALES_LEAD_ENTERPRISE
+  const showOwnerFilter = role === ROLES.ADMIN ||
+    role === ROLES.SALES_LEAD_MIDMARKET ||
+    role === ROLES.SALES_LEAD_ENTERPRISE
 
   const filteredLeads = useMemo(() => {
     let result = scopedLeads
@@ -93,62 +307,14 @@ export default function LeadInbox() {
       )
     }
 
-    if (statusFilter !== 'all') {
-      result = result.filter(l => (l.leadStatus || '') === statusFilter)
-    }
-
-    if (sourceFilter !== 'all') {
-      result = result.filter(l => (l.leadSource || '') === sourceFilter)
-    }
-
-    if (volumeFilter !== 'all') {
-      result = result.filter(l => (l.orderVolume || '') === volumeFilter)
-    }
-
-    if (ownerFilter !== 'all') {
-      result = result.filter(l => (l.ownerName || '') === ownerFilter)
-    }
-
-    if (utmFilter !== 'all') {
-      result = result.filter(l => (l.utmSource || '') === utmFilter)
-    }
-
-    if (dateFilter !== 'all' && dateFilter !== 'custom') {
-      const now = new Date()
-      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      const startOfWeek = new Date(startOfDay)
-      startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay())
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-
-      result = result.filter(l => {
-        if (!l.createdAt) return false
-        const d = new Date(l.createdAt)
-        if (dateFilter === 'today') return d >= startOfDay
-        if (dateFilter === 'week') return d >= startOfWeek
-        if (dateFilter === 'month') return d >= startOfMonth
-        return true
-      })
-    }
-
-    if (dateFilter === 'custom') {
-      result = result.filter(l => {
-        if (!l.createdAt) return false
-        const d = new Date(l.createdAt)
-        if (customFrom && d < new Date(customFrom)) return false
-        if (customTo) {
-          const toEnd = new Date(customTo)
-          toEnd.setHours(23, 59, 59, 999)
-          if (d > toEnd) return false
-        }
-        return true
-      })
+    if (activeFilters.length > 0) {
+      result = result.filter(l => matchLeadFilters(l, activeFilters))
     }
 
     return result
-  }, [scopedLeads, search, statusFilter, sourceFilter, volumeFilter, ownerFilter, utmFilter, dateFilter, customFrom, customTo])
+  }, [scopedLeads, search, activeFilters])
 
-  // Reset to page 1 whenever filters change
-  useEffect(() => { setPage(1) }, [search, statusFilter, sourceFilter, volumeFilter, ownerFilter, utmFilter, dateFilter, customFrom, customTo])
+  useEffect(() => { setPage(1) }, [search, activeFilters])
 
   const totalLeads = filteredLeads.length
   const totalPages = Math.max(1, Math.ceil(totalLeads / PAGE_SIZE))
@@ -162,21 +328,6 @@ export default function LeadInbox() {
   const leadsToday = scopedLeads.filter(l => l.createdAt?.startsWith(todayStr))
   const sameDayDue = leadsToday.filter(l => l.leadStatus === 'New')
   const slaBreached = isPast6pm ? sameDayDue.length : 0
-
-  const hasActiveFilters = statusFilter !== 'all' || sourceFilter !== 'all' || volumeFilter !== 'all' ||
-    ownerFilter !== 'all' || utmFilter !== 'all' || dateFilter !== 'all' || search.trim()
-
-  function clearAllFilters() {
-    setSearch('')
-    setStatusFilter('all')
-    setSourceFilter('all')
-    setVolumeFilter('all')
-    setOwnerFilter('all')
-    setUtmFilter('all')
-    setDateFilter('all')
-    setCustomFrom('')
-    setCustomTo('')
-  }
 
   if (loading) return <div className="main"><Loading text="Fetching leads from Zoho CRM…" /></div>
   if (error) return (
@@ -200,102 +351,28 @@ export default function LeadInbox() {
         <StatTile label="SAME-DAY DUE" value={sameDayDue.length} sub="still in New status" warn={sameDayDue.length > 0} />
       </div>
 
-      {/* Search */}
-      <div style={{ marginBottom: 10 }}>
+      <div className="pipeline-searchbar">
+        <button className="pipeline-filter-trigger" onClick={() => filterBarRef.current?.openAdd()}>
+          🔍 + Add filter
+        </button>
         <input
-          className="search-input"
-          style={{ width: '100%', maxWidth: 480 }}
+          className="pipeline-searchbar-input"
           placeholder="Search by brand, contact, email, rep, source, volume..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
       </div>
 
-      {/* Filter bar */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <select style={dropdownStyle} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-          <option value="all">All Status</option>
-          {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-
-        <select style={dropdownStyle} value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}>
-          <option value="all">All Source</option>
-          {sourceOptions.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-
-        <select style={dropdownStyle} value={volumeFilter} onChange={e => setVolumeFilter(e.target.value)}>
-          <option value="all">All Volume</option>
-          <option value="1 - 500 orders/month">1 – 500 orders/month</option>
-          <option value="501 - 2,000 orders/month">501 – 2,000 orders/month</option>
-          <option value="3,001 - 10,000 orders/month">3,001 – 10,000 orders/month</option>
-          <option value="10,000+ orders/month">10,000+ orders/month</option>
-        </select>
-
-        {showOwnerFilter && (
-          <select style={dropdownStyle} value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)}>
-            <option value="all">All Reps</option>
-            {uniqueOwners.map(name => <option key={name} value={name}>{name}</option>)}
-          </select>
-        )}
-
-        <select style={dropdownStyle} value={utmFilter} onChange={e => setUtmFilter(e.target.value)}>
-          <option value="all">All UTM</option>
-          {uniqueUtms.map(utm => <option key={utm} value={utm}>{utm}</option>)}
-        </select>
-
-        <select style={dropdownStyle} value={dateFilter} onChange={e => setDateFilter(e.target.value)}>
-          <option value="all">All time</option>
-          <option value="today">Today</option>
-          <option value="week">This week</option>
-          <option value="month">This month</option>
-          <option value="custom">Custom range</option>
-        </select>
-
-        {hasActiveFilters && (
-          <button
-            onClick={clearAllFilters}
-            style={{ height: 34, padding: '0 12px', fontSize: 13, background: 'none',
-                     border: '1px solid var(--border)', borderRadius: 6, color: 'var(--brand)',
-                     cursor: 'pointer', fontWeight: 600 }}
-          >
-            Clear all
-          </button>
-        )}
+      <div style={{ flexShrink: 0 }}>
+        <LeadFilterBar
+          ref={filterBarRef}
+          filters={activeFilters}
+          onChange={setActiveFilters}
+          leads={scopedLeads}
+          showOwnerFilter={showOwnerFilter}
+        />
       </div>
 
-      {/* Custom date range */}
-      {dateFilter === 'custom' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>From</span>
-          <input
-            type="date"
-            className="input"
-            style={{ padding: '4px 8px', fontSize: 12, width: 'auto' }}
-            value={customFrom}
-            onChange={e => setCustomFrom(e.target.value)}
-          />
-          <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>To</span>
-          <input
-            type="date"
-            className="input"
-            style={{ padding: '4px 8px', fontSize: 12, width: 'auto' }}
-            value={customTo}
-            max={new Date().toISOString().split('T')[0]}
-            onChange={e => setCustomTo(e.target.value)}
-          />
-          {(customFrom || customTo) && (
-            <button
-              onClick={() => { setCustomFrom(''); setCustomTo('') }}
-              style={{ background: 'none', border: 'none', color: 'var(--brand)',
-                       cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
-            >
-              Clear
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Count line */}
       <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 8 }}>
         {totalLeads === 0
           ? 'No leads found'
@@ -387,7 +464,6 @@ export default function LeadInbox() {
         </table>
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 16 }}>
           <button
