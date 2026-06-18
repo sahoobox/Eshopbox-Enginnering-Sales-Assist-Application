@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Loading } from '../../components/ui'
+import { UserCheck } from 'lucide-react'
 
 export default function LeadDetail() {
   const { leadId } = useParams()
   const navigate = useNavigate()
-  const { authFetch, user } = useAuth()
+  const { authFetch, user, isAdmin, isSalesLead } = useAuth()
 
   const [lead, setLead] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -23,6 +24,7 @@ export default function LeadDetail() {
   const [logNotes, setLogNotes] = useState('')
   const [logSaving, setLogSaving] = useState(false)
   const [dedup, setDedup] = useState(null)
+  const [showReassign, setShowReassign] = useState(false)
 
   useEffect(() => {
     authFetch(`/api/leads/${leadId}`)
@@ -181,6 +183,9 @@ export default function LeadDetail() {
           </div>
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
             <button className="btn btn-sm" onClick={() => setShowLogCall(true)}>Log call</button>
+            {(isAdmin || isSalesLead) && (
+              <button className="btn btn-sm" onClick={() => setShowReassign(true)}>Reassign</button>
+            )}
             <button className="btn btn-sm btn-danger" onClick={() => setShowDisqualify(true)} disabled={disqualifying}>
               {disqualifying ? 'Disqualifying…' : 'Disqualify'}
             </button>
@@ -449,6 +454,89 @@ export default function LeadDetail() {
           </div>
         </div>
       )}
+      {showReassign && (
+        <ReassignLeadModal
+          lead={lead}
+          onClose={() => setShowReassign(false)}
+          onSuccess={() => {
+            setShowReassign(false)
+            authFetch(`/api/leads/${leadId}`).then(r => r.json()).then(setLead)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function ReassignLeadModal({ lead, onClose, onSuccess }) {
+  const { authFetch } = useAuth()
+  const [users, setUsers] = useState([])
+  const [loadingUsers, setLoadingUsers] = useState(true)
+  const [selectedEmail, setSelectedEmail] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    authFetch('/api/team/assignable-users')
+      .then(r => r.json())
+      .then(d => setUsers(d.users || []))
+      .catch(() => setUsers([]))
+      .finally(() => setLoadingUsers(false))
+  }, [])
+
+  const currentOwnerEmail = lead.ownerEmail || lead.owner?.email || ''
+  const options = users.filter(u => u.email !== currentOwnerEmail)
+  const selected = options.find(u => u.email === selectedEmail)
+
+  async function submit() {
+    if (!selected) return
+    setSaving(true)
+    try {
+      const res = await authFetch(`/api/leads/${lead.id}/reassign`, {
+        method: 'PATCH',
+        body: JSON.stringify({ newOwnerEmail: selected.email, newOwnerName: selected.name })
+      })
+      const data = await res.json()
+      if (data.success) onSuccess()
+      else alert(data.error || 'Failed to reassign lead')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3>Reassign Lead</h3>
+          <button className="btn-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>
+            Assign to
+          </label>
+          {loadingUsers ? (
+            <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Loading team members…</div>
+          ) : (
+            <select
+              value={selectedEmail}
+              onChange={e => setSelectedEmail(e.target.value)}
+              className="input"
+              style={{ width: '100%' }}
+            >
+              <option value="">Select a team member…</option>
+              {options.map(u => (
+                <option key={u.email} value={u.email}>
+                  {u.name} ({u.role})
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+        <div className="modal-foot">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving || !selectedEmail}>
+            {saving ? 'Reassigning…' : 'Reassign'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
