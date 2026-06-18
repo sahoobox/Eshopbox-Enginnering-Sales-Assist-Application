@@ -1567,13 +1567,39 @@ app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
 
     const d1Mapped = (d1Events.results || []).map(e => ({ ...e, source: 'salesassist' }))
 
+    const d1Fingerprints = new Set(
+      d1Mapped.map(e => `${e.event_type}_${(e.created_at || '').slice(0, 16)}`)
+    )
+
+    const zohoToD1Type = {
+      'task_created':      ['task_created'],
+      'task_completed':    ['task_completed'],
+      'call_logged':       ['call_logged'],
+      'call_scheduled':    ['call_scheduled'],
+      'call_completed':    ['call_completed'],
+      'meeting_created':   ['meeting_created'],
+      'meeting_completed': ['meeting_completed'],
+      'note_added':        ['note_added'],
+    }
+
+    function isZohoDuplicate(zohoEvent) {
+      const minute = (zohoEvent.created_at || '').slice(0, 16)
+      const d1Types = zohoToD1Type[zohoEvent.event_type] || []
+      return d1Types.some(t => d1Fingerprints.has(`${t}_${minute}`))
+    }
+
+    const dedupedTaskEvents    = taskEvents.filter(e => !isZohoDuplicate(e))
+    const dedupedCallEvents    = callEvents.filter(e => !isZohoDuplicate(e))
+    const dedupedMeetingEvents = meetingEvents.filter(e => !isZohoDuplicate(e))
+    const dedupedNotesEvents   = notesEvents.filter(e => !isZohoDuplicate(e))
+
     const merged = [
       ...d1Mapped,
       ...zohoEvents,
-      ...notesEvents,
-      ...callEvents,
-      ...meetingEvents,
-      ...taskEvents,
+      ...dedupedTaskEvents,
+      ...dedupedCallEvents,
+      ...dedupedMeetingEvents,
+      ...dedupedNotesEvents,
       dealCreatedEvent
     ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
