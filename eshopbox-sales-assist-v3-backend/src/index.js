@@ -1436,7 +1436,8 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
 app.post('/api/deals/:id/stage', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id')
-    const { stage } = await c.req.json()
+    const user = c.get('user')
+    const { stage, reason } = await c.req.json()
     const VALID_STAGES = [
       'Upcoming Demo', 'Demo Done', 'Proposal Sent',
       'Account Setup in Progress', 'Awaiting First Shipment',
@@ -1449,6 +1450,30 @@ app.post('/api/deals/:id/stage', requireAuth, async (c) => {
     }
     await updateDeal(c.env, dealId, { Stage: stage })
     await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+    if (stage === 'Lost/Dropped') {
+      await logTimelineEvent(c.env, dealId, {
+        eventType: 'mark_lost',
+        description: `Deal marked as Lost — ${reason || 'No reason'}`,
+        actorName: user?.name || '',
+        actorEmail: user?.email || '',
+        metadata: { reason }
+      })
+    } else if (stage === 'On Hold') {
+      await logTimelineEvent(c.env, dealId, {
+        eventType: 'mark_on_hold',
+        description: 'Deal marked as On Hold',
+        actorName: user?.name || '',
+        actorEmail: user?.email || '',
+      })
+    } else {
+      await logTimelineEvent(c.env, dealId, {
+        eventType: 'stage_changed',
+        description: `Stage moved to ${stage}`,
+        actorName: user?.name || '',
+        actorEmail: user?.email || '',
+        metadata: { to: stage }
+      })
+    }
     return c.json({ success: true, stage })
   } catch (err) {
     return c.json({ error: err.message }, 500)
