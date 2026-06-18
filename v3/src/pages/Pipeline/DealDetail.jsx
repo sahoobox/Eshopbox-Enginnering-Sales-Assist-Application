@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useDeal } from '../../hooks/useDeals'
 import { useAuth } from '../../context/AuthContext'
 import { Loading, Empty, Pill } from '../../components/ui'
-import { SME_STAGES, ENT_STAGES, getStagePill, stageColor, initials, formatDate, daysAgo } from '../../lib/stageConfig'
+import { MID_MARKET_STAGES, ENT_STAGES, getStagePill, stageColor, initials, formatDate, daysAgo } from '../../lib/stageConfig'
 import { TaskModal } from '../Tasks'
 
 function formatDateTime(dt) {
@@ -43,7 +43,7 @@ export default function DealDetail({ dealId }) {
   )
 
   console.log('Stage tracker debug:', { dealName: deal.dealName, pipeline: deal.pipeline, stage: deal.stage, match: deal.pipeline === 'Enterprise 2.0' })
-  const stages = deal.pipeline === 'Enterprise 2.0' ? ENT_STAGES : SME_STAGES
+  const stages = deal.pipeline === 'Enterprise 2.0' ? ENT_STAGES : MID_MARKET_STAGES
   const currentIdx = stages.indexOf(deal.stage)
   const isTerminal = deal.pipeline === 'Enterprise 2.0'
     ? ['Won/Payment Received', 'Lost/Dropped', 'On Hold'].includes(deal.stage)

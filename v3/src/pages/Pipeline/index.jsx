@@ -6,7 +6,7 @@ import { Topbar, Loading, Empty, ToggleGroup, Pill } from '../../components/ui'
 import DealCard from '../../components/ui/DealCard'
 import DealDetail from './DealDetail'
 import {
-  ALL_PIPELINE_STAGES, SME_STAGES, ENT_STAGES, getStagePill, stageColor, initials, formatDate, daysAgo
+  ALL_PIPELINE_STAGES, MID_MARKET_STAGES, ENT_STAGES, getStagePill, stageColor, initials, formatDate, daysAgo
 } from '../../lib/stageConfig'
 
 const AE_EMAILS = [
@@ -102,7 +102,7 @@ function PipelineList() {
   const wonStage = isEnterprise ? 'Won/Payment Received' : 'Active'
 
   const currentStages = useMemo(() =>
-    isMDE ? SME_STAGES : isAE ? ENT_STAGES : pipelineFilter === 'enterprise' ? ENT_STAGES : SME_STAGES
+    isMDE ? MID_MARKET_STAGES : isAE ? ENT_STAGES : pipelineFilter === 'enterprise' ? ENT_STAGES : MID_MARKET_STAGES
   , [isMDE, isAE, pipelineFilter])
 
   const scopedDeals = useMemo(() => {
@@ -681,10 +681,10 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
 // ── Kanban view ───────────────────────────────────────────
 function KanbanView({ deals, pipelineFilter }) {
   const { isMDE, isAE } = useAuth()
-  const stages = isMDE ? SME_STAGES
+  const stages = isMDE ? MID_MARKET_STAGES
     : isAE ? ENT_STAGES
     : pipelineFilter === 'enterprise' ? ENT_STAGES
-    : SME_STAGES
+    : MID_MARKET_STAGES
 
   return (
     <div className="kanban-wrap" style={{ overflowX: 'auto' }}>

@@ -3,7 +3,7 @@ import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
 import { useLeads } from '../../hooks/useLeads'
 import { Topbar, Loading } from '../../components/ui'
-import { SME_STAGES, ENT_STAGES, daysAgo } from '../../lib/stageConfig'
+import { MID_MARKET_STAGES, ENT_STAGES, daysAgo } from '../../lib/stageConfig'
 import { useState } from 'react'
 
 const TERMINAL_STAGES = ['Won/Payment Received', 'Lost/Dropped', 'On Hold']
@@ -43,7 +43,7 @@ export default function Reports() {
   }, [leads])
 
   // Stage funnel
-  const stageList = (role === ROLES.SALES_LEAD_ENTERPRISE || pipelineFilter === 'enterprise') ? ENT_STAGES : SME_STAGES
+  const stageList = (role === ROLES.SALES_LEAD_ENTERPRISE || pipelineFilter === 'enterprise') ? ENT_STAGES : MID_MARKET_STAGES
   const stageData = stageList.map(s => ({ stage: s, count: filteredDeals.filter(d => d.stage === s).length }))
   const maxStage = Math.max(...stageData.map(s => s.count), 1)
 

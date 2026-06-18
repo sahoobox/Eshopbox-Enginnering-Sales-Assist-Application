@@ -3,10 +3,10 @@ import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
 import { useLeads } from '../../hooks/useLeads'
 import { Topbar, Loading } from '../../components/ui'
-import { SME_STAGES, ENT_STAGES, getStagePill, daysAgo } from '../../lib/stageConfig'
+import { MID_MARKET_STAGES, ENT_STAGES, getStagePill, daysAgo } from '../../lib/stageConfig'
 
 const TERMINAL_STAGES = ['Won/Payment Received', 'Lost/Dropped', 'On Hold']
-const COMBINED_STAGES = [...new Set([...SME_STAGES, ...ENT_STAGES])]
+const COMBINED_STAGES = [...new Set([...MID_MARKET_STAGES, ...ENT_STAGES])]
 
 export default function Performance() {
   const { role, user, isMDE, isAE, isAdmin, isSalesLead } = useAuth()
@@ -59,7 +59,7 @@ export default function Performance() {
 
   // Stage bar chart
   const stageList = isMDE || role === ROLES.SALES_LEAD_MIDMARKET || pipelineFilter === 'midmarket'
-    ? SME_STAGES
+    ? MID_MARKET_STAGES
     : isAE || role === ROLES.SALES_LEAD_ENTERPRISE || pipelineFilter === 'enterprise'
     ? ENT_STAGES
     : COMBINED_STAGES

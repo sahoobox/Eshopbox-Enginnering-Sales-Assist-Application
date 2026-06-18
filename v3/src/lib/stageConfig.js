@@ -1,6 +1,6 @@
 // Stage definitions matching the existing backend Zoho stages
 
-export const SME_STAGES = [
+export const MID_MARKET_STAGES = [
   'Upcoming Demo',
   'Demo Done',
   'Proposal Sent',
@@ -11,6 +11,8 @@ export const SME_STAGES = [
   'On Hold',
   'Lost/Dropped',
 ]
+
+export const SME_STAGES = MID_MARKET_STAGES // alias for safety
 
 export const ENT_STAGES = [
   'Upcoming Demo',
