@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { ArrowRight, Mail, FileText, Send, ClipboardList, StickyNote, Phone, Calendar, CheckSquare, XCircle, PauseCircle, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useDeal } from '../../hooks/useDeals'
 import { useAuth } from '../../context/AuthContext'
@@ -292,7 +293,7 @@ export default function DealDetail({ dealId }) {
             ))}
           </div>
 
-          {tab === 'activity' && <TimelineTab deal={deal} />}
+          {tab === 'activity' && <TimelineTab dealId={deal.id} />}
           {tab === 'tasks' && <ActivitiesTab dealId={deal.id} deal={deal} onRefresh={refetchDeal} />}
           {tab === 'flags' && <FlagsTab deal={deal} />}
           {tab === 'demo' && <DemoInfoTab deal={deal} />}
@@ -352,10 +353,92 @@ export default function DealDetail({ dealId }) {
 
 // ── Tab components ─────────────────────────────────────────
 
-function TimelineTab({ deal }) {
+function TimelineTab({ dealId }) {
+  const { authFetch } = useAuth()
+  const [events, setEvents] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    authFetch(`/api/deals/${dealId}/timeline`)
+      .then(r => r.json())
+      .then(d => setEvents(d.timeline || []))
+      .finally(() => setLoading(false))
+  }, [dealId])
+
+  const iconMap = {
+    stage_changed:       <ArrowRight size={14} />,
+    stage_changed_zoho:  <ArrowRight size={14} />,
+    emails_generated:    <Mail size={14} />,
+    gmail_draft_created: <FileText size={14} />,
+    email_sent:          <Send size={14} />,
+    demo_logged:         <ClipboardList size={14} />,
+    note_added:          <StickyNote size={14} />,
+    call_logged:         <Phone size={14} />,
+    call_scheduled:      <Phone size={14} />,
+    meeting_created:     <Calendar size={14} />,
+    task_created:        <CheckSquare size={14} />,
+    mark_lost:           <XCircle size={14} />,
+    mark_on_hold:        <PauseCircle size={14} />,
+  }
+
+  const colorMap = {
+    stage_changed:       '#3B5BDB',
+    stage_changed_zoho:  '#7C3AED',
+    emails_generated:    '#0EA5E9',
+    gmail_draft_created: '#0EA5E9',
+    email_sent:          '#2F9E44',
+    demo_logged:         '#F59E0B',
+    note_added:          '#6B7280',
+    call_logged:         '#C2255C',
+    call_scheduled:      '#C2255C',
+    meeting_created:     '#2F9E44',
+    task_created:        '#3B5BDB',
+    mark_lost:           '#E5484D',
+    mark_on_hold:        '#F59E0B',
+  }
+
+  if (loading) return (
+    <div style={{ padding: 24, color: 'var(--ink-3)', fontSize: 13 }}>Loading timeline...</div>
+  )
+
+  if (events.length === 0) return (
+    <div style={{ padding: 24, color: 'var(--ink-3)', fontSize: 13 }}>No timeline events yet.</div>
+  )
+
   return (
-    <div style={{ padding: 24, textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>
-      Timeline coming soon — will show all deal activity in chronological order.
+    <div style={{ padding: '4px 0' }}>
+      {events.map((event, i) => {
+        const color = colorMap[event.event_type] || '#6B7280'
+        const icon = iconMap[event.event_type] || <RefreshCw size={14} />
+        const meta = (() => { try { return JSON.parse(event.metadata || '{}') } catch { return {} } })()
+
+        return (
+          <div key={event.id || i} style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--line)' }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: color + '18', color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+              {icon}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-1)', marginBottom: 2 }}>
+                {event.description}
+              </div>
+              {event.actor_name && (
+                <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                  {event.actor_name}
+                  {event.source === 'zoho' && (
+                    <span style={{ marginLeft: 6, fontSize: 10, background: '#EEF2FF', color: '#4F46E5', padding: '1px 6px', borderRadius: 10, fontWeight: 600 }}>Zoho CRM</span>
+                  )}
+                  {event.source === 'salesassist' && (
+                    <span style={{ marginLeft: 6, fontSize: 10, background: '#F0FFF4', color: '#2F9E44', padding: '1px 6px', borderRadius: 10, fontWeight: 600 }}>Sales Assist</span>
+                  )}
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
+                {new Date(event.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
