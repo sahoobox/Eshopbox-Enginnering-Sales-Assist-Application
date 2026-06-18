@@ -8,16 +8,18 @@ export const SME_STAGES = [
   'Awaiting First Shipment',
   'First Shipment Done',
   'Active',
+  'On Hold',
+  'Lost/Dropped',
 ]
 
 export const ENT_STAGES = [
   'Upcoming Demo',
-  'Follow up Meeting Done',
   'Demo Done',
   'Proposal Sent',
-  'Negotiations',
-  'Contract Sent',
+  'Follow up Meeting Done',
+  'On Hold',
   'Won/Payment Received',
+  'Lost/Dropped',
 ]
 
 export const TERMINAL_STAGES = ['Won/Payment Received', 'Lost/Dropped']
