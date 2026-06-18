@@ -203,7 +203,6 @@ async function getAEEmails(db) {
 }
 
 function mapZohoDeal(d) {
-  console.log('Raw d.Pipeline type:', typeof d.Pipeline, 'value:', JSON.stringify(d.Pipeline))
   return {
     id: d.id,
     dealName: d.Deal_Name,
@@ -1459,33 +1458,29 @@ app.post('/api/deals/:id/stage', requireAuth, async (c) => {
 app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
   const dealId = c.req.param('id')
   try {
-    const [d1Events, dealRes, stageHistory, stageMetaRes, notesRes, callsRes, meetingsRes, tasksRes] = await Promise.all([
+    const [d1Events, dealRes, stageHistory, notesRes, callsRes, meetingsRes, tasksRes] = await Promise.all([
       c.env.DB.prepare('SELECT * FROM deal_timeline WHERE deal_id = ? ORDER BY created_at DESC').bind(dealId).all(),
       getDeal(c.env, dealId),
-      zohoAPI(c.env, 'GET', `/Deals/${dealId}/Stage_History?fields=Stage,Last_Modified_Time,modified_by,probability,id`),
-      zohoAPI(c.env, 'GET', '/settings/fields?module=Deals'),
+      fetch(
+        `https://www.zohoapis.com/crm/v2.1/Deals/${dealId}/Stage_History`,
+        { headers: { Authorization: `Zoho-oauthtoken ${await getAccessToken(c.env)}` } }
+      ).then(r => r.ok ? r.json() : null),
       getDealNotes(c.env, dealId),
       getDealCalls(c.env, dealId),
       getDealMeetings(c.env, dealId),
       getDealTasks(c.env, dealId),
     ])
 
-    const stageMap = {}
-    if (stageMetaRes?.fields) {
-      const stageField = stageMetaRes.fields.find(f => f.api_name === 'Stage')
-      if (stageField?.pick_list_values) {
-        stageField.pick_list_values.forEach(v => { stageMap[v.id] = v.display_value })
-      }
-    }
-
     const zohoEvents = (stageHistory?.data || []).map(s => ({
       id: s.id,
       event_type: 'stage_changed_zoho',
-      description: `Stage changed to ${stageMap[s.Stage] || 'Unknown stage'}`,
-      actor_name: s.modified_by?.name || 'Zoho CRM',
-      actor_email: s.modified_by?.email || '',
-      metadata: JSON.stringify({ probability: s.probability }),
-      created_at: s.Last_Modified_Time,
+      description: s.Moved_To__s
+        ? `Stage: ${s.Stage} → ${s.Moved_To__s}`
+        : `Stage changed to ${s.Stage}`,
+      actor_name: s.Modified_By?.name || 'Zoho CRM',
+      actor_email: s.Modified_By?.email || '',
+      metadata: JSON.stringify({ stage: s.Stage, movedTo: s.Moved_To__s, probability: s.Probability }),
+      created_at: s.Modified_Time,
       source: 'zoho'
     }))
 
