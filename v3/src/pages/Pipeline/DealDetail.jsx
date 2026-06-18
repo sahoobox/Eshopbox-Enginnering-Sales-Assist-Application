@@ -1378,13 +1378,22 @@ function MarkLostModal({ deal, onClose, onSuccess }) {
           <div style={{ marginBottom: 12 }}>
             <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>Loss Reason *</label>
             <select value={reason} onChange={e => setReason(e.target.value)} className="input" style={{ width: '100%' }}>
-              <option value="">Select reason…</option>
-              <option>No business/requirement</option>
-              <option>Price too high</option>
-              <option>Chose competitor</option>
-              <option>No response</option>
-              <option>Low order volume</option>
-              <option>Other</option>
+              <option value="">Select a reason...</option>
+              <option value="B2B Dealings only">B2B Dealings only</option>
+              <option value="Business model Misaligned">Business model Misaligned</option>
+              <option value="Chose competitor">Chose competitor</option>
+              <option value="Could not connect/Couldn't reach decision maker">Could not connect/Couldn't reach decision maker</option>
+              <option value="Duplicate opportunity">Duplicate opportunity</option>
+              <option value="Duplicate or Existing account">Duplicate or Existing account</option>
+              <option value="Franchise Requirement">Franchise Requirement</option>
+              <option value="No business/requirement">No business/requirement</option>
+              <option value="Not shipping yet / too early">Not shipping yet / too early</option>
+              <option value="Others (Mandatory Notes Required)">Others (Mandatory Notes Required)</option>
+              <option value="Out of serviceable region">Out of serviceable region</option>
+              <option value="Pricing — too expensive">Pricing — too expensive</option>
+              <option value="Project cancelled">Project cancelled</option>
+              <option value="Renewed with existing vendor">Renewed with existing vendor</option>
+              <option value="Timeline misalignment">Timeline misalignment</option>
             </select>
           </div>
         </div>
