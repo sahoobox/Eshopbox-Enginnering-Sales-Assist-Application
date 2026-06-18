@@ -415,6 +415,7 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [localCompleted, setLocalCompleted] = useState(new Set())
+  const [confirmModal, setConfirmModal] = useState(null)
   const [showDropdown, setShowDropdown] = useState(false)
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [showMeetingModal, setShowMeetingModal] = useState(false)
@@ -444,14 +445,17 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
 
   async function toggleTask(taskId, isComplete) {
     if (!isComplete) {
-      const confirmed = window.confirm('Mark as completed? This action cannot be undone.')
-      if (!confirmed) return
+      setConfirmModal({
+        onConfirm: async () => {
+          setConfirmModal(null)
+          await authFetch(`/api/tasks/${taskId}/complete`, { method: 'PATCH' })
+          setTasks(prev => prev.map(t => t.id === taskId ? { ...t, isComplete: true, status: 'Completed' } : t))
+        }
+      })
+      return
     }
-    await authFetch(`/api/tasks/${taskId}/${isComplete ? 'reopen' : 'complete'}`, { method: 'PATCH' })
-    setTasks(prev => prev.map(t => t.id === taskId
-      ? { ...t, isComplete: !isComplete, status: isComplete ? 'Not Started' : 'Completed' }
-      : t
-    ))
+    await authFetch(`/api/tasks/${taskId}/reopen`, { method: 'PATCH' })
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, isComplete: false, status: 'Not Started' } : t))
   }
 
   const meetings = deal?.meetings || []
@@ -475,20 +479,26 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
     <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--ink-3)', flexShrink: 0 }}>{label}</span>
   )
 
-  async function completeMeeting(meetingId) {
-    const confirmed = window.confirm('Mark as completed? This action cannot be undone.')
-    if (!confirmed) return
-    await authFetch(`/api/deals/${dealId}/meeting/${meetingId}/complete`, { method: 'PATCH' })
-    setLocalCompleted(prev => new Set([...prev, meetingId]))
-    onRefresh?.()
+  function completeMeeting(meetingId) {
+    setConfirmModal({
+      onConfirm: async () => {
+        setConfirmModal(null)
+        await authFetch(`/api/deals/${dealId}/meeting/${meetingId}/complete`, { method: 'PATCH' })
+        setLocalCompleted(prev => new Set([...prev, meetingId]))
+        onRefresh?.()
+      }
+    })
   }
 
-  async function completeCall(callId) {
-    const confirmed = window.confirm('Mark as completed? This action cannot be undone.')
-    if (!confirmed) return
-    await authFetch(`/api/deals/${dealId}/call/${callId}/complete`, { method: 'PATCH' })
-    setLocalCompleted(prev => new Set([...prev, callId]))
-    onRefresh?.()
+  function completeCall(callId) {
+    setConfirmModal({
+      onConfirm: async () => {
+        setConfirmModal(null)
+        await authFetch(`/api/deals/${dealId}/call/${callId}/complete`, { method: 'PATCH' })
+        setLocalCompleted(prev => new Set([...prev, callId]))
+        onRefresh?.()
+      }
+    })
   }
 
   if (loading) return <div className="card card-pad" style={{ color: 'var(--ink-3)' }}>Loading activities…</div>
@@ -650,6 +660,52 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
           onClose={() => setShowCallModal(false)}
           onSuccess={() => { setShowCallModal(false); onRefresh?.() }}
         />
+      )}
+
+      {confirmModal && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center',
+          justifyContent: 'center', zIndex: 1000
+        }}>
+          <div style={{
+            background: 'var(--surface)',
+            borderRadius: 'var(--radius-md)',
+            padding: '28px 32px',
+            maxWidth: 380, width: '100%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)'
+          }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-1)', marginBottom: 8 }}>
+              Mark as completed?
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 24 }}>
+              This action cannot be undone.
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmModal(null)}
+                style={{
+                  padding: '8px 18px', borderRadius: 8,
+                  border: '1.5px solid var(--line)',
+                  background: 'transparent', fontSize: 13,
+                  fontWeight: 600, cursor: 'pointer',
+                  color: 'var(--ink-2)', fontFamily: 'inherit'
+                }}>
+                Cancel
+              </button>
+              <button onClick={confirmModal.onConfirm}
+                style={{
+                  padding: '8px 18px', borderRadius: 8,
+                  border: 'none',
+                  background: 'var(--accent)', fontSize: 13,
+                  fontWeight: 700, cursor: 'pointer',
+                  color: 'white', fontFamily: 'inherit'
+                }}>
+                Yes, mark complete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )
