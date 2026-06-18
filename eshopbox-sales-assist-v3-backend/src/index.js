@@ -1430,6 +1430,18 @@ app.post('/api/deals/:id/notes', requireAuth, async (c) => {
     await c.env.DB.prepare(
       'INSERT INTO deal_notes (id, deal_id, content, author_email, author_name, created_at) VALUES (?, ?, ?, ?, ?, ?)'
     ).bind(id, dealId, content, user.email, user.name, now).run()
+    try {
+      await zohoAPI(c.env, 'POST', '/Notes', {
+        data: [{
+          Note_Title: 'Sales Assist Note',
+          Note_Content: content,
+          Parent_Id: dealId,
+          '$se_module': 'Deals'
+        }]
+      })
+    } catch (zohoErr) {
+      console.error('Zoho note sync failed (non-blocking):', zohoErr.message)
+    }
     return c.json({ success: true, note: { id, content, authorEmail: user.email, authorName: user.name, createdAt: now } })
   } catch (err) {
     return c.json({ error: err.message }, 500)
