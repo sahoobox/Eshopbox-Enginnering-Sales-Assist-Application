@@ -930,6 +930,7 @@ deal.activities = activities.map(a => ({
       from: m.Start_DateTime, to: m.End_DateTime, description: m.Description || '',
       status: m.Status || '', createdBy: m.Created_By?.name || '',
     }));
+    console.log('Call raw data:', calls.map(cl => ({ id: cl.id, Call_Status: cl.Call_Status, Outbound_Call_Status: cl.Outbound_Call_Status })))
     deal.calls = (callsRes?.data || []).map(cl => ({
       id: cl.id, subject: cl.Subject || '', purpose: cl.Call_Purpose || '',
       agenda: cl.Call_Agenda || '', result: cl.Call_Result || '',
