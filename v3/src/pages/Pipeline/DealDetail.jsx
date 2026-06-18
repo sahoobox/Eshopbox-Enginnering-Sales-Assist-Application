@@ -534,7 +534,7 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
               const isOverdue = t.dueDate && t.dueDate < todayStr && !item.done
               return (
                 <div key={item.id || idx} className="card card-pad"
-                  style={{ opacity: item.done ? 0.5 : 1, color: item.done ? 'var(--ink-3)' : 'inherit' }}
+                  style={{ opacity: item.done ? 0.75 : 1, color: item.done ? 'var(--ink-3)' : 'inherit' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                     <input type="checkbox" checked={item.done} onChange={() => toggleTask(t.id, item.done)}
@@ -560,7 +560,7 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
             if (item.type === 'Meeting') {
               const m = item._m
               return (
-                <div key={item.id || idx} className="card card-pad" style={{ opacity: item.done ? 0.5 : 1 }}>
+                <div key={item.id || idx} className="card card-pad" style={{ opacity: item.done ? 0.75 : 1 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                     <input type="checkbox" checked={item.done}
                       onChange={item.done ? () => {} : () => completeMeeting(m.id)}
@@ -587,7 +587,7 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
             if (item.type === 'Call') {
               const c = item._c
               return (
-                <div key={item.id || idx} className="card card-pad" style={{ opacity: item.done ? 0.5 : 1 }}>
+                <div key={item.id || idx} className="card card-pad" style={{ opacity: item.done ? 0.75 : 1 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                     <input type="checkbox" checked={item.done}
                       onChange={item.done ? () => {} : () => completeCall(c.id)}
