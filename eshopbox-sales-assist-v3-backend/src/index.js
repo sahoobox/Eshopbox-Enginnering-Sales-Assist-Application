@@ -6,7 +6,7 @@ import { getUserByEmail, createUser, createInvite, getInviteByToken, markInviteA
 import { calculateGrade, scoreToGrade } from './services/grading.js';
 import { zohoAPI, createDeal, createTask, getDeals, getAllDeals, getDeal, getDealTasks, getDealActivities, updateDeal, searchDeals, sendDealEmail, createDealEmailDraft, getAllowedFromAddresses, getAccessTokenForUser, getAccessToken, getDealSentEmails, getEmailContent, getTask, getLeads, getLead, updateLead, getLeadActivities, createLeadActivity, getLeadNotes, createLeadNote, getTasks, createGenericTask, updateTaskStatus, getDealNotes, createZohoEvent, createZohoCall, getDealMeetings, getDealCalls } from './services/zoho.js';
 import { generateEmailDrafts, generateReengagement, generateDealAnalysis, generateDealSummary } from './services/claude.js';
-import { computeAttentionFlags, getAttentionLevel } from './services/attentionRules.js';
+import getAttentionFlags, { getAttentionLevel } from './services/attentionRules.js';
 import { logTimelineEvent } from './services/timeline.js';
 import { sendGmailEmail, sendGmailEmailWithToken, createGmailDraft, checkDraftSent, getRealMessageId } from './services/gmail.js';
 
@@ -749,7 +749,7 @@ app.get('/api/deals', requireAuth, async (c) => {
         dealSummary: summaryMap[d.id] || null,
         emailStatuses: emailMap[d.id] || {},
       }
-      const flags = computeAttentionFlags(dealWithData)
+      const flags = getAttentionFlags(dealWithData)
       if (d.repEmail && !teamEmails.has(d.repEmail.toLowerCase())) {
         flags.push({
           severity: 'warning',
@@ -951,7 +951,7 @@ deal.activities = activities.map(a => ({
       description: cl.Description || '', createdBy: cl.Created_By?.name || '',
     }));
     if ((effectiveUser.role === 'mde' || effectiveUser.role === 'ae') && deal.repEmail !== effectiveUser.email) return c.json({ error: 'Access denied' }, 403);
-    const flags = computeAttentionFlags(deal);
+    const flags = getAttentionFlags(deal);
     const attentionLevel = getAttentionLevel(flags);
     console.log('[dealSummary] returning dealSummary for', dealId, ':', dealSummary);
     return c.json({ ...deal, flags, attentionLevel, dealSummary });

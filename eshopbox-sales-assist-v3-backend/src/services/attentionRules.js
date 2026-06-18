@@ -1,187 +1,164 @@
-export function computeAttentionFlags(deal) {
-  const flags = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+export default function getAttentionFlags(deal) {
+  const flags = []
 
-  const toDate = (str) => {
-    if (!str) return null;
-    const d = new Date(str);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  };
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
 
-  const daysDiff = (a, b) => Math.floor((b - a) / 86400000);
+  const demoDate = deal.demoDate ? new Date(deal.demoDate) : null
+  const meetingDate = deal.followupMeetingDate ? new Date(deal.followupMeetingDate) : null
+  const stageChanged = deal.stageChangedOn ? new Date(deal.stageChangedOn) : null
+  const daysAgoDemo = demoDate ? Math.floor((today - demoDate) / 86400000) : null
+  const daysAgoStage = stageChanged ? Math.floor((today - stageChanged) / 86400000) : 0
 
-  const demoDate = toDate(deal.demoDate);
-  const meetingDate = toDate(deal.followupMeetingDate);
-  const stageChanged = toDate(deal.stageChangedOn);
-  const daysAgoDemo = demoDate ? daysDiff(demoDate, today) : 0;
-  const daysAgoStage = stageChanged ? daysDiff(stageChanged, today) : 0;
+  const isMidMarket = deal.pipeline === 'Mid-market'
+  const isEnterprise = deal.pipeline === 'Enterprise 2.0'
 
-  const PRE_DEMO_STAGES = ['Qualified To Buy', 'Demo Call Scheduled'];
-  const isPreDemo = PRE_DEMO_STAGES.includes(deal.stage);
-  const isOpen = !['Won/Payment Received', 'Deal Approved', 'Lost/Dropped', 'Active', 'On Hold'].includes(deal.stage);
-  const getTask = (prefix) => deal.tasks?.find(t => t.Subject?.startsWith(prefix) || t.subject?.startsWith(prefix));
-  const taskOverdue = (t) => {
-    if (!t) return false;
-    const due = toDate(t.due_date || t.dueDate);
-    const status = t.Status || t.status;
-    return status === 'Open' && due && due < today;
-  };
+  const TERMINAL_STAGES = ['Active / Won', 'On Hold', 'Lost/Dropped', 'Won/Payment Received']
+  const isTerminal = TERMINAL_STAGES.includes(deal.stage)
+  const isOpen = !isTerminal
 
-  const lastActivity = deal.activities?.length
-    ? new Date(Math.max(...deal.activities.map(a => new Date(a.date || a.Created_Time))))
-    : null;
-  const daysSinceActivity = lastActivity ? daysDiff(lastActivity, today) : 999;
+  const activities = deal.activities || []
+  const lastActivity = activities.length > 0
+    ? Math.max(...activities.map(a => new Date(a.date || a.Created_Time || 0).getTime()))
+    : null
+  const daysSinceActivity = lastActivity
+    ? Math.floor((today - new Date(lastActivity)) / 86400000)
+    : 999
 
-  // Rule 1 — Recap email not sent within 24hrs
-const emailStorageDate = new Date('2026-04-15');
-const demoDateObj = demoDate ? new Date(deal.demoDate) : null;
-const hasEmailStorage = demoDateObj && demoDateObj >= emailStorageDate;
-const day1Email = deal.emailStatuses?.day1;
-if (!isPreDemo && deal.saLogged && hasEmailStorage && daysAgoDemo >= 1 && day1Email && day1Email.status === 'draft') {
-  flags.push({
-    severity: 'high',
-    title: 'Recap email not sent',
-    desc: `Demo was ${daysAgoDemo} day${daysAgoDemo > 1 ? 's' : ''} ago. Day 1 recap email is overdue.`,
-    rule: 1,
-  });
-}
-
-  // Rule 2 — Pricing proposal not sent within 3 days
-  const proposalTask = getTask('Day 2');
-  const proposalStatus = proposalTask?.Status || proposalTask?.status;
-  if (!isPreDemo && proposalTask && proposalStatus === 'Open' && daysAgoDemo >= 3 && deal.stage === 'Demo Done') {
-    flags.push({
-      severity: 'high',
-      title: 'Pricing proposal not sent',
-      desc: `Demo was ${daysAgoDemo} days ago. Proposal task is ${daysAgoDemo - 2} day${daysAgoDemo - 2 > 1 ? 's' : ''} overdue.`,
-      rule: 2,
-    });
+  // R1 — Recap email not sent within 24hrs of demo
+  if (
+    !isTerminal && deal.saLogged && demoDate &&
+    demoDate >= new Date('2026-04-15') &&
+    deal.stage === 'Demo Done'
+  ) {
+    if (daysAgoDemo >= 1 && deal.emailStatuses?.day1?.status === 'draft') {
+      flags.push({ id: 'r1', title: 'Recap email not sent', severity: 'high' })
+    }
   }
 
-  // Rule 3 — ROI email 2+ days overdue
-const day3Email = deal.emailStatuses?.day3;
-const emailStorageDateR3 = new Date('2026-04-15');
-const demoDateObjR3 = demoDate ? new Date(deal.demoDate) : null;
-const hasEmailStorageR3 = demoDateObjR3 && demoDateObjR3 >= emailStorageDateR3;
-if (!isPreDemo && deal.saLogged && hasEmailStorageR3 && day3Email) {
-  const scheduledDate = toDate(day3Email.scheduledFor);
-  const daysLate = scheduledDate ? daysDiff(scheduledDate, today) : 0;
-  if (day3Email.status !== 'sent' && daysLate >= 2) {
-    flags.push({
-      severity: 'medium',
-      title: 'ROI value email not sent',
-      desc: `Day 3 email is ${daysLate} days overdue.`,
-      rule: 3,
-    });
-  }
-}
-  // Rule 4 — No follow-up meeting booked
-  if (!isPreDemo && !deal.followupMeetingDate && daysAgoDemo >= 2 && isOpen && deal.saLogged) {
-    flags.push({
-      severity: 'high',
-      title: 'No follow-up meeting booked',
-      desc: 'Follow-up meeting date not set. Should have been locked before the demo ended.',
-      rule: 4,
-    });
+  // R2 — Day 2 pricing proposal not sent within 3 days
+  if (
+    !isTerminal && deal.saLogged && demoDate &&
+    deal.stage === 'Demo Done'
+  ) {
+    if (daysAgoDemo >= 3 && deal.emailStatuses?.day2?.status !== 'sent') {
+      flags.push({ id: 'r2', title: 'Pricing proposal not sent', severity: 'high' })
+    }
   }
 
-  // Rule 5 — Follow-up meeting passed, stage not updated
-  if (!isPreDemo && meetingDate && meetingDate < today && deal.stage === 'Proposal Sent') {
-    const daysOverdue = daysDiff(meetingDate, today);
-    flags.push({
-      severity: 'high',
-      title: 'Follow-up meeting passed — stage not updated',
-      desc: `Meeting was ${daysOverdue} day${daysOverdue > 1 ? 's' : ''} ago. Stage still shows "Proposal sent".`,
-      rule: 5,
-    });
+  // R3 — Day 3 ROI email overdue 2+ days past scheduled
+  if (!isTerminal && deal.saLogged && demoDate) {
+    const day3 = deal.emailStatuses?.day3
+    if (
+      day3 && day3.status !== 'sent' && day3.scheduledFor &&
+      Math.floor((today - new Date(day3.scheduledFor)) / 86400000) >= 2
+    ) {
+      flags.push({ id: 'r3', title: 'ROI value email not sent', severity: 'medium' })
+    }
   }
 
-  // Rule 6 — Stuck in same stage 7+ days
-  if (isOpen && daysAgoStage >= 7) {
-    flags.push({
-      severity: 'medium',
-      title: `Stuck in "${deal.stage}"`,
-      desc: `No stage change in ${daysAgoStage} days.`,
-      rule: 6,
-    });
+  // R4 — No follow-up meeting booked within 2 days of demo
+  if (
+    isEnterprise && !isTerminal && deal.saLogged && demoDate &&
+    deal.stage === 'Demo Done'
+  ) {
+    if (daysAgoDemo >= 2 && !deal.followupMeetingDate) {
+      flags.push({ id: 'r4', title: 'No follow-up meeting booked', severity: 'high' })
+    }
   }
 
-  // Rule 7 — Negotiation stalling 5+ days
-if (deal.stage === 'Follow up Meeting Done' && deal.saLogged && daysSinceActivity >= 5 && daysSinceActivity < 900) {
-  flags.push({
-    severity: 'medium',
-    title: 'Follow-up meeting done — deal going quiet',
-    desc: `No activity in ${daysSinceActivity} days since follow-up meeting. Chase for a decision.`,
-    rule: 7,
-  });
-}
-
-  // Rule 8 — Grade D deal still active
- if (!isPreDemo && deal.grade === 'D' && isOpen && deal.saLogged && daysSinceActivity >= 5 && daysSinceActivity < 900) {
-    flags.push({
-      severity: 'info',
-      title: 'Grade D deal — consider closing',
-      desc: `Weak deal with no activity in ${daysSinceActivity} days. Review whether to continue pursuing.`,
-      rule: 8,
-    });
+  // R5 — Follow-up meeting passed, stage not updated
+  if (isEnterprise && !isTerminal && meetingDate) {
+    if (meetingDate < today && deal.stage === 'Proposal Sent') {
+      flags.push({ id: 'r5', title: 'Follow-up meeting passed — stage not updated', severity: 'high' })
+    }
   }
 
-  // Rule 9 — Decision nudge sent, no response
-  const nudgeTask = getTask('Meeting+7');
-  const nudgeStatus = nudgeTask?.Status || nudgeTask?.status;
-  if (nudgeTask && nudgeStatus === 'Completed' && isOpen && daysSinceActivity >= 3) {
-    flags.push({
-      severity: 'medium',
-      title: 'Decision nudge sent — no response',
-      desc: `Nudge email sent ${daysSinceActivity} days ago with no reply or stage change.`,
-      rule: 9,
-    });
+  // R6 — Stuck in same stage 7+ days
+  if (!isTerminal && deal.stage !== 'Upcoming Demo') {
+    if (isOpen && daysAgoStage >= 7) {
+      flags.push({ id: 'r6', title: `Stuck in "${deal.stage}" for ${daysAgoStage} days`, severity: 'medium' })
+    }
   }
 
-  // Rule 10 — Grade A deal, no in-person meeting after 5 days
-  if (deal.grade === 'A' && isOpen && daysAgoDemo >= 5 && (!deal.f2fMeetings || deal.f2fMeetings.length === 0)) {
-    flags.push({
-      severity: 'medium',
-      title: 'No in-person meeting yet',
-      desc: `Grade A deal · ${daysAgoDemo} days since demo · In-person meetings significantly improve close rates.`,
-      rule: 10,
-    });
+  // R7 — Follow up Meeting Done going quiet 5+ days
+  if (isEnterprise && !isTerminal) {
+    if (
+      deal.stage === 'Follow up Meeting Done' &&
+      daysSinceActivity >= 5 && daysSinceActivity < 900
+    ) {
+      flags.push({ id: 'r7', title: 'Follow-up meeting done — deal going quiet', severity: 'medium' })
+    }
   }
 
-  // Rule 11 — Deal lost, no reason logged
-  if (deal.stage === 'Lost/Dropped' && (!deal.lostReason || deal.lostReason.trim() === '')) {
-    flags.push({
-      severity: 'medium',
-      title: 'Lost deal — no reason logged',
-      desc: 'Deal marked lost but no loss reason entered. Ask the rep to update this in Zoho CRM.',
-      rule: 11,
-    });
+  // R8 — Nudge (Day 9) email sent, deal still open 1+ day
+  if (!isTerminal && deal.saLogged) {
+    const nudge = deal.emailStatuses?.nudge
+    if (
+      isOpen && nudge?.status === 'sent' && nudge?.sentAt &&
+      Math.floor((today - new Date(nudge.sentAt)) / 86400000) >= 1
+    ) {
+      flags.push({ id: 'r8', title: 'Nudge email sent — no response yet', severity: 'medium' })
+    }
   }
 
-  // Rule 12 — Upcoming demo overdue
-  if (deal.stage === 'Upcoming Demo' && !deal.demoDate && daysAgoStage >= 10) {
-    flags.push({
-      severity: 'warning',
-      title: 'Upcoming demo overdue',
-      desc: `Deal has been in Upcoming Demo for ${daysAgoStage} days with no demo logged.`,
-      rule: 'r12',
-    });
+  // R9 — Grade A deal, no in-person meeting after 5 days
+  if (isEnterprise && !isTerminal && demoDate) {
+    if (
+      deal.grade === 'A' && daysAgoDemo >= 5 &&
+      (!deal.f2fMeetings || deal.f2fMeetings.length === 0)
+    ) {
+      flags.push({ id: 'r9', title: 'Grade A deal — no in-person meeting yet', severity: 'medium' })
+    }
   }
 
-  // Dedup — keep highest severity per rule
-  const seen = new Set();
-  const deduped = flags.filter(f => {
-    if (seen.has(f.rule)) return false;
-    seen.add(f.rule);
-    return true;
-  });
+  // R10 — Lost deal, no reason logged
+  if (deal.stage === 'Lost/Dropped') {
+    if (!deal.lostReason || deal.lostReason.trim() === '') {
+      flags.push({ id: 'r10', title: 'Lost deal — no reason logged', severity: 'medium' })
+    }
+  }
 
-  return deduped;
+  // R11 — Upcoming Demo 10+ days, no demo scheduled
+  if (!deal.demoDate) {
+    if (deal.stage === 'Upcoming Demo' && daysAgoStage >= 10) {
+      flags.push({ id: 'r11', title: 'Upcoming demo overdue — no demo scheduled', severity: 'high' })
+    }
+  }
+
+  // R12 — Demo Done but form not logged in Sales Assist
+  if (!isTerminal && !deal.saLogged) {
+    if (deal.stage === 'Demo Done') {
+      flags.push({ id: 'r12', title: 'Demo done — form not logged in Sales Assist', severity: 'high' })
+    }
+  }
+
+  // R13 — Account Setup in Progress 14+ days
+  if (isMidMarket && !isTerminal) {
+    if (deal.stage === 'Account Setup in Progress' && daysAgoStage >= 14) {
+      flags.push({ id: 'r13', title: 'Account setup taking too long', severity: 'medium' })
+    }
+  }
+
+  // R14 — Awaiting First Shipment 21+ days
+  if (isMidMarket && !isTerminal) {
+    if (deal.stage === 'Awaiting First Shipment' && daysAgoStage >= 21) {
+      flags.push({ id: 'r14', title: 'Awaiting first shipment for 21+ days', severity: 'medium' })
+    }
+  }
+
+  // R15 — First Shipment Done 14+ days, not activated
+  if (isMidMarket && !isTerminal) {
+    if (deal.stage === 'First Shipment Done' && daysAgoStage >= 14) {
+      flags.push({ id: 'r15', title: 'First shipment done — deal not activated yet', severity: 'medium' })
+    }
+  }
+
+  return flags
 }
 
 export function getAttentionLevel(flags) {
-  if (flags.some(f => f.severity === 'high' || f.severity === 'critical')) return 'high';
-  return 'ok';
+  if (flags.some(f => f.severity === 'high')) return 'high'
+  if (flags.some(f => f.severity === 'medium')) return 'medium'
+  return 'ok'
 }

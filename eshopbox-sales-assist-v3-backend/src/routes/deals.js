@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { getDeals, getDeal, getDealTasks, getDealActivities, updateDeal } from '../services/zoho.js';
-import { computeAttentionFlags, getAttentionLevel } from '../services/attentionRules.js';
+import getAttentionFlags, { getAttentionLevel } from '../services/attentionRules.js';
 import { scoreToGrade } from '../services/grading.js';
 
 const deals = new Hono();
@@ -81,7 +81,7 @@ deals.get('/', async (c) => {
 
     // Run attention rules on each deal
     const dealsWithFlags = dealsList.map(deal => {
-      const flags = computeAttentionFlags(deal);
+      const flags = getAttentionFlags(deal);
       const attentionLevel = getAttentionLevel(flags);
       return { ...deal, flags, attentionLevel };
     });
@@ -137,7 +137,7 @@ deals.get('/:id', async (c) => {
     }
 
     // Run attention flags
-    const flags = computeAttentionFlags(deal);
+    const flags = getAttentionFlags(deal);
     const attentionLevel = getAttentionLevel(flags);
 
     return c.json({ ...deal, flags, attentionLevel });
