@@ -1552,8 +1552,8 @@ app.post('/api/deals/:id/schedule-call', requireAuth, async (c) => {
 app.patch('/api/deals/:id/meeting/:meetingId/complete', requireAuth, async (c) => {
   try {
     const meetingId = c.req.param('meetingId')
-    const zohoRes = await zohoAPI(c.env, 'POST', `/Events/${meetingId}/actions/mark_as_done`, {})
-    console.log('Meeting complete Zoho response:', JSON.stringify(zohoRes))
+    const res = await zohoAPI(c.env, 'PUT', `/Events/${meetingId}`, { data: [{ id: meetingId, Status: 'Completed' }] })
+    console.log('Meeting complete Zoho response:', JSON.stringify(res))
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
@@ -1563,8 +1563,8 @@ app.patch('/api/deals/:id/meeting/:meetingId/complete', requireAuth, async (c) =
 app.patch('/api/deals/:id/call/:callId/complete', requireAuth, async (c) => {
   try {
     const callId = c.req.param('callId')
-    const zohoRes = await zohoAPI(c.env, 'POST', `/Calls/${callId}/actions/mark_as_done`, {})
-    console.log('Call complete Zoho response:', JSON.stringify(zohoRes))
+    const res = await zohoAPI(c.env, 'PUT', `/Calls/${callId}`, { data: [{ id: callId, Outbound_Call_Status: 'Completed' }] })
+    console.log('Call complete Zoho response:', JSON.stringify(res))
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
