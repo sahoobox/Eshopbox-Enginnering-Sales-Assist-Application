@@ -232,6 +232,7 @@ score: (() => {
     f2fCount: d.SA_F2F_Count || 0,
     saLogged: d.SA_Logged || false,
     leadSource: d.Lead_Source || '',
+    contactId: d.Contact_Name?.id || null,
     contactName: d.Contact_Name?.name || d.Contact_Name || '',
     accountName: d.Account_Name?.name || d.Account_Name || '',
     lostReason: d.Lost_Reason || '',
@@ -821,6 +822,15 @@ app.get('/api/deals/:id', requireAuth, async (c) => {
     if (!dealRes?.data?.[0]) return c.json({ error: 'Deal not found' }, 404);
 const deal = mapZohoDeal(dealRes.data[0]);
 deal.tasks = tasks;
+
+const contactId = dealRes.data[0].Contact_Name?.id
+let contactData = null
+if (contactId) {
+  const contactRes = await zohoAPI(c.env, 'GET', `/Contacts/${contactId}?fields=Email,Phone,First_Name,Last_Name`)
+  contactData = contactRes?.data?.[0] || null
+}
+deal.contactEmail = contactData?.Email || ''
+deal.contactPhone = contactData?.Phone || ''
 
 // Fetch email statuses and deal summary from D1 in parallel
 const [emailRows, formRow] = await Promise.all([

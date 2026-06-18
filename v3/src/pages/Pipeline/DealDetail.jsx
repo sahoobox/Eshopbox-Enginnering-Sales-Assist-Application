@@ -1333,8 +1333,8 @@ function ContactTab({ deal }) {
       <div className="ws-side-body">
         {[
           { k: 'Name', v: deal.demoInfo?.prospectName || deal.contactName || '—' },
-          { k: 'Email', v: deal.demoInfo?.prospectEmail || '—' },
-          { k: 'Phone', v: deal.demoInfo?.phone || '—' },
+          { k: 'Email', v: deal.contactEmail || deal.demoInfo?.prospectEmail || '—' },
+          { k: 'Phone', v: deal.contactPhone || '—' },
           { k: 'Company', v: deal.accountName || deal.brandName || '—' },
           { k: 'Rep Owner', v: deal.repName || '—' },
         ].map(row => (
