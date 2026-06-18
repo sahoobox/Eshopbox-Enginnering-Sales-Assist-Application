@@ -943,6 +943,10 @@ deal.activities = activities.map(a => ({
       from: m.Start_DateTime, to: m.End_DateTime, description: m.Description || '',
       status: m.Status || '', createdBy: m.Created_By?.name || '',
     }));
+    deal.f2fMeetings = (deal.meetings || []).filter(m =>
+      m.venue === 'In-office' ||
+      m.venue === 'Client location'
+    )
     deal.calls = (callsRes?.data || []).map(cl => ({
       id: cl.id, subject: cl.Subject || '', purpose: cl.Call_Purpose || '',
       agenda: cl.Call_Agenda || '', result: cl.Call_Result || '',
@@ -3470,6 +3474,72 @@ app.patch('/api/tasks/:id/reopen', requireAuth, async (c) => {
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: 'Failed to reopen task', details: err.message }, 500)
+  }
+})
+
+// ── Reassign routes ────────────────────────────────────────
+
+app.get('/api/team/assignable-users', requireAuth, async (c) => {
+  try {
+    const user = c.get('user')
+    if (!['admin', 'lead-midmarket', 'lead-enterprise'].includes(user?.role))
+      return c.json({ error: 'Forbidden' }, 403)
+    const result = await c.env.DB.prepare(
+      `SELECT id, name, email, role FROM users
+       WHERE role IN ('ae', 'mde', 'lead-midmarket', 'lead-enterprise')
+         AND is_active = 1
+       ORDER BY name ASC`
+    ).all()
+    return c.json({ users: result.results })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.patch('/api/deals/:id/reassign', requireAuth, async (c) => {
+  try {
+    const user = c.get('user')
+    if (!['admin', 'lead-midmarket', 'lead-enterprise'].includes(user?.role))
+      return c.json({ error: 'Forbidden' }, 403)
+    const dealId = c.req.param('id')
+    const { newOwnerEmail, newOwnerName } = await c.req.json()
+    const zohoUsers = await zohoAPI(c.env, 'GET', '/users?type=ActiveUsers')
+    const zohoUser = zohoUsers?.users?.find(u => u.email === newOwnerEmail)
+    if (!zohoUser) return c.json({ error: `No Zoho user found for ${newOwnerEmail}` }, 400)
+    await zohoAPI(c.env, 'PUT', `/Deals/${dealId}`, {
+      data: [{ id: dealId, Owner: { id: zohoUser.id } }]
+    })
+    await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+    await logTimelineEvent(c.env, dealId, {
+      eventType: 'deal_reassigned',
+      description: `Deal reassigned to ${newOwnerName}`,
+      actorName: user.name,
+      actorEmail: user.email,
+      metadata: { newOwner: newOwnerName, newOwnerEmail }
+    })
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.patch('/api/leads/:id/reassign', requireAuth, async (c) => {
+  try {
+    const user = c.get('user')
+    if (!['admin', 'lead-midmarket', 'lead-enterprise'].includes(user?.role))
+      return c.json({ error: 'Forbidden' }, 403)
+    const leadId = c.req.param('id')
+    const { newOwnerEmail, newOwnerName } = await c.req.json()
+    const zohoUsers = await zohoAPI(c.env, 'GET', '/users?type=ActiveUsers')
+    const zohoUser = zohoUsers?.users?.find(u => u.email === newOwnerEmail)
+    if (!zohoUser) return c.json({ error: `No Zoho user found for ${newOwnerEmail}` }, 400)
+    await zohoAPI(c.env, 'PUT', `/Leads/${leadId}`, {
+      data: [{ id: leadId, Owner: { id: zohoUser.id } }]
+    })
+    try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch (_) {}
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
   }
 })
 

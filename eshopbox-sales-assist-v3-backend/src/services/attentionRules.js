@@ -6,6 +6,7 @@ export default function getAttentionFlags(deal) {
 
   const demoDate = deal.demoDate ? new Date(deal.demoDate) : null
   const meetingDate = deal.followupMeetingDate ? new Date(deal.followupMeetingDate) : null
+  // TODO: stageChangedOn uses Modified_Time not true stage change time — needs Stage History fix
   const stageChanged = deal.stageChangedOn ? new Date(deal.stageChangedOn) : null
   const daysAgoDemo = demoDate ? Math.floor((today - demoDate) / 86400000) : null
   const daysAgoStage = stageChanged ? Math.floor((today - stageChanged) / 86400000) : 0
@@ -85,7 +86,7 @@ export default function getAttentionFlags(deal) {
   if (isEnterprise && !isTerminal) {
     if (
       deal.stage === 'Follow up Meeting Done' &&
-      daysSinceActivity >= 5 && daysSinceActivity < 900
+      daysSinceActivity >= 5 && daysSinceActivity < 500
     ) {
       flags.push({ id: 'r7', title: 'Follow-up meeting done — deal going quiet', severity: 'medium' })
     }
@@ -106,7 +107,7 @@ export default function getAttentionFlags(deal) {
   if (isEnterprise && !isTerminal && demoDate) {
     if (
       deal.grade === 'A' && daysAgoDemo >= 5 &&
-      (!deal.f2fMeetings || deal.f2fMeetings.length === 0)
+      (!deal.meetings || !deal.meetings.some(m => m.venue === 'In-office' || m.venue === 'Client location'))
     ) {
       flags.push({ id: 'r9', title: 'Grade A deal — no in-person meeting yet', severity: 'medium' })
     }
