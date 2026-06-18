@@ -232,6 +232,8 @@ score: (() => {
     f2fCount: d.SA_F2F_Count || 0,
     saLogged: d.SA_Logged || false,
     leadSource: d.Lead_Source || '',
+    contactName: d.Contact_Name?.name || d.Contact_Name || '',
+    accountName: d.Account_Name?.name || d.Account_Name || '',
     lostReason: d.Lost_Reason || '',
     demoDate: d.Demo_Date || d.Created_Time?.split('T')[0] || '',
     stageChangedOn: d.Modified_Time?.split('T')[0] || '',
