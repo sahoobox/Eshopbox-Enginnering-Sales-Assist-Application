@@ -1570,7 +1570,7 @@ app.patch('/api/deals/:id/meeting/:meetingId/complete', requireAuth, async (c) =
 app.patch('/api/deals/:id/call/:callId/complete', requireAuth, async (c) => {
   try {
     const callId = c.req.param('callId')
-    const res = await zohoAPI(c.env, 'PUT', `/Calls/${callId}`, { data: [{ id: callId, Call_Status: 'Completed', Outbound_Call_Status: 'Completed' }] })
+    const res = await zohoAPI(c.env, 'PUT', `/Calls/${callId}`, { data: [{ id: callId, Call_Status: 'Completed', Call_Duration: '00:05', Outbound_Call_Status: 'Completed' }] })
     console.log('Call complete Zoho response:', JSON.stringify(res))
     return c.json({ success: true })
   } catch (err) {
