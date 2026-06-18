@@ -443,6 +443,10 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
   useEffect(() => { fetchTasks() }, [fetchTasks])
 
   async function toggleTask(taskId, isComplete) {
+    if (!isComplete) {
+      const confirmed = window.confirm('Mark as completed? This action cannot be undone.')
+      if (!confirmed) return
+    }
     await authFetch(`/api/tasks/${taskId}/${isComplete ? 'reopen' : 'complete'}`, { method: 'PATCH' })
     setTasks(prev => prev.map(t => t.id === taskId
       ? { ...t, isComplete: !isComplete, status: isComplete ? 'Not Started' : 'Completed' }
@@ -472,12 +476,16 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
   )
 
   async function completeMeeting(meetingId) {
+    const confirmed = window.confirm('Mark as completed? This action cannot be undone.')
+    if (!confirmed) return
     await authFetch(`/api/deals/${dealId}/meeting/${meetingId}/complete`, { method: 'PATCH' })
     setLocalCompleted(prev => new Set([...prev, meetingId]))
     onRefresh?.()
   }
 
   async function completeCall(callId) {
+    const confirmed = window.confirm('Mark as completed? This action cannot be undone.')
+    if (!confirmed) return
     await authFetch(`/api/deals/${dealId}/call/${callId}/complete`, { method: 'PATCH' })
     setLocalCompleted(prev => new Set([...prev, callId]))
     onRefresh?.()
