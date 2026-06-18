@@ -1571,9 +1571,7 @@ app.patch('/api/deals/:id/call/:callId/complete', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id')
     const callId = c.req.param('callId')
-    console.log('Completing call:', callId, 'for deal:', dealId)
     const callRes = await zohoAPI(c.env, 'GET', `/Calls/${callId}?fields=Subject,Call_Purpose,Call_Agenda,Description,Call_Start_Time,What_Id`)
-    console.log('Fetched call data:', JSON.stringify(callRes?.data?.[0]))
     const callData = callRes?.data?.[0]
     function msToZohoIST(ms) {
       const d = new Date(ms + (5.5 * 60 * 60 * 1000))
@@ -1581,9 +1579,8 @@ app.patch('/api/deals/:id/call/:callId/complete', requireAuth, async (c) => {
       return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:00+05:30`
     }
     const nowIST = msToZohoIST(Date.now())
-    const deleteRes = await zohoAPI(c.env, 'DELETE', `/Calls?ids=${callId}`)
-    console.log('Delete response:', JSON.stringify(deleteRes))
-    const createRes = await zohoAPI(c.env, 'POST', '/Calls', {
+    await zohoAPI(c.env, 'DELETE', `/Calls?ids=${callId}`)
+    await zohoAPI(c.env, 'POST', '/Calls', {
       data: [{
         Subject: callData?.Subject || 'Call',
         Call_Type: 'Outbound',
@@ -1597,7 +1594,6 @@ app.patch('/api/deals/:id/call/:callId/complete', requireAuth, async (c) => {
         '$se_module': 'Deals',
       }]
     })
-    console.log('Create response:', JSON.stringify(createRes))
     return c.json({ success: true })
   } catch (err) {
     console.error('Call complete error:', err.message, err.stack)
