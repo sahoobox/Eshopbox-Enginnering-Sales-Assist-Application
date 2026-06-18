@@ -697,9 +697,9 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
                 style={{
                   padding: '8px 18px', borderRadius: 8,
                   border: 'none',
-                  background: 'var(--accent)', fontSize: 13,
+                  background: '#E5484D', fontSize: 13,
                   fontWeight: 700, cursor: 'pointer',
-                  color: 'white', fontFamily: 'inherit'
+                  color: '#FFFFFF', fontFamily: 'inherit'
                 }}>
                 Yes, mark complete
               </button>
