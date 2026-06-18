@@ -458,9 +458,27 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
     ...calls.map(c => ({ id: c.id, type: 'Call', date: c.timing, status: c.status, done: c.status === 'Completed', _c: c })),
   ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 
+  const TYPE_PILL_STYLE = {
+    Task:    { background: '#F0F4FF', color: '#3B5BDB' },
+    Meeting: { background: '#F0FFF4', color: '#2F9E44' },
+    Call:    { background: '#FFF0F6', color: '#C2255C' },
+  }
+  const typePill = (type) => (
+    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, display: 'inline-block', ...(TYPE_PILL_STYLE[type] || {}) }}>{type}</span>
+  )
   const typeBadge = (label) => (
     <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--ink-3)', flexShrink: 0 }}>{label}</span>
   )
+
+  async function completeMeeting(meetingId) {
+    await authFetch(`/api/deals/${dealId}/meeting/${meetingId}/complete`, { method: 'PATCH' })
+    onRefresh?.()
+  }
+
+  async function completeCall(callId) {
+    await authFetch(`/api/deals/${dealId}/call/${callId}/complete`, { method: 'PATCH' })
+    onRefresh?.()
+  }
 
   if (loading) return <div className="card card-pad" style={{ color: 'var(--ink-3)' }}>Loading activities…</div>
 
@@ -521,7 +539,7 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 600, fontSize: 13.5 }}>{t.subject}</span>
-                        {typeBadge('📋 Task')}
+                        {typePill('Task')}
                       </div>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: t.description ? 6 : 0 }}>
                         {t.dueDate && <span style={{ color: isOverdue ? 'var(--danger)' : 'var(--ink-3)' }}>Due: {formatDate(t.dueDate)}</span>}
@@ -541,12 +559,13 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
               return (
                 <div key={item.id || idx} className="card card-pad" style={{ opacity: item.done ? 0.5 : 1 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <input type="checkbox" checked={item.done} onChange={() => {}}
-                      style={{ cursor: 'default', width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
+                    <input type="checkbox" checked={item.done}
+                      onChange={item.done ? () => {} : () => completeMeeting(m.id)}
+                      style={{ cursor: item.done ? 'default' : 'pointer', width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 600, fontSize: 13.5 }}>{m.title}</span>
-                        {typeBadge('🤝 Meeting')}
+                        {typePill('Meeting')}
                         {m.status && typeBadge(m.status)}
                       </div>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: m.description ? 6 : 0 }}>
@@ -567,12 +586,13 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
               return (
                 <div key={item.id || idx} className="card card-pad" style={{ opacity: item.done ? 0.5 : 1 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <input type="checkbox" checked={item.done} onChange={() => {}}
-                      style={{ cursor: 'default', width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
+                    <input type="checkbox" checked={item.done}
+                      onChange={item.done ? () => {} : () => completeCall(c.id)}
+                      style={{ cursor: item.done ? 'default' : 'pointer', width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 600, fontSize: 13.5 }}>{c.subject}</span>
-                        {typeBadge('📞 Call')}
+                        {typePill('Call')}
                         {c.status && typeBadge(c.status)}
                       </div>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: (c.agenda || c.description) ? 6 : 0 }}>

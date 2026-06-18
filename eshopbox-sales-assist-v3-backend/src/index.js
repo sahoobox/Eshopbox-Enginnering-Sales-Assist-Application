@@ -1549,6 +1549,26 @@ app.post('/api/deals/:id/schedule-call', requireAuth, async (c) => {
   }
 })
 
+app.patch('/api/deals/:id/meeting/:meetingId/complete', requireAuth, async (c) => {
+  try {
+    const meetingId = c.req.param('meetingId')
+    await zohoAPI(c.env, 'PUT', `/Events/${meetingId}`, { data: [{ id: meetingId, Status: 'Completed' }] })
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.patch('/api/deals/:id/call/:callId/complete', requireAuth, async (c) => {
+  try {
+    const callId = c.req.param('callId')
+    await zohoAPI(c.env, 'PUT', `/Calls/${callId}`, { data: [{ id: callId, Call_Status: 'Completed' }] })
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
 app.post('/api/reengage', requireAuth, async (c) => {
   try {
     const { dealContext, angle } = await c.req.json();
