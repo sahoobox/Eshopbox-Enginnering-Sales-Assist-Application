@@ -23,7 +23,12 @@ const MDE_EMAILS = [
   'raghwendra.kumar@eshopbox.com',
 ]
 
-const REP_EMAILS = new Set([...AE_EMAILS, ...MDE_EMAILS])
+const LEAD_EMAILS = [
+  'umang.seth@eshopbox.com',
+  'gautam@eshopbox.com',
+]
+
+const REP_EMAILS = new Set([...AE_EMAILS, ...MDE_EMAILS, ...LEAD_EMAILS])
 
 const ORDER_VOLUME_OPTIONS = [
   '1 - 500 orders/month',
