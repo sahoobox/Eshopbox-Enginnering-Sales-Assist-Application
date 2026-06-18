@@ -20,7 +20,7 @@ export function computeAttentionFlags(deal) {
 
   const PRE_DEMO_STAGES = ['Qualified To Buy', 'Demo Call Scheduled'];
   const isPreDemo = PRE_DEMO_STAGES.includes(deal.stage);
-  const isOpen = !['Won/Payment Received', 'Deal Approved', 'Lost/Dropped'].includes(deal.stage);
+  const isOpen = !['Won/Payment Received', 'Deal Approved', 'Lost/Dropped', 'Active', 'On Hold'].includes(deal.stage);
   const getTask = (prefix) => deal.tasks?.find(t => t.Subject?.startsWith(prefix) || t.subject?.startsWith(prefix));
   const taskOverdue = (t) => {
     if (!t) return false;
