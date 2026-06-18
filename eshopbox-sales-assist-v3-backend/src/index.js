@@ -1446,16 +1446,15 @@ app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
     ).bind(dealId).all()
 
     const stageHistory = await zohoAPI(c.env, 'GET', `/Deals/${dealId}/Stage_History`)
-    console.log('Stage History sample:', JSON.stringify(stageHistory?.data?.[0]))
 
     const zohoEvents = (stageHistory?.data || []).map(s => ({
       id: s.id,
       event_type: 'stage_changed_zoho',
-      description: `Stage changed to ${s.Stage}`,
-      actor_name: s.Modified_By?.name || 'Zoho CRM',
-      actor_email: s.Modified_By?.email || '',
-      metadata: JSON.stringify({ stage: s.Stage }),
-      created_at: s.Modified_Time,
+      description: `Stage changed — ${Math.round(s.probability || 0)}% probability`,
+      actor_name: s.modified_by?.name || 'Zoho CRM',
+      actor_email: s.modified_by?.email || '',
+      metadata: JSON.stringify({ probability: s.probability }),
+      created_at: s.Last_Modified_Time,
       source: 'zoho'
     }))
 
