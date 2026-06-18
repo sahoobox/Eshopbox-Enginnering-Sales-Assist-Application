@@ -414,6 +414,7 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
   const { authFetch } = useAuth()
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
+  const [localCompleted, setLocalCompleted] = useState(new Set())
   const [showDropdown, setShowDropdown] = useState(false)
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [showMeetingModal, setShowMeetingModal] = useState(false)
@@ -454,8 +455,8 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
 
   const allActivities = [
     ...tasks.map(t => ({ id: t.id, type: 'Task', date: t.dueDate, taskStatus: t.status, done: t.status === 'Completed', _t: t })),
-    ...meetings.map(m => ({ id: m.id, type: 'Meeting', date: m.from, status: m.status, done: m.status === 'Completed', _m: m })),
-    ...calls.map(c => ({ id: c.id, type: 'Call', date: c.timing, status: c.status, done: c.status === 'Completed', _c: c })),
+    ...meetings.map(m => ({ id: m.id, type: 'Meeting', date: m.from, status: m.status, done: m.status === 'Completed' || localCompleted.has(m.id), _m: m })),
+    ...calls.map(c => ({ id: c.id, type: 'Call', date: c.timing, status: c.status, done: c.status === 'Completed' || localCompleted.has(c.id), _c: c })),
   ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 
   const TYPE_PILL_STYLE = {
@@ -472,11 +473,13 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
 
   async function completeMeeting(meetingId) {
     await authFetch(`/api/deals/${dealId}/meeting/${meetingId}/complete`, { method: 'PATCH' })
+    setLocalCompleted(prev => new Set([...prev, meetingId]))
     onRefresh?.()
   }
 
   async function completeCall(callId) {
     await authFetch(`/api/deals/${dealId}/call/${callId}/complete`, { method: 'PATCH' })
+    setLocalCompleted(prev => new Set([...prev, callId]))
     onRefresh?.()
   }
 
