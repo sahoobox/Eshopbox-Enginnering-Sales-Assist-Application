@@ -1410,6 +1410,23 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
       actorEmail: user.email,
       metadata: { to: stage, reason }
     })
+    if (stage === 'Lost/Dropped') {
+      await logTimelineEvent(c.env, dealId, {
+        eventType: 'mark_lost',
+        description: `Deal marked as Lost — ${reason || 'No reason'}`,
+        actorName: user.name,
+        actorEmail: user.email,
+        metadata: { reason }
+      })
+    }
+    if (stage === 'On Hold') {
+      await logTimelineEvent(c.env, dealId, {
+        eventType: 'mark_on_hold',
+        description: 'Deal marked as On Hold',
+        actorName: user.name,
+        actorEmail: user.email,
+      })
+    }
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
@@ -1441,17 +1458,29 @@ app.post('/api/deals/:id/stage', requireAuth, async (c) => {
 app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
   const dealId = c.req.param('id')
   try {
-    const d1Events = await c.env.DB.prepare(
-      'SELECT * FROM deal_timeline WHERE deal_id = ? ORDER BY created_at DESC'
-    ).bind(dealId).all()
+    const [d1Events, dealRes, stageHistory, stageMetaRes, notesRes, callsRes, meetingsRes, tasksRes] = await Promise.all([
+      c.env.DB.prepare('SELECT * FROM deal_timeline WHERE deal_id = ? ORDER BY created_at DESC').bind(dealId).all(),
+      getDeal(c.env, dealId),
+      zohoAPI(c.env, 'GET', `/Deals/${dealId}/Stage_History?fields=Stage,Last_Modified_Time,modified_by,probability,id`),
+      zohoAPI(c.env, 'GET', '/settings/fields?module=Deals'),
+      getDealNotes(c.env, dealId),
+      getDealCalls(c.env, dealId),
+      getDealMeetings(c.env, dealId),
+      getDealTasks(c.env, dealId),
+    ])
 
-    const stageHistory = await zohoAPI(c.env, 'GET', `/Deals/${dealId}/Stage_History?fields=Stage,Last_Modified_Time,modified_by,probability,id`)
-    console.log('Stage History full sample:', JSON.stringify(stageHistory?.data?.[0]))
+    const stageMap = {}
+    if (stageMetaRes?.fields) {
+      const stageField = stageMetaRes.fields.find(f => f.api_name === 'Stage')
+      if (stageField?.pick_list_values) {
+        stageField.pick_list_values.forEach(v => { stageMap[v.id] = v.display_value })
+      }
+    }
 
     const zohoEvents = (stageHistory?.data || []).map(s => ({
       id: s.id,
       event_type: 'stage_changed_zoho',
-      description: `Stage changed — ${Math.round(s.probability || 0)}% probability`,
+      description: `Stage changed to ${stageMap[s.Stage] || 'Unknown stage'}`,
       actor_name: s.modified_by?.name || 'Zoho CRM',
       actor_email: s.modified_by?.email || '',
       metadata: JSON.stringify({ probability: s.probability }),
@@ -1459,10 +1488,73 @@ app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
       source: 'zoho'
     }))
 
+    const notesEvents = (notesRes?.data || []).map(n => ({
+      id: 'note_' + n.id,
+      event_type: 'note_added',
+      description: `Note: ${(n.Note_Content || n.Note_Title || '').slice(0, 80)}${(n.Note_Content || '').length > 80 ? '...' : ''}`,
+      actor_name: n.Created_By?.name || 'Zoho CRM',
+      actor_email: '',
+      metadata: JSON.stringify({}),
+      created_at: n.Created_Time,
+      source: 'zoho'
+    }))
+
+    const callEvents = (callsRes?.data || []).map(cl => ({
+      id: 'call_' + cl.id,
+      event_type: cl.Call_Status === 'Scheduled' ? 'call_scheduled' : 'call_logged',
+      description: `Call: ${cl.Subject || cl.Call_Purpose || 'Call'} — ${cl.Call_Status || ''}`,
+      actor_name: cl.Created_By?.name || 'Zoho CRM',
+      actor_email: '',
+      metadata: JSON.stringify({ purpose: cl.Call_Purpose, result: cl.Call_Result }),
+      created_at: cl.Created_Time || cl.Call_Start_Time,
+      source: 'zoho'
+    }))
+
+    const meetingEvents = (meetingsRes?.data || []).map(m => ({
+      id: 'meeting_' + m.id,
+      event_type: 'meeting_created',
+      description: `Meeting: ${m.Event_Title || 'Meeting'} — ${m.Venue || ''}`,
+      actor_name: m.Created_By?.name || 'Zoho CRM',
+      actor_email: '',
+      metadata: JSON.stringify({ venue: m.Venue }),
+      created_at: m.Created_Time || m.Start_DateTime,
+      source: 'zoho'
+    }))
+
+    const taskEvents = (tasksRes?.data || []).map(t => ({
+      id: 'task_' + t.id,
+      event_type: t.Status === 'Completed' ? 'task_completed' : 'task_created',
+      description: `Task: ${t.Subject || 'Task'} — ${t.Status || ''}`,
+      actor_name: t.Owner?.name || 'Zoho CRM',
+      actor_email: '',
+      metadata: JSON.stringify({ dueDate: t.Due_Date }),
+      created_at: t.Created_Time,
+      source: 'zoho'
+    }))
+
+    const rawDeal = dealRes?.data?.[0]
+    const dealCreatedEvent = {
+      id: 'deal_created',
+      event_type: 'deal_created',
+      description: 'Deal created',
+      actor_name: rawDeal?.Owner?.name || '',
+      actor_email: rawDeal?.Owner?.email || '',
+      metadata: JSON.stringify({}),
+      created_at: rawDeal?.Created_Time || '',
+      source: 'zoho'
+    }
+
     const d1Mapped = (d1Events.results || []).map(e => ({ ...e, source: 'salesassist' }))
 
-    const merged = [...d1Mapped, ...zohoEvents]
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    const merged = [
+      ...d1Mapped,
+      ...zohoEvents,
+      ...notesEvents,
+      ...callEvents,
+      ...meetingEvents,
+      ...taskEvents,
+      dealCreatedEvent
+    ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
     return c.json({ timeline: merged })
   } catch (err) {
@@ -1668,7 +1760,9 @@ app.post('/api/deals/:id/schedule-call', requireAuth, async (c) => {
 
 app.patch('/api/deals/:id/meeting/:meetingId/complete', requireAuth, async (c) => {
   try {
+    const dealId = c.req.param('id')
     const meetingId = c.req.param('meetingId')
+    const user = c.get('user')
     function msToZohoIST(ms) {
       const d = new Date(ms + (5.5 * 60 * 60 * 1000))
       const pad = n => String(n).padStart(2, '0')
@@ -1677,6 +1771,13 @@ app.patch('/api/deals/:id/meeting/:meetingId/complete', requireAuth, async (c) =
     const endMs = Date.now() + (60 * 1000)
     const res = await zohoAPI(c.env, 'PUT', `/Events/${meetingId}`, { data: [{ id: meetingId, End_DateTime: msToZohoIST(endMs) }] })
     console.log('Meeting complete Zoho response:', JSON.stringify(res))
+    await logTimelineEvent(c.env, dealId, {
+      eventType: 'meeting_completed',
+      description: 'Meeting marked as completed',
+      actorName: user.name,
+      actorEmail: user.email,
+      metadata: { meetingId }
+    })
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
@@ -1709,6 +1810,14 @@ app.patch('/api/deals/:id/call/:callId/complete', requireAuth, async (c) => {
         What_Id: dealId,
         '$se_module': 'Deals',
       }]
+    })
+    const user = c.get('user')
+    await logTimelineEvent(c.env, dealId, {
+      eventType: 'call_completed',
+      description: 'Call marked as completed',
+      actorName: user.name,
+      actorEmail: user.email,
+      metadata: { callId }
     })
     return c.json({ success: true })
   } catch (err) {
@@ -1900,6 +2009,13 @@ app.post('/api/deals/:id/emails/:emailType/mark-sent', requireAuth, async (c) =>
       await c.env.DB.prepare(
         `UPDATE deal_emails SET status = 'sent', sent_at = ?, updated_at = ?, thread_message_id = COALESCE(?, thread_message_id), gmail_thread_id = COALESCE(?, gmail_thread_id) WHERE deal_id = ? AND email_type = ?`
       ).bind(now, now, realMessageId, realThreadId, dealId, emailType).run();
+      await logTimelineEvent(c.env, dealId, {
+        eventType: 'email_sent',
+        description: `${emailType} email sent via Gmail`,
+        actorName: loggedInUser.name,
+        actorEmail: loggedInUser.email,
+        metadata: { emailType }
+      })
       return c.json({ success: true, sent: true, sent_at: now });
     }
 
@@ -1913,9 +2029,17 @@ app.delete('/api/deals/:id/emails/:emailType/draft', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id')
     const emailType = c.req.param('emailType')
+    const loggedInUser = c.get('user')
     await c.env.DB.prepare(
       `UPDATE deal_emails SET gmail_draft_id = NULL, gmail_message_id = NULL, gmail_thread_id = NULL, status = 'draft', updated_at = ? WHERE deal_id = ? AND email_type = ?`
     ).bind(new Date().toISOString(), dealId, emailType).run()
+    await logTimelineEvent(c.env, dealId, {
+      eventType: 'gmail_draft_recreated',
+      description: `Gmail draft reset for ${emailType}`,
+      actorName: loggedInUser.name,
+      actorEmail: loggedInUser.email,
+      metadata: { emailType }
+    })
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
@@ -3273,7 +3397,19 @@ app.post('/api/tasks', requireAuth, async (c) => {
 app.patch('/api/tasks/:id/complete', requireAuth, async (c) => {
   try {
     const taskId = c.req.param('id')
+    const user = c.get('user')
+    const taskRes = await getTask(c.env, taskId)
+    const taskData = taskRes?.data?.[0]
     await updateTaskStatus(c.env, taskId, 'Completed')
+    if (taskData?.What_Id) {
+      await logTimelineEvent(c.env, taskData.What_Id, {
+        eventType: 'task_completed',
+        description: `Task completed: ${taskData.Subject || 'Task'}`,
+        actorName: user.name,
+        actorEmail: user.email,
+        metadata: { taskId }
+      })
+    }
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: 'Failed to complete task', details: err.message }, 500)

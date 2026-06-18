@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ArrowRight, Mail, FileText, Send, ClipboardList, StickyNote, Phone, Calendar, CheckSquare, XCircle, PauseCircle, RefreshCw } from 'lucide-react'
+import { ArrowRight, Mail, FileText, Send, ClipboardList, StickyNote, Phone, Calendar, CheckSquare, XCircle, PauseCircle, RefreshCw, Star } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useDeal } from '../../hooks/useDeals'
 import { useAuth } from '../../context/AuthContext'
@@ -377,24 +377,34 @@ function TimelineTab({ dealId }) {
     call_scheduled:      <Phone size={14} />,
     meeting_created:     <Calendar size={14} />,
     task_created:        <CheckSquare size={14} />,
-    mark_lost:           <XCircle size={14} />,
-    mark_on_hold:        <PauseCircle size={14} />,
+    mark_lost:            <XCircle size={14} />,
+    mark_on_hold:         <PauseCircle size={14} />,
+    deal_created:         <Star size={14} />,
+    task_completed:       <CheckSquare size={14} />,
+    meeting_completed:    <Calendar size={14} />,
+    call_completed:       <Phone size={14} />,
+    gmail_draft_recreated:<RefreshCw size={14} />,
   }
 
   const colorMap = {
-    stage_changed:       '#3B5BDB',
-    stage_changed_zoho:  '#7C3AED',
-    emails_generated:    '#0EA5E9',
-    gmail_draft_created: '#0EA5E9',
-    email_sent:          '#2F9E44',
-    demo_logged:         '#F59E0B',
-    note_added:          '#6B7280',
-    call_logged:         '#C2255C',
-    call_scheduled:      '#C2255C',
-    meeting_created:     '#2F9E44',
-    task_created:        '#3B5BDB',
-    mark_lost:           '#E5484D',
-    mark_on_hold:        '#F59E0B',
+    stage_changed:        '#3B5BDB',
+    stage_changed_zoho:   '#7C3AED',
+    emails_generated:     '#0EA5E9',
+    gmail_draft_created:  '#0EA5E9',
+    email_sent:           '#2F9E44',
+    demo_logged:          '#F59E0B',
+    note_added:           '#6B7280',
+    call_logged:          '#C2255C',
+    call_scheduled:       '#C2255C',
+    meeting_created:      '#2F9E44',
+    task_created:         '#3B5BDB',
+    mark_lost:            '#E5484D',
+    mark_on_hold:         '#F59E0B',
+    deal_created:         '#F59E0B',
+    task_completed:       '#2F9E44',
+    meeting_completed:    '#2F9E44',
+    call_completed:       '#2F9E44',
+    gmail_draft_recreated:'#0EA5E9',
   }
 
   if (loading) return (
