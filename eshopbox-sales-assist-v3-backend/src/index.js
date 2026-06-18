@@ -1445,7 +1445,8 @@ app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
       'SELECT * FROM deal_timeline WHERE deal_id = ? ORDER BY created_at DESC'
     ).bind(dealId).all()
 
-    const stageHistory = await zohoAPI(c.env, 'GET', `/Deals/${dealId}/Stage_History`)
+    const stageHistory = await zohoAPI(c.env, 'GET', `/Deals/${dealId}/Stage_History?fields=Stage,Last_Modified_Time,modified_by,probability,id`)
+    console.log('Stage History full sample:', JSON.stringify(stageHistory?.data?.[0]))
 
     const zohoEvents = (stageHistory?.data || []).map(s => ({
       id: s.id,
