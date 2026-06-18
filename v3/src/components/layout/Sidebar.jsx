@@ -8,11 +8,12 @@ function getNavItems(role, counts = {}) {
 
   if (role === ROLES.MDE || role === ROLES.AE) {
     base.push(
-      { id: 'my-day',     label: 'My Day',       path: '/',            section: null },
-      { id: 'pipeline',   label: role === ROLES.AE ? 'My deals · Enterprise' : 'My deals',
-                                                   path: '/pipeline',    section: null,
+      { id: 'my-day',        label: 'My Day',       path: '/',                 section: null },
+      { id: 'pipeline',      label: role === ROLES.AE ? 'My deals · Enterprise' : 'My deals',
+                                                      path: '/pipeline',         section: null,
         count: counts.activeDeals },
-      { id: 'lead-inbox', label: 'Lead Inbox',    path: '/leads',       section: null,
+      { id: 'need-attention', label: 'Need Attention', path: '/need-attention', section: null },
+      { id: 'lead-inbox',    label: 'Lead Inbox',    path: '/leads',            section: null,
         count: counts.leads, badge: counts.slaBreaches > 0 ? 'danger' : null },
       { id: 'accounts',   label: 'Accounts',      path: '/accounts',    section: null },
       { id: 'tasks',      label: 'Tasks',         path: '/tasks',       section: null,
@@ -22,9 +23,10 @@ function getNavItems(role, counts = {}) {
 
   if (role === ROLES.SALES_LEAD_MIDMARKET) {
     base.push(
-      { id: 'pipeline',   label: 'Mid-Market Pipeline', path: '/pipeline', section: null,
+      { id: 'pipeline',       label: 'Mid-Market Pipeline', path: '/pipeline',      section: null,
         count: counts.activeDeals },
-      { id: 'lead-inbox', label: 'Lead Inbox',    path: '/leads',       section: null,
+      { id: 'need-attention', label: 'Need Attention',      path: '/need-attention', section: null },
+      { id: 'lead-inbox',     label: 'Lead Inbox',          path: '/leads',          section: null,
         count: counts.leads, badge: counts.slaBreaches > 0 ? 'danger' : null },
       { id: 'accounts',   label: 'Accounts',      path: '/accounts',    section: null },
       { id: 'tasks',      label: 'Tasks',         path: '/tasks',       section: null },
@@ -36,9 +38,10 @@ function getNavItems(role, counts = {}) {
 
   if (role === ROLES.SALES_LEAD_ENTERPRISE) {
     base.push(
-      { id: 'pipeline',   label: 'Enterprise Pipeline', path: '/pipeline', section: null,
+      { id: 'pipeline',       label: 'Enterprise Pipeline', path: '/pipeline',      section: null,
         count: counts.activeDeals },
-      { id: 'lead-inbox', label: 'Lead Inbox',    path: '/leads',       section: null,
+      { id: 'need-attention', label: 'Need Attention',      path: '/need-attention', section: null },
+      { id: 'lead-inbox',     label: 'Lead Inbox',          path: '/leads',          section: null,
         count: counts.leads, badge: counts.slaBreaches > 0 ? 'danger' : null },
       { id: 'accounts',   label: 'Accounts',      path: '/accounts',    section: null },
       { id: 'tasks',      label: 'Tasks',         path: '/tasks',       section: null },
@@ -50,9 +53,10 @@ function getNavItems(role, counts = {}) {
 
   if (role === ROLES.ADMIN) {
     base.push(
-      { id: 'pipeline',    label: 'All Deals',     path: '/pipeline',    section: null,
+      { id: 'pipeline',       label: 'All Deals',      path: '/pipeline',      section: null,
         count: counts.activeDeals },
-      { id: 'lead-inbox',  label: 'Lead Inbox',    path: '/leads',       section: null,
+      { id: 'need-attention', label: 'Need Attention', path: '/need-attention', section: null },
+      { id: 'lead-inbox',     label: 'Lead Inbox',     path: '/leads',          section: null,
         count: counts.leads },
       { id: 'accounts',    label: 'Accounts',      path: '/accounts',    section: null },
       { id: 'tasks',       label: 'Tasks',         path: '/tasks',       section: null },

@@ -3,6 +3,9 @@ import { Empty } from '../components/ui'
 // ── My Day ───────────────────────────────────────────────
 export { default as MyDay } from './MyDay'
 
+// ── Need Attention ───────────────────────────────────────
+export { default as NeedAttention } from './NeedAttention'
+
 // ── Lead Inbox ───────────────────────────────────────────
 export { default as LeadInbox } from './LeadInbox'
 

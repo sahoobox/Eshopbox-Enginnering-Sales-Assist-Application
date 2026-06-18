@@ -9,7 +9,7 @@ import DemoForm from './pages/DemoForm'
 import AccountSettings from './pages/AccountSettings'
 import {
   MyDay, LeadInbox, Accounts,
-  Tasks, Performance, Reports, Settings, NotFound,
+  Tasks, Performance, Reports, Settings, NotFound, NeedAttention,
 } from './pages'
 import { Loading } from './components/ui'
 
@@ -45,6 +45,7 @@ function AppLayout() {
 
           <Route path="/pipeline" element={<Pipeline />} />
           <Route path="/pipeline/:dealId" element={<Pipeline />} />
+          <Route path="/need-attention" element={<NeedAttention />} />
           <Route path="/leads" element={<LeadInbox />} />
           <Route path="/leads/:leadId" element={<LeadDetail />} />
           <Route path="/accounts" element={<Accounts />} />

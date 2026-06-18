@@ -94,7 +94,6 @@ function PipelineList() {
   const [activeFilters, setActiveFilters] = useState([])
   const [showLegend, setShowLegend] = useState(false)
   const [tileFilter, setTileFilter] = useState('inbox')
-  const [viewTab, setViewTab] = useState('health')
 
   const TERMINAL = ['Won/Payment Received', 'Lost/Dropped', 'On Hold']
 
@@ -126,7 +125,6 @@ function PipelineList() {
       !TERMINAL.includes(d.stage) &&
       (d.flags?.some(f => f.severity === 'critical') || !d.saLogged)
     )
-    if (tileFilter === 'conducted') return scopedDeals.filter(d => d.saLogged)
     if (tileFilter === 'upcoming') return scopedDeals.filter(d => d.stage === 'Upcoming Demo')
     if (tileFilter === 'logged') return scopedDeals.filter(d => d.saLogged)
     if (tileFilter === 'notlogged') return scopedDeals.filter(d =>
@@ -138,7 +136,6 @@ function PipelineList() {
 
   const tileTooltips = {
     inbox: 'Active deals in a conducted or upcoming stage that need action — your working pipeline.',
-    conducted: 'Deals where the demo has been logged in Sales Assist and the email sequence is running.',
     upcoming: 'Deals in Upcoming Demo stage — demo is scheduled but not yet conducted.',
     logged: 'Deals where the demo form has been filled and AI email drafts are ready.',
     notlogged: 'Active deals past Upcoming Demo stage where no demo has been logged yet.',
@@ -148,7 +145,6 @@ function PipelineList() {
 
   const tiles = [
     { key: 'inbox', label: 'INBOX', count: scopedDeals.filter(d => !TERMINAL.includes(d.stage) && (d.flags?.some(f => f.severity === 'critical') || !d.saLogged)).length, sub: 'Needs your attention today' },
-    { key: 'conducted', label: 'CONDUCTED', count: scopedDeals.filter(d => d.saLogged).length, sub: 'Demo done, sequence running' },
     { key: 'upcoming', label: 'UPCOMING', count: scopedDeals.filter(d => d.stage === 'Upcoming Demo').length, sub: 'Scheduled, not yet done' },
     { key: 'logged', label: 'DEMO LOGGED', count: scopedDeals.filter(d => d.saLogged).length, sub: 'Form filled, drafts ready' },
     { key: 'notlogged', label: 'NOT LOGGED', count: scopedDeals.filter(d => !d.saLogged && !TERMINAL.includes(d.stage) && d.stage !== 'Upcoming Demo').length, sub: 'Form pending, drafts blocked' },
@@ -350,101 +346,8 @@ function PipelineList() {
         )}
       </div>
 
-      {/* Health / Needs attention tabs */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 12, borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
-        <button
-          onClick={() => setViewTab('health')}
-          style={{
-            padding: '8px 16px', border: 'none', background: 'none',
-            borderBottom: viewTab === 'health' ? '2px solid var(--brand)' : '2px solid transparent',
-            fontWeight: viewTab === 'health' ? 600 : 400,
-            color: viewTab === 'health' ? 'var(--brand)' : 'var(--ink-3)',
-            cursor: 'pointer', fontSize: 13
-          }}
-        >
-          Pipeline
-        </button>
-        <button
-          onClick={() => setViewTab('attention')}
-          style={{
-            padding: '8px 16px', border: 'none', background: 'none',
-            borderBottom: viewTab === 'attention' ? '2px solid var(--brand)' : '2px solid transparent',
-            fontWeight: viewTab === 'attention' ? 600 : 400,
-            color: viewTab === 'attention' ? 'var(--brand)' : 'var(--ink-3)',
-            cursor: 'pointer', fontSize: 13
-          }}
-        >
-          Needs attention <span style={{ background: 'var(--danger)', color: 'white', borderRadius: 10, padding: '1px 7px', fontSize: 11, marginLeft: 4 }}>
-            {tileFilteredDeals.filter(d => d.flags?.length > 0).length}
-          </span>
-        </button>
-      </div>
-
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        {viewTab === 'attention' ? (
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-            <table className="t" style={{ width: '100%' }}>
-              <thead>
-                <tr>
-                  <th style={{ width: 60 }}>Grade</th>
-                  <th>Brand</th>
-                  <th>Rep</th>
-                  <th>Stage</th>
-                  <th>Flags</th>
-                  <th style={{ width: 100 }}>Days in stage</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tileFilteredDeals
-                  .filter(d => d.flags?.length > 0)
-                  .sort((a, b) => {
-                    const sev = { critical: 0, warning: 1, info: 2 }
-                    const aMax = Math.min(...(a.flags?.map(f => sev[f.severity] ?? 3) || [3]))
-                    const bMax = Math.min(...(b.flags?.map(f => sev[f.severity] ?? 3) || [3]))
-                    return aMax - bMax
-                  })
-                  .map(deal => {
-                    const days = deal.stageChangedOn
-                      ? Math.floor((Date.now() - new Date(deal.stageChangedOn)) / 86400000)
-                      : null
-                    return (
-                      <tr key={deal.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/pipeline/${deal.id}`)}>
-                        <td>
-                          <span style={{
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            width: 24, height: 24, borderRadius: 6, fontWeight: 700, fontSize: 12,
-                            background: deal.grade === 'A' ? 'var(--ok-bg)' : deal.grade === 'B' ? 'var(--info-bg)' : deal.grade === 'C' ? 'var(--warn-bg)' : 'var(--danger-bg)',
-                            color: deal.grade === 'A' ? 'var(--ok)' : deal.grade === 'B' ? 'var(--info)' : deal.grade === 'C' ? 'var(--warn)' : 'var(--danger)',
-                          }}>
-                            {deal.grade}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 600, fontSize: 13 }}>{deal.brandName || deal.dealName}</div>
-                          <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{deal.solutionInterest}</div>
-                        </td>
-                        <td style={{ fontSize: 13 }}>{deal.repName?.split(' ')[0]}</td>
-                        <td><span className="pill pill-neutral" style={{ fontSize: 11 }}>{deal.stage}</span></td>
-                        <td style={{ maxWidth: 400 }}>
-                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                            {deal.flags?.map((f, i) => (
-                              <span key={i} className={`pill ${f.severity === 'critical' ? 'pill-danger' : f.severity === 'warning' ? 'pill-warn' : 'pill-info'}`} style={{ fontSize: 10.5 }}>
-                                {f.title}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td style={{ fontSize: 13, fontWeight: 600, color: days >= 14 ? 'var(--danger)' : days >= 7 ? 'var(--warn)' : 'var(--ink-2)' }}>
-                          {days != null ? `${days}d` : '—'}
-                        </td>
-                      </tr>
-                    )
-                  })
-                }
-              </tbody>
-            </table>
-          </div>
-        ) : view === 'kanban'
+        {view === 'kanban'
           ? <KanbanView deals={tileFilteredDeals} pipelineFilter={pipelineFilter} />
           : <ListView deals={tileFilteredDeals} onOpen={id => navigate(`/pipeline/${id}`)} />
         }
