@@ -146,7 +146,17 @@ export async function searchDeals(env, query) {
 }
 
 export async function getDeal(env, dealId) {
-  return zohoAPI(env, 'GET', `/Deals/${dealId}?fields=${DEAL_FIELDS}`);
+  const url = `https://www.zohoapis.com/crm/v2.1/Deals/${dealId}?fields=${DEAL_FIELDS}`
+  const accessToken = await getAccessToken(env)
+  const res = await fetch(url, {
+    headers: { Authorization: `Zoho-oauthtoken ${accessToken}` }
+  })
+  if (res.status === 204) return null
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(`Zoho API error: ${res.status} ${errText}`)
+  }
+  return await res.json()
 }
 
 export async function createDeal(env, dealData) {
