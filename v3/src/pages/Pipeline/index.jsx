@@ -303,28 +303,11 @@ function PipelineList() {
         </div>
       )}
 
-      <div className="controls-row">
-        {showPipelineToggle && (
-          <div className="seg">
-            <button className={pipelineFilter === 'midmarket' ? 'is-on' : ''} onClick={() => setPipelineFilter('midmarket')}>Mid-Market</button>
-            <button className={pipelineFilter === 'enterprise' ? 'is-on' : ''} onClick={() => setPipelineFilter('enterprise')}>Enterprise</button>
-          </div>
-        )}
-      </div>
-
-      <div className="pipeline-searchbar">
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 14, flexShrink: 0 }}>
         <button className="pipeline-filter-trigger" onClick={() => filterBarRef.current?.openAdd()}>
-          🔍 + Add filter
+          + Add filter
         </button>
-        <input
-          className="pipeline-searchbar-input"
-          placeholder="Search brand or rep…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-      </div>
 
-      <div style={{ flexShrink: 0 }}>
         <FilterBar
           ref={filterBarRef}
           filters={activeFilters}
@@ -334,7 +317,16 @@ function PipelineList() {
           isAdmin={isAdmin}
           isMidMarketLead={isMidMarketLead}
           isEnterpriseLead={isEnterpriseLead}
+          search={search}
+          onSearch={setSearch}
         />
+
+        {showPipelineToggle && (
+          <div className="seg" style={{ flexShrink: 0 }}>
+            <button className={pipelineFilter === 'midmarket' ? 'is-on' : ''} onClick={() => setPipelineFilter('midmarket')}>Mid-Market</button>
+            <button className={pipelineFilter === 'enterprise' ? 'is-on' : ''} onClick={() => setPipelineFilter('enterprise')}>Enterprise</button>
+          </div>
+        )}
       </div>
 
       {/* Health / Needs attention tabs */}
@@ -441,7 +433,7 @@ function PipelineList() {
 }
 
 // ── Filter bar ────────────────────────────────────────────
-const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stages, isAdmin, isMidMarketLead, isEnterpriseLead }, ref) {
+const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stages, isAdmin, isMidMarketLead, isEnterpriseLead, search, onSearch }, ref) {
   const [open, setOpen] = useState(null)   // null | { mode: 'add'|'edit', id? }
   const [step, setStep] = useState('field')
   const [draft, setDraft] = useState(null)
@@ -533,7 +525,18 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
   )
 
   return (
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+    <div style={{
+      position: 'relative',
+      flex: 1,
+      display: 'flex',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: 6,
+      border: '1.5px solid var(--line)',
+      borderRadius: 8,
+      padding: '6px 10px',
+      minHeight: 36,
+    }}>
       {filters.map(f => (
         <span key={f.id} style={{ display: 'inline-flex', alignItems: 'center' }}>
           <button
@@ -552,6 +555,20 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
       {filters.length > 0 && (
         <button className="filter-clear-btn" onClick={() => onChange([])}>Clear all</button>
       )}
+
+      <input
+        style={{
+          border: 'none',
+          outline: 'none',
+          flex: 1,
+          minWidth: 120,
+          fontSize: 13,
+          background: 'transparent',
+        }}
+        placeholder="Search brand or rep…"
+        value={search}
+        onChange={e => onSearch(e.target.value)}
+      />
 
       {open && (
         <div ref={dropRef} className="filter-dropdown">
