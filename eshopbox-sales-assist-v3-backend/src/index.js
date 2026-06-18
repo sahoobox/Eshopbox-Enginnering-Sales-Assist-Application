@@ -203,6 +203,7 @@ async function getAEEmails(db) {
 }
 
 function mapZohoDeal(d) {
+  console.log('Raw d.Pipeline type:', typeof d.Pipeline, 'value:', JSON.stringify(d.Pipeline))
   return {
     id: d.id,
     dealName: d.Deal_Name,
