@@ -469,5 +469,5 @@ export async function getDealMeetings(env, dealId) {
 }
 
 export async function getDealCalls(env, dealId) {
-  return zohoAPI(env, 'GET', `/Calls/search?criteria=(What_Id:equals:${dealId})&fields=id,Subject,Call_Purpose,Call_Agenda,Call_Result,Call_Start_Time,Call_Status,Description,Created_By`)
+  return zohoAPI(env, 'GET', `/Calls/search?criteria=(What_Id:equals:${dealId})&fields=id,Subject,Call_Purpose,Call_Agenda,Call_Result,Call_Start_Time,Call_Status,Outbound_Call_Status,Description,Created_By`)
 }

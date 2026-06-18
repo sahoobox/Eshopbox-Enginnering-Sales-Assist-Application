@@ -934,6 +934,7 @@ deal.activities = activities.map(a => ({
       id: cl.id, subject: cl.Subject || '', purpose: cl.Call_Purpose || '',
       agenda: cl.Call_Agenda || '', result: cl.Call_Result || '',
       timing: cl.Call_Start_Time, status: cl.Call_Status || '',
+      outboundStatus: cl.Outbound_Call_Status || '',
       description: cl.Description || '', createdBy: cl.Created_By?.name || '',
     }));
     if ((effectiveUser.role === 'mde' || effectiveUser.role === 'ae') && deal.repEmail !== effectiveUser.email) return c.json({ error: 'Access denied' }, 403);

@@ -455,8 +455,8 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
 
   const allActivities = [
     ...tasks.map(t => ({ id: t.id, type: 'Task', date: t.dueDate, taskStatus: t.status, done: t.status === 'Completed', _t: t })),
-    ...meetings.map(m => ({ id: m.id, type: 'Meeting', date: m.from, status: m.status, done: m.status === 'Completed' || localCompleted.has(m.id), _m: m })),
-    ...calls.map(c => ({ id: c.id, type: 'Call', date: c.timing, status: c.status, done: c.status === 'Completed' || localCompleted.has(c.id), _c: c })),
+    ...meetings.map(m => ({ id: m.id, type: 'Meeting', date: m.from, status: m.status, done: (m.to && new Date(m.to) < new Date()) || localCompleted.has(m.id), _m: m })),
+    ...calls.map(c => ({ id: c.id, type: 'Call', date: c.timing, status: c.status, done: c.status === 'Completed' || c.status === 'completed' || localCompleted.has(c.id), _c: c })),
   ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 
   const TYPE_PILL_STYLE = {
