@@ -1575,6 +1575,12 @@ app.patch('/api/deals/:id/call/:callId/complete', requireAuth, async (c) => {
     const callRes = await zohoAPI(c.env, 'GET', `/Calls/${callId}?fields=Subject,Call_Purpose,Call_Agenda,Description,Call_Start_Time,What_Id`)
     console.log('Fetched call data:', JSON.stringify(callRes?.data?.[0]))
     const callData = callRes?.data?.[0]
+    function msToZohoIST(ms) {
+      const d = new Date(ms + (5.5 * 60 * 60 * 1000))
+      const pad = n => String(n).padStart(2, '0')
+      return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:00+05:30`
+    }
+    const nowIST = msToZohoIST(Date.now())
     const deleteRes = await zohoAPI(c.env, 'DELETE', `/Calls?ids=${callId}`)
     console.log('Delete response:', JSON.stringify(deleteRes))
     const createRes = await zohoAPI(c.env, 'POST', '/Calls', {
@@ -1586,7 +1592,7 @@ app.patch('/api/deals/:id/call/:callId/complete', requireAuth, async (c) => {
         Call_Purpose: callData?.Call_Purpose || '',
         Call_Agenda: callData?.Call_Agenda || '',
         Description: callData?.Description || '',
-        Call_Start_Time: callData?.Call_Start_Time,
+        Call_Start_Time: nowIST,
         What_Id: dealId,
         '$se_module': 'Deals',
       }]
