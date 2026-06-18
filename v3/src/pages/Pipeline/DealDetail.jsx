@@ -42,6 +42,7 @@ export default function DealDetail({ dealId }) {
     </div>
   )
 
+  console.log('Stage tracker debug:', { dealName: deal.dealName, pipeline: deal.pipeline, stage: deal.stage, match: deal.pipeline === 'Enterprise 2.0' })
   const stages = deal.pipeline === 'Enterprise 2.0' ? ENT_STAGES : SME_STAGES
   const currentIdx = stages.indexOf(deal.stage)
   const isTerminal = deal.pipeline === 'Enterprise 2.0'
