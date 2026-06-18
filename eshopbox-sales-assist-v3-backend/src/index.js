@@ -1552,10 +1552,13 @@ app.post('/api/deals/:id/schedule-call', requireAuth, async (c) => {
 app.patch('/api/deals/:id/meeting/:meetingId/complete', requireAuth, async (c) => {
   try {
     const meetingId = c.req.param('meetingId')
-    const now = new Date()
-    const pad = n => String(n).padStart(2, '0')
-    const nowStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:00+05:30`
-    const res = await zohoAPI(c.env, 'PUT', `/Events/${meetingId}`, { data: [{ id: meetingId, Start_DateTime: nowStr, End_DateTime: nowStr }] })
+    function msToZohoIST(ms) {
+      const d = new Date(ms + (5.5 * 60 * 60 * 1000))
+      const pad = n => String(n).padStart(2, '0')
+      return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:00+05:30`
+    }
+    const endMs = Date.now() + (60 * 1000)
+    const res = await zohoAPI(c.env, 'PUT', `/Events/${meetingId}`, { data: [{ id: meetingId, End_DateTime: msToZohoIST(endMs) }] })
     console.log('Meeting complete Zoho response:', JSON.stringify(res))
     return c.json({ success: true })
   } catch (err) {
