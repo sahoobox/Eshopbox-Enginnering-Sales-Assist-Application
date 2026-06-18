@@ -9,6 +9,22 @@ import {
   ALL_PIPELINE_STAGES, SME_STAGES, ENT_STAGES, getStagePill, stageColor, initials, formatDate, daysAgo
 } from '../../lib/stageConfig'
 
+const AE_EMAILS = [
+  'taufeeq.ahmad@eshopbox.com',
+  'afzal.maknoo@eshopbox.com',
+  'gautam@eshopbox.com',
+  'jeevan.more@eshopbox.com',
+]
+
+const MDE_EMAILS = [
+  'sriya.komal@eshopbox.com',
+  'mriganki.srivastava@eshopbox.com',
+  'shubham.kumar@eshopbox.com',
+  'raghwendra.kumar@eshopbox.com',
+]
+
+const REP_EMAILS = new Set([...AE_EMAILS, ...MDE_EMAILS])
+
 const ORDER_VOLUME_OPTIONS = [
   '1 - 500 orders/month',
   '501 - 3,000 orders/month',
@@ -453,17 +469,18 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
   let repDeals = deals
   if (isMidMarketLead) repDeals = deals.filter(d => d.pipeline === 'Mid-market')
   if (isEnterpriseLead) repDeals = deals.filter(d => d.pipeline === 'Enterprise 2.0')
-  const repNames = [...new Set(repDeals.map(d => d.repName).filter(Boolean))].sort()
+  const repNames = [...new Set(
+    repDeals.filter(d => REP_EMAILS.has(d.repEmail)).map(d => d.repName).filter(Boolean)
+  )].sort()
   const flagTitles = [...new Set(deals.flatMap(d => d.flags?.map(f => f.title) || []))].sort()
 
   const FIELDS = [
     ...(isAdmin || isMidMarketLead || isEnterpriseLead
-      ? [{ key: 'rep', label: 'Rep', type: 'multi', opts: repNames }]
+      ? [{ key: 'rep', label: 'Sales Representative', type: 'multi', opts: repNames }]
       : []),
     { key: 'stage',       label: 'Stage',        type: 'multi', opts: stages },
     { key: 'grade',       label: 'Grade',        type: 'multi', opts: ['A', 'B', 'C', 'D'] },
     { key: 'orderVolume', label: 'Order Volume',  type: 'multi', opts: ORDER_VOLUME_OPTIONS },
-    { key: 'saLogged',    label: 'SA Logged',     type: 'multi', opts: ['Yes', 'No'] },
     { key: 'demoDate',    label: 'Demo Date',     type: 'date' },
     { key: 'flags',       label: 'Flags',         type: 'multi', opts: ['Has flags', 'No flags', ...flagTitles] },
   ]
