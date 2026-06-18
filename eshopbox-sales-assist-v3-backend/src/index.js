@@ -925,11 +925,13 @@ deal.activities = activities.map(a => ({
       description: n.Note_Content || n.Note_Title || '',
       createdBy: n.Created_By?.name || '',
     }));
+    console.log('Raw meeting statuses:', meetings.map(m => ({ id: m.id, Status: m.Status })))
     deal.meetings = (meetingsRes?.data || []).map(m => ({
       id: m.id, title: m.Event_Title || '', venue: m.Venue || '',
       from: m.Start_DateTime, to: m.End_DateTime, description: m.Description || '',
       status: m.Status || '', createdBy: m.Created_By?.name || '',
     }));
+    console.log('Raw call statuses:', calls.map(c => ({ id: c.id, Call_Status: c.Call_Status })))
     deal.calls = (callsRes?.data || []).map(cl => ({
       id: cl.id, subject: cl.Subject || '', purpose: cl.Call_Purpose || '',
       agenda: cl.Call_Agenda || '', result: cl.Call_Result || '',
