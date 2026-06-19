@@ -25,7 +25,6 @@ export default function LeadDetail() {
   const [logSaving, setLogSaving] = useState(false)
   const [dedup, setDedup] = useState(null)
   const [showReassign, setShowReassign] = useState(false)
-  const [sideTab, setSideTab] = useState('lead')
 
   useEffect(() => {
     authFetch(`/api/leads/${leadId}`)
@@ -218,9 +217,14 @@ export default function LeadDetail() {
             )}
           </div>
 
-          {/* Activity / Notes tabs */}
+          {/* Tabs */}
           <div className="tabs">
-            {[{ id: 'activity', label: 'Activity' }, { id: 'notes', label: 'Notes' }].map(t => (
+            {[
+              { id: 'activity', label: 'Activity' },
+              { id: 'notes', label: 'Notes' },
+              { id: 'leadfields', label: 'Lead Fields' },
+              { id: 'utm', label: 'UTM & Tracking' },
+            ].map(t => (
               <button key={t.id} className={`tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
                 {t.label}
               </button>
@@ -281,6 +285,57 @@ export default function LeadDetail() {
               )}
             </div>
           )}
+          {tab === 'leadfields' && (
+            <div className="card">
+              <div className="ws-side-body">
+                {[
+                  { k: 'Lead Name', v: lead.fullName || '—' },
+                  { k: 'Lead Owner', v: lead.ownerName || '—' },
+                  { k: 'Lead Status', v: lead.leadStatus
+                    ? <span className="pill pill-neutral">{lead.leadStatus}</span>
+                    : '—'
+                  },
+                  { k: 'Phone', v: lead.phone || '—' },
+                  { k: 'Company', v: lead.company || '—' },
+                  { k: 'Lead Source', v: lead.leadSource || '—' },
+                  { k: 'City', v: lead.city || '—' },
+                  { k: 'Website', v: lead.website || '—' },
+                  { k: 'How many orders do you ship in a month?', v: lead.orderVolume || '—' },
+                  { k: 'How can Eshopbox support your business?', v: lead.supportNeeded || '—' },
+                  { k: 'What type of products do you sell?', v: lead.productType || '—' },
+                  { k: 'Shipping Setup', v: lead.shippingSetup || '—' },
+                  { k: 'Current Fulfillment Setup', v: lead.fulfillmentSetup || '—' },
+                  { k: 'Inventory Move Timeline', v: lead.inventoryTimeline || '—' },
+                ].map((row, i) => (
+                  <div key={i} className="ws-side-row">
+                    <span className="k">{row.k}</span>
+                    <span className="v">{row.v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tab === 'utm' && (
+            <div className="card">
+              <div className="ws-side-body">
+                {[
+                  { k: 'UTM Source', v: lead.utmSource || '—' },
+                  { k: 'UTM Medium', v: lead.utmMedium || '—' },
+                  { k: 'UTM Campaign', v: lead.utmCampaign || '—' },
+                  { k: 'Same-day contact', v: needsSameDay
+                    ? <span className="pill pill-warn">Same-day · today by 6pm</span>
+                    : <span style={{ color: 'var(--ink-3)' }}>—</span>
+                  },
+                ].map((row, i) => (
+                  <div key={i} className="ws-side-row">
+                    <span className="k">{row.k}</span>
+                    <span className="v">{row.v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right sidebar */}
@@ -321,55 +376,6 @@ export default function LeadDetail() {
             </div>
           </div>
 
-          {/* Lead fields / UTM tabs */}
-          <div className="card">
-            <div className="tabs" style={{ padding: '0 14px' }}>
-              {[{ id: 'lead', label: 'Lead Fields' }, { id: 'utm', label: 'UTM & Tracking' }].map(t => (
-                <button key={t.id} className={`tab ${sideTab === t.id ? 'active' : ''}`} onClick={() => setSideTab(t.id)}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            <div className="ws-side-body">
-              {sideTab === 'lead' ? [
-                { k: 'Lead Name', v: lead.fullName || '—' },
-                { k: 'Lead Owner', v: lead.ownerName || '—' },
-                { k: 'Lead Status', v: lead.leadStatus
-                  ? <span className="pill pill-neutral">{lead.leadStatus}</span>
-                  : '—'
-                },
-                { k: 'Phone', v: lead.phone || '—' },
-                { k: 'Company', v: lead.company || '—' },
-                { k: 'Lead Source', v: lead.leadSource || '—' },
-                { k: 'City', v: lead.city || '—' },
-                { k: 'Website', v: lead.website || '—' },
-                { k: 'How many orders do you ship in a month?', v: lead.orderVolume || '—' },
-                { k: 'How can Eshopbox support your business?', v: lead.supportNeeded || '—' },
-                { k: 'What type of products do you sell?', v: lead.productType || '—' },
-                { k: 'Shipping Setup', v: lead.shippingSetup || '—' },
-                { k: 'Current Fulfillment Setup', v: lead.fulfillmentSetup || '—' },
-                { k: 'Inventory Move Timeline', v: lead.inventoryTimeline || '—' },
-              ].map((row, i) => (
-                <div key={i} className="ws-side-row">
-                  <span className="k">{row.k}</span>
-                  <span className="v">{row.v}</span>
-                </div>
-              )) : [
-                { k: 'UTM Source', v: lead.utmSource || '—' },
-                { k: 'UTM Medium', v: lead.utmMedium || '—' },
-                { k: 'UTM Campaign', v: lead.utmCampaign || '—' },
-                { k: 'Same-day contact', v: needsSameDay
-                  ? <span className="pill pill-warn">Same-day · today by 6pm</span>
-                  : <span style={{ color: 'var(--ink-3)' }}>—</span>
-                },
-              ].map((row, i) => (
-                <div key={i} className="ws-side-row">
-                  <span className="k">{row.k}</span>
-                  <span className="v">{row.v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 
