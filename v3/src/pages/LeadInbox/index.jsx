@@ -324,10 +324,7 @@ export default function LeadInbox() {
   const paginated = filteredLeads.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   const todayStr = new Date().toISOString().split('T')[0]
-  const isPast6pm = new Date().getHours() >= 18
   const leadsToday = scopedLeads.filter(l => l.createdAt?.startsWith(todayStr))
-  const sameDayDue = leadsToday.filter(l => l.leadStatus === 'New')
-  const slaBreached = isPast6pm ? sameDayDue.length : 0
 
   if (loading) return <div className="main"><Loading text="Fetching leads from Zoho CRM…" /></div>
   if (error) return (
@@ -345,10 +342,8 @@ export default function LeadInbox() {
         actions={<button className="btn btn-sm" onClick={refetch}>↻ Refresh</button>}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 12, marginBottom: 16 }}>
         <StatTile label="TODAY" value={leadsToday.length} sub="new leads" />
-        <StatTile label="SLA BREACHED" value={slaBreached} sub="contact before 6pm" warn={slaBreached > 0} />
-        <StatTile label="SAME-DAY DUE" value={sameDayDue.length} sub="still in New status" warn={sameDayDue.length > 0} />
       </div>
 
       <div className="pipeline-searchbar">
