@@ -326,11 +326,22 @@ export default function LeadInbox() {
 
   useEffect(() => {
     const mainEl = document.querySelector('.main')
-    if (!mainEl || !theadRef.current) return
+    console.log('mainEl found:', mainEl)
+    console.log('theadRef.current:', theadRef.current)
+
+    if (!mainEl || !theadRef.current) {
+      console.log('MISSING: mainEl or theadRef')
+      return
+    }
 
     const handleScroll = () => {
       const theadRect = theadRef.current?.getBoundingClientRect()
       const mainRect = mainEl.getBoundingClientRect()
+      console.log('scroll fired', {
+        theadTop: theadRect?.top,
+        mainTop: mainRect?.top,
+        shouldShow: theadRect?.top < mainRect?.top
+      })
       if (theadRect && theadRect.top < mainRect.top) {
         setShowStickyHeader(true)
         setStickyLeft(mainRect.left)
