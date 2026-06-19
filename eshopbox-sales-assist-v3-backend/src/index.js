@@ -4,7 +4,7 @@ import { requireAuth } from './middleware/auth.js';
 import { sign, verify } from './middleware/jwt.js';
 import { getUserByEmail, createUser, createInvite, getInviteByToken, markInviteAccepted, getAllUsers, deactivateUser, updateUserRole, getPendingInvites } from './db/users.js';
 import { calculateGrade, scoreToGrade } from './services/grading.js';
-import { zohoAPI, createDeal, createTask, getDeals, getAllDeals, getDeal, getDealTasks, getDealActivities, updateDeal, searchDeals, sendDealEmail, createDealEmailDraft, getAllowedFromAddresses, getAccessTokenForUser, getAccessToken, getDealSentEmails, getEmailContent, getTask, getLeads, getLead, updateLead, getLeadActivities, createLeadActivity, getLeadNotes, createLeadNote, getTasks, createGenericTask, updateTaskStatus, getDealNotes, createZohoEvent, createZohoCall, getDealMeetings, getDealCalls } from './services/zoho.js';
+import { zohoAPI, createDeal, createTask, getDeals, getAllDeals, getDeal, getDealTasks, getDealActivities, updateDeal, searchDeals, sendDealEmail, createDealEmailDraft, getAllowedFromAddresses, getAccessTokenForUser, getAccessToken, getDealSentEmails, getEmailContent, getTask, getLeads, getAllLeads, getLead, updateLead, getLeadActivities, createLeadActivity, getLeadNotes, createLeadNote, getTasks, createGenericTask, updateTaskStatus, getDealNotes, createZohoEvent, createZohoCall, getDealMeetings, getDealCalls } from './services/zoho.js';
 import { generateEmailDrafts, generateReengagement, generateDealAnalysis, generateDealSummary } from './services/claude.js';
 import getAttentionFlags, { getAttentionLevel } from './services/attentionRules.js';
 import { logTimelineEvent } from './services/timeline.js';
@@ -3135,20 +3135,9 @@ app.get('/api/leads', requireAuth, async (c) => {
       getMDEEmails(c.env.DB),
       getAEEmails(c.env.DB)
     ])
-    const res = await getLeads(c.env)
-    const allLeads = res?.data || []
-    console.log('Total leads from Zoho:', allLeads.length)
-    console.log('After converted filter:', allLeads.filter(l => !l.$converted).length)
-    console.log('After lead type filter:', allLeads.filter(l => !l.$converted).filter(l => l.Lead_Type === 'Inbound').length)
-    console.log('After status filter:', allLeads.filter(l => !l.$converted).filter(l => l.Lead_Type === 'Inbound').filter(l => ACTIVE_LEAD_STATUSES.includes(l.Lead_Status)).length)
-    console.log('Sample lead types:', [...new Set(allLeads.slice(0,20).map(l => l.Lead_Type))])
-    console.log('Sample statuses:', [...new Set(allLeads.slice(0,20).map(l => l.Lead_Status))])
-    let leads = allLeads
-      .filter(l => !l.$converted)
-      .filter(l => l.Lead_Type === 'Inbound')
-      .filter(l => ACTIVE_LEAD_STATUSES.includes(l.Lead_Status))
-      .filter(l => !SYSTEM_EMAILS.includes(l.Owner?.email))
-      .map(mapZohoLead)
+    const allLeads = await getAllLeads(c.env)
+    console.log('Leads from cache/Zoho:', allLeads.length)
+    let leads = allLeads.map(mapZohoLead)
     if (user.role === 'mde' || user.role === 'ae') {
       leads = leads.filter(l => l.ownerEmail === user.email)
     } else if (user.role === 'lead-midmarket') {
@@ -3594,6 +3583,13 @@ export default {
         console.log('Cache refresh: total deals cached:', data.length)
       } catch (err) {
         console.error('Cache refresh error:', err.message)
+      }
+      try {
+        await env.TOKEN_CACHE.delete('v3_leads_cache')
+        const leads = await getAllLeads(env)
+        console.log('Leads cache refreshed:', leads.length)
+      } catch (err) {
+        console.error('Leads cache refresh error:', err.message)
       }
       await Promise.all([
         runScheduledEmails(env),

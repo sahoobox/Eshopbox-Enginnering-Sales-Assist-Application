@@ -356,6 +356,38 @@ export async function getLeads(env) {
   return { data: leads }
 }
 
+export async function getAllLeads(env) {
+  const cached = await env.TOKEN_CACHE.get(LEADS_CACHE_KEY)
+  if (cached) return JSON.parse(cached)
+
+  const criteria = encodeURIComponent(
+    '((Lead_Status:equals:Connected)OR(Lead_Status:equals:Connecting)OR(Lead_Status:equals:Bad Timing))'
+  )
+
+  let allLeads = []
+  let page = 1
+
+  while (true) {
+    const res = await zohoAPI(env, 'GET',
+      `/Leads/search?criteria=${criteria}&fields=${LEAD_FIELDS}&per_page=200&page=${page}`)
+    if (!res?.data?.length) break
+    allLeads = allLeads.concat(res.data)
+    if (!res.info?.more_records) break
+    page++
+    if (page > 100) break // safety cap — 20k leads max
+  }
+
+  const SYSTEM_EMAILS = ['shikhar.gupta@eshopbox.com']
+  const filtered = allLeads.filter(l =>
+    !l.$converted &&
+    l.Lead_Type === 'Inbound' &&
+    !SYSTEM_EMAILS.includes(l.Owner?.email)
+  )
+
+  await env.TOKEN_CACHE.put(LEADS_CACHE_KEY, JSON.stringify(filtered), { expirationTtl: 7200 })
+  return filtered
+}
+
 export async function getLead(env, leadId) {
   return zohoAPI(env, 'GET', `/Leads/${leadId}`)
 }
