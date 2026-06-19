@@ -104,17 +104,15 @@ const LeadFilterBar = forwardRef(function LeadFilterBar({ filters, onChange, lea
   useImperativeHandle(ref, () => ({ openAdd }))
 
   const FIELDS = [
+    { key: 'createdAt', label: 'Date Created', type: 'date' },
     { key: 'status', label: 'Status', type: 'multi',
       opts: [...new Set(leads.map(l => l.leadStatus).filter(Boolean))].sort() },
+    { key: 'volume', label: 'Volume', type: 'multi',
+      opts: [...new Set(leads.map(l => l.orderVolume).filter(Boolean))].sort() },
     { key: 'source', label: 'Source', type: 'multi',
       opts: [...new Set(leads.map(l => l.leadSource).filter(Boolean))].sort() },
-    { key: 'volume', label: 'Order Volume', type: 'multi',
-      opts: [...new Set(leads.map(l => l.orderVolume).filter(Boolean))].sort() },
     ...(showOwnerFilter ? [{ key: 'owner', label: 'Assigned To', type: 'multi',
       opts: [...new Set(leads.map(l => l.ownerName).filter(Boolean))].sort() }] : []),
-    { key: 'utm', label: 'UTM Source', type: 'multi',
-      opts: [...new Set(leads.map(l => l.utmSource).filter(Boolean))].sort() },
-    { key: 'createdAt', label: 'Date Created', type: 'date' },
   ]
 
   const fieldDef = key => FIELDS.find(f => f.key === key)
