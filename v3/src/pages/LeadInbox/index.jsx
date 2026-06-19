@@ -285,6 +285,7 @@ export default function LeadInbox() {
   const stickyRef = useRef(null)
   const [showStickyHeader, setShowStickyHeader] = useState(false)
   const [stickyLeft, setStickyLeft] = useState(0)
+  const [stickyWidth, setStickyWidth] = useState(0)
   const [colWidths, setColWidths] = useState([])
 
   const scopedLeads = useMemo(() => {
@@ -334,9 +335,17 @@ export default function LeadInbox() {
       const mainRect = mainEl.getBoundingClientRect()
       if (theadRect.top < mainRect.top) {
         setShowStickyHeader(true)
-        setStickyLeft(mainRect.left)
-        const ths = theadEl.querySelectorAll('th')
-        setColWidths(Array.from(ths).map(th => th.offsetWidth))
+        const tableRect = tableRef.current?.getBoundingClientRect()
+        setStickyLeft(tableRect.left)
+        setStickyWidth(tableRect.width)
+        const firstRow = tableRef.current?.querySelector('tbody tr:first-child')
+        if (firstRow) {
+          const tds = firstRow.querySelectorAll('td')
+          setColWidths(Array.from(tds).map(td => td.offsetWidth))
+        } else {
+          const ths = theadEl.querySelectorAll('th')
+          setColWidths(Array.from(ths).map(th => th.offsetWidth))
+        }
       } else {
         setShowStickyHeader(false)
       }
@@ -534,16 +543,16 @@ export default function LeadInbox() {
             position: 'fixed',
             top: 0,
             left: stickyLeft,
-            width: tableRef.current?.offsetWidth || '100%',
+            width: stickyWidth,
             zIndex: 100,
-            background: 'var(--surface-2)',
+            background: 'white',
             borderBottom: '2px solid var(--line)',
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            overflowX: 'hidden',
+            overflow: 'hidden',
           }}
         >
           <table style={{
-            width: tableRef.current?.offsetWidth,
+            width: '100%',
             tableLayout: 'fixed',
             borderCollapse: 'collapse',
           }}>
