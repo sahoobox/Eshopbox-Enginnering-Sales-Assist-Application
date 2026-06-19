@@ -279,6 +279,12 @@ export default function LeadInbox() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
   const filterBarRef = useRef(null)
+  const tableRef = useRef(null)
+  const theadRef = useRef(null)
+  const stickyRef = useRef(null)
+  const [showStickyHeader, setShowStickyHeader] = useState(false)
+  const [stickyLeft, setStickyLeft] = useState(0)
+  const [colWidths, setColWidths] = useState([])
 
   const scopedLeads = useMemo(() => {
     if (role === ROLES.MDE || role === ROLES.AE) return leads.filter(l => l.ownerEmail === user?.email)
@@ -317,6 +323,30 @@ export default function LeadInbox() {
   }, [scopedLeads, search, activeFilters])
 
   useEffect(() => { setPage(1) }, [search, activeFilters])
+
+  useEffect(() => {
+    if (!theadRef.current) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setShowStickyHeader(!entry.isIntersecting)
+        if (!entry.isIntersecting && tableRef.current) {
+          const rect = tableRef.current.getBoundingClientRect()
+          setStickyLeft(rect.left)
+          const ths = theadRef.current.querySelectorAll('th')
+          setColWidths(Array.from(ths).map(th => th.offsetWidth))
+        }
+      },
+      { threshold: 0, rootMargin: '0px' }
+    )
+    observer.observe(theadRef.current)
+    return () => observer.disconnect()
+  }, [])
+
+  const handleTableScroll = (e) => {
+    if (stickyRef.current) {
+      stickyRef.current.scrollLeft = e.target.scrollLeft
+    }
+  }
 
   const totalLeads = filteredLeads.length
   const showAll = pageSize >= 99999
@@ -401,7 +431,7 @@ export default function LeadInbox() {
         </select>
       </div>
 
-      <div className="table-wrap" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)', position: 'relative' }}>
+      <div ref={tableRef} className="table-wrap" style={{ overflowX: 'auto' }} onScroll={handleTableScroll}>
         <table className="t" style={{ minWidth: 1180, tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: '90px' }} />
@@ -413,16 +443,16 @@ export default function LeadInbox() {
             <col style={{ width: '120px' }} />
             <col style={{ width: '100px' }} />
           </colgroup>
-          <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+          <thead ref={theadRef}>
             <tr>
-              <th style={{ background: 'white' }}>Date</th>
-              <th style={{ background: 'white' }}>Brand</th>
-              <th style={{ background: 'white' }}>Contact</th>
-              <th style={{ background: 'white' }}>Status</th>
-              <th style={{ background: 'white' }}>Volume</th>
-              <th style={{ background: 'white' }}>Source</th>
-              <th style={{ background: 'white' }}>Assigned to</th>
-              <th style={{ background: 'white' }}></th>
+              <th>Date</th>
+              <th>Brand</th>
+              <th>Contact</th>
+              <th>Status</th>
+              <th>Volume</th>
+              <th>Source</th>
+              <th>Assigned to</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -492,6 +522,48 @@ export default function LeadInbox() {
           </tbody>
         </table>
       </div>
+
+      {showStickyHeader && (
+        <div
+          ref={stickyRef}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: stickyLeft,
+            right: 0,
+            zIndex: 100,
+            background: 'white',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+            overflowX: 'hidden',
+          }}
+        >
+          <table style={{
+            width: tableRef.current?.offsetWidth,
+            tableLayout: 'fixed',
+            borderCollapse: 'collapse',
+          }}>
+            <thead>
+              <tr>
+                {['Date', 'Brand', 'Contact', 'Status', 'Volume', 'Source', 'Assigned to', ''].map((col, i) => (
+                  <th key={i} style={{
+                    width: colWidths[i],
+                    padding: '10px 16px',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: 'var(--ink-3)',
+                    textAlign: 'left',
+                    background: 'white',
+                    borderBottom: '1px solid var(--line)',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+          </table>
+        </div>
+      )}
 
       {!showAll && totalPages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 16 }}>
