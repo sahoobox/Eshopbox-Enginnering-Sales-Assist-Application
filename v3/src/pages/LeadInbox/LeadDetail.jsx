@@ -200,23 +200,6 @@ export default function LeadDetail() {
         {/* Left */}
         <div className="ws-main">
 
-          {/* Dedup check */}
-          <div className="card card-pad" style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Dedup check</div>
-            {dedup === null ? (
-              <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Checking for existing records…</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ fontSize: 13, color: dedup.existingContact ? 'var(--warn)' : 'var(--ok)' }}>
-                  {dedup.existingContact ? '⚠ Existing contact with this email' : '✓ No existing contact with this email'}
-                </div>
-                <div style={{ fontSize: 13, color: dedup.existingAccount ? 'var(--warn)' : 'var(--ok)' }}>
-                  {dedup.existingAccount ? `⚠ ${dedup.existingDeals.length} existing deal(s) for this brand` : '✓ No existing account with this domain'}
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Tabs */}
           <div className="tabs">
             {[
@@ -358,21 +341,23 @@ export default function LeadDetail() {
           <div className="card">
             <div className="ws-side-head"><h4>Conversion</h4></div>
             <div className="ws-side-body">
-              <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginBottom: 10 }}>On convert, creates:</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {[
-                  { label: 'Account', desc: 'deduped by domain' },
-                  { label: 'Primary Contact', desc: 'deduped by email' },
-                  { label: 'Deal', desc: `SME · Upcoming Demo` },
-                ].map((item, i) => (
-                  <div key={i} style={{ fontSize: 12.5 }}>
-                    <b>{item.label}</b> · <span style={{ color: 'var(--ink-3)' }}>{item.desc}</span>
-                  </div>
-                ))}
-              </div>
-              <button className="btn btn-primary" style={{ width: '100%', marginTop: 14, justifyContent: 'center' }} onClick={handleConvert} disabled={converting}>
+              <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleConvert} disabled={converting}>
                 {converting ? 'Converting…' : 'Convert to deal →'}
               </button>
+              <div style={{ marginTop: 12 }}>
+                {dedup === null ? (
+                  <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Checking for existing records…</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: 12.5, color: dedup.existingContact ? 'var(--warn)' : 'var(--ok)' }}>
+                      {dedup.existingContact ? '⚠ Existing contact with this email' : '✓ No existing contact'}
+                    </div>
+                    <div style={{ fontSize: 12.5, color: dedup.existingAccount ? 'var(--warn)' : 'var(--ok)' }}>
+                      {dedup.existingAccount ? `⚠ ${dedup.existingDeals.length} existing deal(s) for this brand` : '✓ No existing account'}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
