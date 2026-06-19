@@ -228,7 +228,7 @@ function PipelineList() {
   )
 
   return (
-    <div className="main" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div className="main" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <Topbar
         title="All Deals"
         subtitle="Grade, stage and flag overview across all your deals"
@@ -390,7 +390,7 @@ function PipelineList() {
         )}
       </div>
 
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
         {view === 'kanban'
           ? <KanbanView deals={tileFilteredDeals} pipelineFilter={pipelineFilter} />
           : <ListView
@@ -715,7 +715,7 @@ function KanbanView({ deals, pipelineFilter }) {
 // ── List view ─────────────────────────────────────────────
 function ListView({ deals, onOpen, tableRef, theadRef }) {
   return (
-    <div ref={tableRef} className="table-wrap" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+    <div ref={tableRef} className="table-wrap" style={{ width: '100%' }}>
       <table className="t">
         <thead ref={theadRef}>
           <tr>
