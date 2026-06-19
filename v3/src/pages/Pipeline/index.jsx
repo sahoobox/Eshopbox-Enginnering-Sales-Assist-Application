@@ -176,12 +176,23 @@ function PipelineList() {
 
   useEffect(() => {
     const mainEl = document.querySelector('.main')
-    if (!mainEl || !listTheadEl) return
+    console.log('Pipeline list sticky - mainEl:', mainEl)
+    console.log('Pipeline list sticky - listTheadEl:', listTheadEl)
+
+    if (!mainEl || !listTheadEl) {
+      console.log('MISSING - mainEl or listTheadEl')
+      return
+    }
 
     const handleScroll = () => {
       const theadRect = listTheadEl.getBoundingClientRect()
       const mainRect = mainEl.getBoundingClientRect()
       const tableRect = listTableRef.current?.getBoundingClientRect()
+      console.log('scroll fired', {
+        theadTop: theadRect.top,
+        mainTop: mainRect.top,
+        shouldShow: theadRect.top < mainRect.top
+      })
 
       if (theadRect.top < mainRect.top) {
         setShowListStickyHeader(true)
