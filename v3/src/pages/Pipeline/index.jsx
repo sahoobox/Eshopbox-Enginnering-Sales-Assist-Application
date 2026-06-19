@@ -94,6 +94,8 @@ function PipelineList() {
   const [activeFilters, setActiveFilters] = useState([])
   const [showLegend, setShowLegend] = useState(false)
   const [tileFilter, setTileFilter] = useState('inbox')
+  const [listPage, setListPage] = useState(1)
+  const [listPageSize, setListPageSize] = useState(50)
 
   const TERMINAL = ['Won/Payment Received', 'Lost/Dropped', 'On Hold']
 
@@ -133,6 +135,15 @@ function PipelineList() {
     if (tileFilter === 'won') return scopedDeals.filter(d => d.stage === wonStage)
     return scopedDeals
   }, [scopedDeals, tileFilter])
+
+  const totalListDeals = tileFilteredDeals.length
+  const showAllList = listPageSize >= 99999
+  const listStart = showAllList ? 0 : (listPage - 1) * listPageSize
+  const listEnd = showAllList ? totalListDeals : listStart + listPageSize
+  const paginatedDeals = tileFilteredDeals.slice(listStart, listEnd)
+  const totalListPages = Math.ceil(totalListDeals / listPageSize)
+
+  useEffect(() => setListPage(1), [tileFilteredDeals])
 
   const tileTooltips = {
     inbox: 'Active deals in a conducted or upcoming stage that need action — your working pipeline.',
@@ -175,13 +186,13 @@ function PipelineList() {
   const [listColWidths, setListColWidths] = useState([])
 
   useEffect(() => {
-    if (!listTheadEl) return
+    const mainEl = document.querySelector('.main')
+    if (!mainEl || !listTheadEl) return
 
     const handleScroll = () => {
-      if (!listTheadEl) return
       const theadRect = listTheadEl.getBoundingClientRect()
-
-      if (theadRect.top < 0) {
+      const mainRect = mainEl.getBoundingClientRect()
+      if (theadRect.top < mainRect.top) {
         const tableRect = listTableRef.current?.getBoundingClientRect()
         setShowListStickyHeader(true)
         setListStickyLeft(tableRect?.left || 0)
@@ -199,15 +210,8 @@ function PipelineList() {
       }
     }
 
-    const mainEl = document.querySelector('.main')
-    const containers = [
-      mainEl,
-      listTableRef.current?.parentElement,
-      window
-    ].filter(Boolean)
-
-    containers.forEach(el => el.addEventListener('scroll', handleScroll))
-    return () => containers.forEach(el => el.removeEventListener('scroll', handleScroll))
+    mainEl.addEventListener('scroll', handleScroll)
+    return () => mainEl.removeEventListener('scroll', handleScroll)
   }, [listTheadEl])
 
   useEffect(() => {
@@ -394,13 +398,74 @@ function PipelineList() {
         {view === 'kanban'
           ? <KanbanView deals={tileFilteredDeals} pipelineFilter={pipelineFilter} />
           : <ListView
-              deals={tileFilteredDeals}
+              deals={paginatedDeals}
               onOpen={id => navigate(`/pipeline/${id}`)}
               tableRef={listTableRef}
               theadRef={listTheadRef}
             />
         }
       </div>
+
+      {view === 'list' && (
+        <div style={{
+          display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 0', fontSize: 13,
+          color: 'var(--ink-3)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>
+              {showAllList
+                ? `Showing all ${totalListDeals} deals`
+                : `Showing ${totalListDeals === 0 ? 0 : listStart + 1}–${Math.min(listEnd, totalListDeals)} of ${totalListDeals} deals`
+              }
+            </span>
+            <select
+              value={listPageSize}
+              onChange={e => { setListPageSize(Number(e.target.value)); setListPage(1) }}
+              style={{
+                padding: '4px 8px', borderRadius: 6,
+                border: '1.5px solid var(--line)',
+                fontSize: 13, background: 'var(--surface)',
+                color: 'var(--ink-1)', cursor: 'pointer'
+              }}
+            >
+              <option value={50}>50 rows</option>
+              <option value={100}>100 rows</option>
+              <option value={150}>150 rows</option>
+              <option value={200}>200 rows</option>
+              <option value={99999}>All rows</option>
+            </select>
+          </div>
+
+          {!showAllList && totalListPages > 1 && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setListPage(p => Math.max(1, p - 1))}
+                disabled={listPage === 1}
+                style={{
+                  padding: '6px 14px', borderRadius: 6,
+                  border: '1.5px solid var(--line)',
+                  background: 'var(--surface)', fontSize: 13,
+                  cursor: listPage === 1 ? 'not-allowed' : 'pointer',
+                  opacity: listPage === 1 ? 0.4 : 1
+                }}
+              >Previous</button>
+              <button
+                onClick={() => setListPage(p => Math.min(totalListPages, p + 1))}
+                disabled={listPage === totalListPages}
+                style={{
+                  padding: '6px 14px', borderRadius: 6,
+                  border: '1.5px solid var(--line)',
+                  background: 'var(--surface)', fontSize: 13,
+                  cursor: listPage === totalListPages ? 'not-allowed' : 'pointer',
+                  opacity: listPage === totalListPages ? 0.4 : 1
+                }}
+              >Next</button>
+            </div>
+          )}
+        </div>
+      )}
 
       {showListStickyHeader && (
         <div style={{
