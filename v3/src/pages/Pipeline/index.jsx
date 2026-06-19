@@ -555,7 +555,7 @@ function PipelineList() {
           backgroundColor: '#FAFAF7',
           borderBottom: '1px solid #e5e7eb',
           display: 'flex',
-          overflowX: 'auto',
+          overflowX: 'hidden',
           boxShadow: '0 2px 4px rgba(0,0,0,0.06)'
         }}>
           {stickyStages.map((s, i) => (
