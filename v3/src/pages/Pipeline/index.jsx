@@ -751,7 +751,10 @@ function KanbanView({ deals, pipelineFilter }) {
 
           return (
             <div key={stage} className="kcol">
-              <div className="kcol-head">
+              <div className="kcol-head" style={{
+                position: 'sticky', top: 0, zIndex: 10,
+                background: 'var(--surface)', paddingTop: 8, paddingBottom: 8
+              }}>
                 <div className="kch-top">
                   <span className="kdot" style={{ background: stageDotColor(stage) }} />
                   <span className="kname">{stage}</span>
@@ -763,7 +766,7 @@ function KanbanView({ deals, pipelineFilter }) {
                   </div>
                 )}
               </div>
-              <div className="kcol-body" style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
+              <div className="kcol-body">
                 {stageDeals.length === 0
                   ? <div className="kcol-empty">No deals</div>
                   : stageDeals.map(deal => <DealCard key={deal.id} deal={deal} />)
