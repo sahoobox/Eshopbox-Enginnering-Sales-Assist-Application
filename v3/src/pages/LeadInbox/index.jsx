@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useLeads } from '../../hooks/useLeads'
@@ -280,7 +280,8 @@ export default function LeadInbox() {
   const [pageSize, setPageSize] = useState(50)
   const filterBarRef = useRef(null)
   const tableRef = useRef(null)
-  const theadRef = useRef(null)
+  const [theadEl, setTheadEl] = useState(null)
+  const theadRef = useCallback(node => { if (node) setTheadEl(node) }, [])
   const stickyRef = useRef(null)
   const [showStickyHeader, setShowStickyHeader] = useState(false)
   const [stickyLeft, setStickyLeft] = useState(0)
@@ -326,26 +327,15 @@ export default function LeadInbox() {
 
   useEffect(() => {
     const mainEl = document.querySelector('.main')
-    console.log('mainEl found:', mainEl)
-    console.log('theadRef.current:', theadRef.current)
-
-    if (!mainEl || !theadRef.current) {
-      console.log('MISSING: mainEl or theadRef')
-      return
-    }
+    if (!mainEl || !theadEl) return
 
     const handleScroll = () => {
-      const theadRect = theadRef.current?.getBoundingClientRect()
+      const theadRect = theadEl.getBoundingClientRect()
       const mainRect = mainEl.getBoundingClientRect()
-      console.log('scroll fired', {
-        theadTop: theadRect?.top,
-        mainTop: mainRect?.top,
-        shouldShow: theadRect?.top < mainRect?.top
-      })
-      if (theadRect && theadRect.top < mainRect.top) {
+      if (theadRect.top < mainRect.top) {
         setShowStickyHeader(true)
         setStickyLeft(mainRect.left)
-        const ths = theadRef.current.querySelectorAll('th')
+        const ths = theadEl.querySelectorAll('th')
         setColWidths(Array.from(ths).map(th => th.offsetWidth))
       } else {
         setShowStickyHeader(false)
@@ -354,7 +344,7 @@ export default function LeadInbox() {
 
     mainEl.addEventListener('scroll', handleScroll)
     return () => mainEl.removeEventListener('scroll', handleScroll)
-  }, [])
+  }, [theadEl])
 
   const handleTableScroll = (e) => {
     if (stickyRef.current) {
