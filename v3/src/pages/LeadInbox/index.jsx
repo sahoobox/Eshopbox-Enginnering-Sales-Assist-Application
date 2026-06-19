@@ -536,8 +536,9 @@ export default function LeadInbox() {
             left: stickyLeft,
             width: tableRef.current?.offsetWidth || '100%',
             zIndex: 100,
-            background: 'white',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+            background: 'var(--surface-2)',
+            borderBottom: '2px solid var(--line)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             overflowX: 'hidden',
           }}
         >
@@ -551,12 +552,14 @@ export default function LeadInbox() {
                 {['Date', 'Brand', 'Contact', 'Status', 'Volume', 'Source', 'Assigned to', ''].map((col, i) => (
                   <th key={i} style={{
                     width: colWidths[i],
-                    padding: '10px 16px',
+                    padding: '9px 12px',
                     fontSize: 11,
-                    fontWeight: 600,
+                    fontWeight: 500,
                     color: 'var(--ink-3)',
                     textAlign: 'left',
-                    background: 'white',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    background: 'var(--surface-2)',
                     borderBottom: '1px solid var(--line)',
                     whiteSpace: 'nowrap',
                   }}>
