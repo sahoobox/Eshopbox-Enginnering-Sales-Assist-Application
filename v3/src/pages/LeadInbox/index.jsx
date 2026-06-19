@@ -276,6 +276,7 @@ export default function LeadInbox() {
   const [search, setSearch] = useState('')
   const [activeFilters, setActiveFilters] = useState([])
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
   const filterBarRef = useRef(null)
 
   const scopedLeads = useMemo(() => {
@@ -317,11 +318,12 @@ export default function LeadInbox() {
   useEffect(() => { setPage(1) }, [search, activeFilters])
 
   const totalLeads = filteredLeads.length
-  const totalPages = Math.max(1, Math.ceil(totalLeads / PAGE_SIZE))
+  const showAll = pageSize >= 99999
+  const totalPages = showAll ? 1 : Math.max(1, Math.ceil(totalLeads / pageSize))
   const safePage = Math.min(page, totalPages)
-  const start = totalLeads === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1
-  const end = Math.min(safePage * PAGE_SIZE, totalLeads)
-  const paginated = filteredLeads.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const start = totalLeads === 0 ? 0 : (safePage - 1) * pageSize + 1
+  const end = showAll ? totalLeads : Math.min(safePage * pageSize, totalLeads)
+  const paginated = showAll ? filteredLeads : filteredLeads.slice((safePage - 1) * pageSize, safePage * pageSize)
 
   const todayStr = new Date().toISOString().split('T')[0]
   const leadsToday = scopedLeads.filter(l => l.createdAt?.startsWith(todayStr))
@@ -368,10 +370,34 @@ export default function LeadInbox() {
         />
       </div>
 
-      <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 8 }}>
-        {totalLeads === 0
-          ? 'No leads found'
-          : `Showing ${start}–${end} of ${totalLeads} leads`}
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+          {totalLeads === 0
+            ? 'No leads found'
+            : showAll
+              ? `Showing all ${totalLeads} leads`
+              : `Showing ${start}–${end} of ${totalLeads} leads`}
+        </span>
+        <select
+          value={pageSize}
+          onChange={e => { setPageSize(Number(e.target.value)); setPage(1) }}
+          style={{
+            marginLeft: 12,
+            padding: '4px 8px',
+            borderRadius: 6,
+            border: '1.5px solid var(--line)',
+            fontSize: 13,
+            background: 'var(--surface)',
+            color: 'var(--ink-1)',
+            cursor: 'pointer',
+          }}
+        >
+          <option value={50}>50 rows</option>
+          <option value={100}>100 rows</option>
+          <option value={300}>300 rows</option>
+          <option value={500}>500 rows</option>
+          <option value={99999}>All rows</option>
+        </select>
       </div>
 
       <div className="table-wrap" style={{ overflowX: 'auto' }}>
@@ -466,7 +492,7 @@ export default function LeadInbox() {
         </table>
       </div>
 
-      {totalPages > 1 && (
+      {!showAll && totalPages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 16 }}>
           <button
             className="btn btn-sm"
