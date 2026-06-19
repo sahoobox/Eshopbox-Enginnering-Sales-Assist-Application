@@ -614,15 +614,14 @@ table.t tr:hover td { background: #faf9f7; }
 
 /* ── Kanban ── */
 .kanban-wrap {
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: visible;
   padding-bottom: 12px;
   flex: 1;
 }
 .kanban-wrap::-webkit-scrollbar { height: 8px; }
 .kanban-wrap::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; }
 .kanban-wrap::-webkit-scrollbar-track { background: transparent; }
-.kanban { display: flex; gap: 10px; margin-top: 4px; min-width: max-content; height: 100%; }
+.kanban { display: flex; gap: 10px; margin-top: 4px; min-width: max-content; align-items: flex-start; }
 
 .kcol {
   background: var(--surface-2);
@@ -632,8 +631,7 @@ table.t tr:hover td { background: #faf9f7; }
   flex-direction: column;
   width: 296px;
   min-width: 296px;
-  height: 100%;
-  overflow-y: auto;
+  overflow: visible;
 }
 .kcol-head {
   padding: 12px 14px 10px;
@@ -679,8 +677,6 @@ table.t tr:hover td { background: #faf9f7; }
   flex-direction: column;
   gap: 8px;
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
   min-height: 80px;
 }
 .kcol-body::-webkit-scrollbar { width: 6px; }
