@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ArrowRight, Mail, FileText, Send, ClipboardList, StickyNote, Phone, Calendar, CheckSquare, XCircle, PauseCircle, RefreshCw, Star } from 'lucide-react'
+import { ArrowRight, Mail, FileText, Send, ClipboardList, StickyNote, Phone, Calendar, CheckSquare, XCircle, PauseCircle, RefreshCw, Star, UserCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useDeal } from '../../hooks/useDeals'
 import { useAuth } from '../../context/AuthContext'
@@ -17,11 +17,12 @@ function formatDateTime(dt) {
 export default function DealDetail({ dealId }) {
   const navigate = useNavigate()
   const { deal, emails, loading, error, refetch: refetchDeal } = useDeal(dealId)
-  const { authFetch } = useAuth()
+  const { authFetch, isAdmin, isSalesLead } = useAuth()
   const [tab, setTab] = useState('activity')
   const [showF2FForm, setShowF2FForm] = useState(false)
   const [showMarkLost, setShowMarkLost] = useState(false)
   const [showMarkOnHold, setShowMarkOnHold] = useState(false)
+  const [showReassign, setShowReassign] = useState(false)
   const [movingStage, setMovingStage] = useState(null)
   const [stageDropdown, setStageDropdown] = useState(false)
 
@@ -193,6 +194,9 @@ export default function DealDetail({ dealId }) {
               <button className="btn btn-sm" onClick={() => setShowMarkOnHold(true)}>Mark on Hold</button>
             </>
           )}
+          {(isAdmin || isSalesLead) && (
+            <button className="btn btn-sm" onClick={() => setShowReassign(true)}>Reassign</button>
+          )}
         </div>
       </div>
 
@@ -348,6 +352,7 @@ export default function DealDetail({ dealId }) {
       {showF2FForm && <F2FModal deal={deal} onClose={() => setShowF2FForm(false)} />}
       {showMarkLost && <MarkLostModal deal={deal} onClose={() => setShowMarkLost(false)} onSuccess={() => { setShowMarkLost(false); window.location.reload() }} />}
       {showMarkOnHold && <MarkOnHoldModal deal={deal} onClose={() => setShowMarkOnHold(false)} onSuccess={() => { setShowMarkOnHold(false); window.location.reload() }} />}
+      {showReassign && <ReassignDealModal deal={deal} onClose={() => setShowReassign(false)} onSuccess={() => { setShowReassign(false); refetchDeal() }} />}
     </div>
   )
 }
@@ -385,6 +390,7 @@ function TimelineTab({ dealId }) {
     meeting_completed:    <Calendar size={14} />,
     call_completed:       <Phone size={14} />,
     gmail_draft_recreated:<RefreshCw size={14} />,
+    deal_reassigned:       <UserCheck size={14} />,
   }
 
   const colorMap = {
@@ -406,6 +412,7 @@ function TimelineTab({ dealId }) {
     meeting_completed:    '#2F9E44',
     call_completed:       '#2F9E44',
     gmail_draft_recreated:'#0EA5E9',
+    deal_reassigned:      '#7C3AED',
   }
 
   if (loading) return (
@@ -1969,6 +1976,78 @@ function F2FModal({ deal, onClose }) {
           <button className="btn" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" onClick={submit} disabled={saving}>
             {saving ? 'Saving…' : 'Log F2F'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ReassignDealModal({ deal, onClose, onSuccess }) {
+  const { authFetch } = useAuth()
+  const [users, setUsers] = useState([])
+  const [loadingUsers, setLoadingUsers] = useState(true)
+  const [selectedEmail, setSelectedEmail] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    authFetch('/api/team/assignable-users')
+      .then(r => r.json())
+      .then(d => setUsers(d.users || []))
+      .catch(() => setUsers([]))
+      .finally(() => setLoadingUsers(false))
+  }, [])
+
+  const options = users.filter(u => u.email !== deal.repEmail)
+  const selected = options.find(u => u.email === selectedEmail)
+
+  async function submit() {
+    if (!selected) return
+    setSaving(true)
+    try {
+      const res = await authFetch(`/api/deals/${deal.id}/reassign`, {
+        method: 'PATCH',
+        body: JSON.stringify({ newOwnerEmail: selected.email, newOwnerName: selected.name })
+      })
+      const data = await res.json()
+      if (data.success) onSuccess()
+      else alert(data.error || 'Failed to reassign deal')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3>Reassign Deal</h3>
+          <button className="btn-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>
+            Assign to
+          </label>
+          {loadingUsers ? (
+            <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Loading team members…</div>
+          ) : (
+            <select
+              value={selectedEmail}
+              onChange={e => setSelectedEmail(e.target.value)}
+              className="input"
+              style={{ width: '100%' }}
+            >
+              <option value="">Select a team member…</option>
+              {options.map(u => (
+                <option key={u.email} value={u.email}>
+                  {u.name} ({u.role})
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+        <div className="modal-foot">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving || !selectedEmail}>
+            {saving ? 'Reassigning…' : 'Reassign'}
           </button>
         </div>
       </div>
