@@ -382,7 +382,6 @@ export default function LeadInbox() {
             <col style={{ width: '160px' }} />
             <col style={{ width: '140px' }} />
             <col style={{ width: '100px' }} />
-            <col style={{ width: '100px' }} />
             <col style={{ width: '140px' }} />
             <col style={{ width: '120px' }} />
           </colgroup>
@@ -393,18 +392,16 @@ export default function LeadInbox() {
               <th>Volume</th>
               <th>Source</th>
               <th>UTM</th>
-              <th>SLA</th>
               <th>Assigned to</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {paginated.length === 0 && (
-              <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>No leads found</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>No leads found</td></tr>
             )}
             {paginated.map(lead => {
               const isToday = lead.createdAt?.startsWith(todayStr)
-              const needsContact = isToday && lead.leadStatus === 'New'
               const canConvert = lead.leadStatus === 'New'
               const createdTime = lead.createdAt
                 ? (isToday
@@ -436,12 +433,6 @@ export default function LeadInbox() {
                     }
                   </td>
                   <td style={{ color: 'var(--ink-3)', fontSize: 12 }}>{lead.utmSource || 'direct'}</td>
-                  <td>
-                    {needsContact
-                      ? <span className="pill pill-warn">today by 6pm</span>
-                      : <span style={{ color: 'var(--ink-3)' }}>—</span>
-                    }
-                  </td>
                   <td>{lead.ownerName || '—'}</td>
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap', paddingRight: 12 }}>
                     <button
