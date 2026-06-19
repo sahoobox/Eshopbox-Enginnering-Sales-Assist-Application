@@ -750,10 +750,10 @@ function KanbanView({ deals, pipelineFilter }) {
           const criticalCount = stageDeals.filter(d => d.attentionLevel === 'high').length
 
           return (
-            <div key={stage} className="kcol" style={{ overflow: 'visible', background: '#F4F2EC' }}>
+            <div key={stage} className="kcol" style={{ overflow: 'visible', background: '#f5f5f5' }}>
               <div className="kcol-head" style={{
                 position: 'sticky', top: 0, zIndex: 50,
-                background: '#F4F2EC',
+                background: '#f5f5f5',
                 paddingTop: 12, paddingBottom: 8,
                 marginBottom: 4,
               }}>
