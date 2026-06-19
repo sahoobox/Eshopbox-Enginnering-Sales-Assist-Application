@@ -325,21 +325,24 @@ export default function LeadInbox() {
   useEffect(() => { setPage(1) }, [search, activeFilters])
 
   useEffect(() => {
-    if (!theadRef.current) return
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setShowStickyHeader(!entry.isIntersecting)
-        if (!entry.isIntersecting && tableRef.current) {
-          const rect = tableRef.current.getBoundingClientRect()
-          setStickyLeft(rect.left)
-          const ths = theadRef.current.querySelectorAll('th')
-          setColWidths(Array.from(ths).map(th => th.offsetWidth))
-        }
-      },
-      { threshold: 0, rootMargin: '0px' }
-    )
-    observer.observe(theadRef.current)
-    return () => observer.disconnect()
+    const mainEl = document.querySelector('.main')
+    if (!mainEl || !theadRef.current) return
+
+    const handleScroll = () => {
+      const theadRect = theadRef.current?.getBoundingClientRect()
+      const mainRect = mainEl.getBoundingClientRect()
+      if (theadRect && theadRect.top < mainRect.top) {
+        setShowStickyHeader(true)
+        setStickyLeft(mainRect.left)
+        const ths = theadRef.current.querySelectorAll('th')
+        setColWidths(Array.from(ths).map(th => th.offsetWidth))
+      } else {
+        setShowStickyHeader(false)
+      }
+    }
+
+    mainEl.addEventListener('scroll', handleScroll)
+    return () => mainEl.removeEventListener('scroll', handleScroll)
   }, [])
 
   const handleTableScroll = (e) => {
@@ -530,7 +533,7 @@ export default function LeadInbox() {
             position: 'fixed',
             top: 0,
             left: stickyLeft,
-            right: 0,
+            width: tableRef.current?.offsetWidth || '100%',
             zIndex: 100,
             background: 'white',
             boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
