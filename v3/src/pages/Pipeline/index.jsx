@@ -185,24 +185,6 @@ function PipelineList() {
   const [listStickyWidth, setListStickyWidth] = useState(0)
   const [listColWidths, setListColWidths] = useState([])
 
-  const firstKcolHeadRef = useRef(null)
-  const [showKanbanStickyHeader, setShowKanbanStickyHeader] = useState(false)
-
-  useEffect(() => {
-    const mainEl = document.querySelector('.main')
-    if (!mainEl) return
-
-    const handleScroll = () => {
-      if (!firstKcolHeadRef.current) return
-      const rect = firstKcolHeadRef.current.getBoundingClientRect()
-      const mainRect = mainEl.getBoundingClientRect()
-      setShowKanbanStickyHeader(rect.top < mainRect.top)
-    }
-
-    mainEl.addEventListener('scroll', handleScroll)
-    return () => mainEl.removeEventListener('scroll', handleScroll)
-  }, [])
-
   useEffect(() => {
     const mainEl = document.querySelector('.main')
     if (!mainEl || !listTheadEl) return
@@ -414,7 +396,7 @@ function PipelineList() {
 
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {view === 'kanban'
-          ? <KanbanView deals={tileFilteredDeals} pipelineFilter={pipelineFilter} firstKcolHeadRef={firstKcolHeadRef} />
+          ? <KanbanView deals={tileFilteredDeals} pipelineFilter={pipelineFilter} />
           : <ListView
               deals={paginatedDeals}
               onOpen={id => navigate(`/pipeline/${id}`)}
@@ -482,36 +464,6 @@ function PipelineList() {
               >Next</button>
             </div>
           )}
-        </div>
-      )}
-
-      {showKanbanStickyHeader && view === 'kanban' && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 216,
-          right: 0,
-          zIndex: 100,
-          background: 'var(--bg, #f8f8f8)',
-          borderBottom: '2px solid var(--line)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          display: 'flex',
-          overflowX: 'hidden',
-          padding: '8px 0'
-        }}>
-          {currentStages.map(stage => (
-            <div key={stage} style={{
-              minWidth: 280,
-              padding: '0 16px',
-              fontSize: 11,
-              fontWeight: 700,
-              color: 'var(--ink-2)',
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase'
-            }}>
-              ● {stage}
-            </div>
-          ))}
         </div>
       )}
 
@@ -783,7 +735,7 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
 })
 
 // ── Kanban view ───────────────────────────────────────────
-function KanbanView({ deals, pipelineFilter, firstKcolHeadRef }) {
+function KanbanView({ deals, pipelineFilter }) {
   const { isMDE, isAE } = useAuth()
   const stages = isMDE ? MID_MARKET_STAGES
     : isAE ? ENT_STAGES
@@ -793,17 +745,18 @@ function KanbanView({ deals, pipelineFilter, firstKcolHeadRef }) {
   return (
     <div className="kanban-wrap">
       <div className="kanban">
-        {stages.map((stage, i) => {
+        {stages.map(stage => {
           const stageDeals = deals.filter(d => d.stage === stage)
           const criticalCount = stageDeals.filter(d => d.attentionLevel === 'high').length
 
           return (
             <div key={stage} className="kcol" style={{ overflow: 'visible', backgroundColor: 'var(--bg, #f8f8f8)' }}>
-              <div
-                ref={i === 0 ? firstKcolHeadRef : null}
-                className="kcol-head"
-                style={{ paddingTop: 12, paddingBottom: 8 }}
-              >
+              <div className="kcol-head" style={{
+                position: 'sticky', top: 0, zIndex: 30,
+                backgroundColor: 'var(--bg, #f8f8f8)',
+                paddingTop: 12, paddingBottom: 8,
+                boxShadow: '0 2px 4px rgba(0,0,0,0.06)'
+              }}>
                 <div className="kch-top">
                   <span className="kdot" style={{ background: stageDotColor(stage) }} />
                   <span className="kname">{stage}</span>
