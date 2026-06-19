@@ -185,39 +185,6 @@ function PipelineList() {
   const [listStickyWidth, setListStickyWidth] = useState(0)
   const [listColWidths, setListColWidths] = useState([])
 
-  const kanbanWrapRef = useRef(null)
-  const stickyKanbanRef = useRef(null)
-  const [showKanbanSticky, setShowKanbanSticky] = useState(false)
-  const [stickyStages, setStickyStages] = useState([])
-
-  useEffect(() => {
-    const mainEl = document.querySelector('.main')
-    if (!mainEl) return
-
-    const handleScroll = () => {
-      if (!kanbanWrapRef.current) return
-      const heads = kanbanWrapRef.current.querySelectorAll('.kcol-head')
-      if (!heads.length) return
-      const firstRect = heads[0].getBoundingClientRect()
-      const mainRect = mainEl.getBoundingClientRect()
-
-      if (firstRect.top < mainRect.top) {
-        const stages = Array.from(heads).map(h => ({
-          text: h.querySelector('.kname')?.textContent.trim() || h.textContent.trim(),
-          stage: h.querySelector('.kname')?.textContent.trim() || '',
-          width: h.closest('.kcol')?.offsetWidth || 280
-        }))
-        setStickyStages(stages)
-        setShowKanbanSticky(true)
-      } else {
-        setShowKanbanSticky(false)
-      }
-    }
-
-    mainEl.addEventListener('scroll', handleScroll)
-    return () => mainEl.removeEventListener('scroll', handleScroll)
-  }, [])
-
   useEffect(() => {
     const mainEl = document.querySelector('.main')
     if (!mainEl || !listTheadEl) return
@@ -429,12 +396,7 @@ function PipelineList() {
 
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {view === 'kanban'
-          ? <KanbanView
-              deals={tileFilteredDeals}
-              pipelineFilter={pipelineFilter}
-              kanbanWrapRef={kanbanWrapRef}
-              onWrapScroll={e => { if (stickyKanbanRef.current) stickyKanbanRef.current.scrollLeft = e.target.scrollLeft }}
-            />
+          ? <KanbanView deals={tileFilteredDeals} pipelineFilter={pipelineFilter} />
           : <ListView
               deals={paginatedDeals}
               onOpen={id => navigate(`/pipeline/${id}`)}
@@ -544,51 +506,7 @@ function PipelineList() {
         </div>
       )}
 
-      {view === 'kanban' && showKanbanSticky && (
-        <div ref={stickyKanbanRef} style={{
-          position: 'fixed',
-          top: 0,
-          left: 216,
-          right: 0,
-          height: 48,
-          zIndex: 1000,
-          backgroundColor: '#FAFAF7',
-          borderBottom: '1px solid #e5e7eb',
-          display: 'flex',
-          overflowX: 'hidden',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.06)'
-        }}>
-          {stickyStages.map((s, i) => (
-            <div key={i} style={{
-              width: s.width,
-              minWidth: s.width,
-              maxWidth: s.width,
-              padding: '0 16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 11,
-              fontWeight: 700,
-              color: '#6b7280',
-              letterSpacing: '0.05em',
-              backgroundColor: '#FAFAF7',
-              borderRight: '1px solid #e5e7eb',
-              whiteSpace: 'nowrap',
-              flexShrink: 0
-            }}>
-              <span style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                backgroundColor: stageDotColor(s.stage),
-                display: 'inline-block',
-                flexShrink: 0
-              }} />
-              {s.text}
-            </div>
-          ))}
-        </div>
-      )}
+
     </div>
   )
 }
@@ -819,7 +737,7 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
 })
 
 // ── Kanban view ───────────────────────────────────────────
-function KanbanView({ deals, pipelineFilter, kanbanWrapRef, onWrapScroll }) {
+function KanbanView({ deals, pipelineFilter }) {
   const { isMDE, isAE } = useAuth()
   const stages = isMDE ? MID_MARKET_STAGES
     : isAE ? ENT_STAGES
@@ -827,7 +745,7 @@ function KanbanView({ deals, pipelineFilter, kanbanWrapRef, onWrapScroll }) {
     : MID_MARKET_STAGES
 
   return (
-    <div className="kanban-wrap" ref={kanbanWrapRef} onScroll={onWrapScroll}>
+    <div className="kanban-wrap">
       <div className="kanban">
         {stages.map(stage => {
           const stageDeals = deals.filter(d => d.stage === stage)
