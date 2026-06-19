@@ -185,6 +185,37 @@ function PipelineList() {
   const [listStickyWidth, setListStickyWidth] = useState(0)
   const [listColWidths, setListColWidths] = useState([])
 
+  const kanbanWrapRef = useRef(null)
+  const [showKanbanSticky, setShowKanbanSticky] = useState(false)
+  const [stickyStages, setStickyStages] = useState([])
+
+  useEffect(() => {
+    const mainEl = document.querySelector('.main')
+    if (!mainEl) return
+
+    const handleScroll = () => {
+      if (!kanbanWrapRef.current) return
+      const heads = kanbanWrapRef.current.querySelectorAll('.kcol-head')
+      if (!heads.length) return
+      const firstRect = heads[0].getBoundingClientRect()
+      const mainRect = mainEl.getBoundingClientRect()
+
+      if (firstRect.top < mainRect.top) {
+        const stages = Array.from(heads).map(h => ({
+          text: h.textContent.trim(),
+          width: h.closest('.kcol')?.offsetWidth || 280
+        }))
+        setStickyStages(stages)
+        setShowKanbanSticky(true)
+      } else {
+        setShowKanbanSticky(false)
+      }
+    }
+
+    mainEl.addEventListener('scroll', handleScroll)
+    return () => mainEl.removeEventListener('scroll', handleScroll)
+  }, [])
+
   useEffect(() => {
     const mainEl = document.querySelector('.main')
     if (!mainEl || !listTheadEl) return
@@ -396,7 +427,7 @@ function PipelineList() {
 
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {view === 'kanban'
-          ? <KanbanView deals={tileFilteredDeals} pipelineFilter={pipelineFilter} />
+          ? <KanbanView deals={tileFilteredDeals} pipelineFilter={pipelineFilter} kanbanWrapRef={kanbanWrapRef} />
           : <ListView
               deals={paginatedDeals}
               onOpen={id => navigate(`/pipeline/${id}`)}
@@ -503,6 +534,44 @@ function PipelineList() {
               </tr>
             </thead>
           </table>
+        </div>
+      )}
+
+      {view === 'kanban' && showKanbanSticky && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 216,
+          right: 0,
+          height: 44,
+          zIndex: 1000,
+          backgroundColor: '#ffffff',
+          borderBottom: '2px solid #e5e7eb',
+          display: 'flex',
+          overflowX: 'hidden',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+        }}>
+          {stickyStages.map((s, i) => (
+            <div key={i} style={{
+              width: s.width,
+              minWidth: s.width,
+              maxWidth: s.width,
+              padding: '0 16px',
+              display: 'flex',
+              alignItems: 'center',
+              fontSize: 11,
+              fontWeight: 700,
+              color: '#6b7280',
+              letterSpacing: '0.05em',
+              backgroundColor: '#ffffff',
+              borderRight: '1px solid #e5e7eb',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>
+              {s.text}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -735,7 +804,7 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
 })
 
 // ── Kanban view ───────────────────────────────────────────
-function KanbanView({ deals, pipelineFilter }) {
+function KanbanView({ deals, pipelineFilter, kanbanWrapRef }) {
   const { isMDE, isAE } = useAuth()
   const stages = isMDE ? MID_MARKET_STAGES
     : isAE ? ENT_STAGES
@@ -743,7 +812,7 @@ function KanbanView({ deals, pipelineFilter }) {
     : MID_MARKET_STAGES
 
   return (
-    <div className="kanban-wrap">
+    <div className="kanban-wrap" ref={kanbanWrapRef}>
       <div className="kanban">
         {stages.map(stage => {
           const stageDeals = deals.filter(d => d.stage === stage)
@@ -751,12 +820,7 @@ function KanbanView({ deals, pipelineFilter }) {
 
           return (
             <div key={stage} className="kcol" style={{ overflow: 'visible', background: '#f5f5f5' }}>
-              <div className="kcol-head" style={{
-                position: 'sticky', top: 0, zIndex: 50,
-                background: '#f5f5f5',
-                paddingTop: 12, paddingBottom: 8,
-                marginBottom: 4,
-              }}>
+              <div className="kcol-head" style={{ paddingTop: 12, paddingBottom: 8 }}>
                 <div className="kch-top">
                   <span className="kdot" style={{ background: stageDotColor(stage) }} />
                   <span className="kname">{stage}</span>
