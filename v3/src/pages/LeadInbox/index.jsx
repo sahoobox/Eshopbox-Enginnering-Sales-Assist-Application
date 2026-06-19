@@ -28,8 +28,11 @@ function matchLeadSingle(lead, f) {
       return val.includes(lead.leadStatus || '')
     case 'source':
       return val.includes(lead.leadSource || '')
-    case 'volume':
+    case 'volume': {
+      const isEmpty = !lead.orderVolume || lead.orderVolume === '—' || lead.orderVolume.trim() === ''
+      if (val.includes('(No volume)') && isEmpty) return true
       return val.includes(lead.orderVolume || '')
+    }
     case 'owner':
       return val.includes(lead.ownerName || '')
     case 'utm':
@@ -108,7 +111,7 @@ const LeadFilterBar = forwardRef(function LeadFilterBar({ filters, onChange, lea
     { key: 'status', label: 'Status', type: 'multi',
       opts: [...new Set(leads.map(l => l.leadStatus).filter(Boolean))].sort() },
     { key: 'volume', label: 'Volume', type: 'multi',
-      opts: [...new Set(leads.map(l => l.orderVolume).filter(Boolean))].sort() },
+      opts: ['(No volume)', ...[...new Set(leads.map(l => l.orderVolume).filter(v => v && v !== '—' && v.trim() !== ''))].sort()] },
     { key: 'source', label: 'Source', type: 'multi',
       opts: [...new Set(leads.map(l => l.leadSource).filter(Boolean))].sort() },
     ...(showOwnerFilter ? [{ key: 'owner', label: 'Assigned To', type: 'multi',
@@ -410,7 +413,7 @@ export default function LeadInbox() {
             <col style={{ width: '120px' }} />
             <col style={{ width: '100px' }} />
           </colgroup>
-          <thead>
+          <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--surface)', boxShadow: '0 1px 0 var(--line)' }}>
             <tr>
               <th>Date</th>
               <th>Brand</th>
