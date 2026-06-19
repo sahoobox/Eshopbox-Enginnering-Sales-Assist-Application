@@ -186,6 +186,7 @@ function PipelineList() {
   const [listColWidths, setListColWidths] = useState([])
 
   const kanbanWrapRef = useRef(null)
+  const stickyKanbanRef = useRef(null)
   const [showKanbanSticky, setShowKanbanSticky] = useState(false)
   const [stickyStages, setStickyStages] = useState([])
 
@@ -202,7 +203,8 @@ function PipelineList() {
 
       if (firstRect.top < mainRect.top) {
         const stages = Array.from(heads).map(h => ({
-          text: h.textContent.trim(),
+          text: h.querySelector('.kname')?.textContent.trim() || h.textContent.trim(),
+          stage: h.querySelector('.kname')?.textContent.trim() || '',
           width: h.closest('.kcol')?.offsetWidth || 280
         }))
         setStickyStages(stages)
@@ -427,7 +429,12 @@ function PipelineList() {
 
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {view === 'kanban'
-          ? <KanbanView deals={tileFilteredDeals} pipelineFilter={pipelineFilter} kanbanWrapRef={kanbanWrapRef} />
+          ? <KanbanView
+              deals={tileFilteredDeals}
+              pipelineFilter={pipelineFilter}
+              kanbanWrapRef={kanbanWrapRef}
+              onWrapScroll={e => { if (stickyKanbanRef.current) stickyKanbanRef.current.scrollLeft = e.target.scrollLeft }}
+            />
           : <ListView
               deals={paginatedDeals}
               onOpen={id => navigate(`/pipeline/${id}`)}
@@ -538,18 +545,18 @@ function PipelineList() {
       )}
 
       {view === 'kanban' && showKanbanSticky && (
-        <div style={{
+        <div ref={stickyKanbanRef} style={{
           position: 'fixed',
           top: 0,
           left: 216,
           right: 0,
-          height: 44,
+          height: 48,
           zIndex: 1000,
-          backgroundColor: '#ffffff',
-          borderBottom: '2px solid #e5e7eb',
+          backgroundColor: '#FAFAF7',
+          borderBottom: '1px solid #e5e7eb',
           display: 'flex',
-          overflowX: 'hidden',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+          overflowX: 'auto',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.06)'
         }}>
           {stickyStages.map((s, i) => (
             <div key={i} style={{
@@ -559,16 +566,24 @@ function PipelineList() {
               padding: '0 16px',
               display: 'flex',
               alignItems: 'center',
+              gap: 6,
               fontSize: 11,
               fontWeight: 700,
               color: '#6b7280',
               letterSpacing: '0.05em',
-              backgroundColor: '#ffffff',
+              backgroundColor: '#FAFAF7',
               borderRight: '1px solid #e5e7eb',
               whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
+              flexShrink: 0
             }}>
+              <span style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                backgroundColor: stageDotColor(s.stage),
+                display: 'inline-block',
+                flexShrink: 0
+              }} />
               {s.text}
             </div>
           ))}
@@ -804,7 +819,7 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
 })
 
 // ── Kanban view ───────────────────────────────────────────
-function KanbanView({ deals, pipelineFilter, kanbanWrapRef }) {
+function KanbanView({ deals, pipelineFilter, kanbanWrapRef, onWrapScroll }) {
   const { isMDE, isAE } = useAuth()
   const stages = isMDE ? MID_MARKET_STAGES
     : isAE ? ENT_STAGES
@@ -812,7 +827,7 @@ function KanbanView({ deals, pipelineFilter, kanbanWrapRef }) {
     : MID_MARKET_STAGES
 
   return (
-    <div className="kanban-wrap" ref={kanbanWrapRef}>
+    <div className="kanban-wrap" ref={kanbanWrapRef} onScroll={onWrapScroll}>
       <div className="kanban">
         {stages.map(stage => {
           const stageDeals = deals.filter(d => d.stage === stage)
