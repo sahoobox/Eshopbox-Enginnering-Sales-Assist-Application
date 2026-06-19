@@ -200,19 +200,14 @@ export default function LeadDetail() {
         {/* Left */}
         <div className="ws-main">
 
-          {/* Lead details */}
+          {/* UTM & Tracking */}
           <div className="card" style={{ marginBottom: 14 }}>
-            <div className="ws-side-head"><h4>Lead details</h4></div>
+            <div className="ws-side-head"><h4>UTM & Tracking</h4></div>
             <div className="ws-side-body">
               {[
-                { k: 'Contact', v: lead.fullName || '—' },
-                { k: 'Email', v: lead.email || '—' },
-                { k: 'Brand', v: company },
-                { k: 'Volume submitted', v: lead.orderVolume || '—' },
-                { k: 'Form / source', v: lead.leadSource || '—' },
-                { k: 'Submitted', v: createdTime },
                 { k: 'UTM source', v: lead.utmSource || '—' },
                 { k: 'UTM campaign', v: lead.utmCampaign || '—' },
+                { k: 'UTM medium', v: lead.utmMedium || '—' },
                 { k: 'Same-day contact', v: needsSameDay
                   ? <span className="pill pill-warn">Same-day · today by 6pm</span>
                   : <span style={{ color: 'var(--ink-3)' }}>—</span>
