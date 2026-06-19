@@ -322,7 +322,10 @@ const LEAD_FIELDS = [
   'Modified_Time', 'Last_Activity_Time', 'How_many_orders_do_you_ship_in_a_month',
   'Monthly_Order_Volume', 'Order_Volume', 'UTM_Source', 'UTM_Medium',
   'UTM_Campaign', 'UTM_Content', '$converted', 'Signup', 'Original_Lead_Source',
-  'Disqualified_reason', 'Bad_Timing_Reason', 'Description'
+  'Disqualified_reason', 'Bad_Timing_Reason', 'Description',
+  'How_can_Eshopbox_support_your_business', 'What_type_of_products_do_you_sell',
+  'City', 'Shipping_Setup', 'Current_Fulfillment_Setup',
+  'Inventory_Move_Timeline', 'Website'
 ].join(',')
 
 const LEADS_CACHE_KEY = 'v3_leads_cache'

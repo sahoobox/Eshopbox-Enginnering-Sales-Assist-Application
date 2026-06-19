@@ -346,16 +346,23 @@ export default function LeadDetail() {
             <div className="ws-side-head"><h4>Lead fields</h4></div>
             <div className="ws-side-body">
               {[
-                { k: 'Full Name', v: lead.fullName || '—' },
-                { k: 'Email', v: lead.email || '—' },
+                { k: 'Lead Name', v: lead.fullName || '—' },
+                { k: 'Lead Owner', v: lead.ownerName || '—' },
+                { k: 'Lead Status', v: lead.leadStatus
+                  ? <span className="pill pill-neutral">{lead.leadStatus}</span>
+                  : '—'
+                },
                 { k: 'Phone', v: lead.phone || '—' },
-                { k: 'Company', v: company },
-                { k: 'Volume', v: lead.orderVolume || '—' },
-                { k: 'Source', v: lead.leadSource || '—' },
-                { k: 'Lead Type', v: lead.leadType || '—' },
-                { k: 'Status', v: lead.leadStatus || '—' },
-                { k: 'Owner', v: lead.ownerName || '—' },
-                { k: 'Created', v: createdTime },
+                { k: 'Company', v: lead.company || '—' },
+                { k: 'Lead Source', v: lead.leadSource || '—' },
+                { k: 'City', v: lead.city || '—' },
+                { k: 'Website', v: lead.website || '—' },
+                { k: 'Orders / month', v: lead.orderVolume || '—' },
+                { k: 'How Eshopbox can help', v: lead.supportNeeded || '—' },
+                { k: 'Products sold', v: lead.productType || '—' },
+                { k: 'Shipping setup', v: lead.shippingSetup || '—' },
+                { k: 'Fulfillment setup', v: lead.fulfillmentSetup || '—' },
+                { k: 'Inventory timeline', v: lead.inventoryTimeline || '—' },
               ].map((row, i) => (
                 <div key={i} className="ws-side-row">
                   <span className="k">{row.k}</span>

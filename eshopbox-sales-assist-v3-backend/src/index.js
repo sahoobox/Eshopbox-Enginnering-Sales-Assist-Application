@@ -3121,6 +3121,13 @@ function mapZohoLead(l) {
     lastActivityAt: l.Last_Activity_Time || '',
     disqualifiedReason: l.Disqualified_reason || '',
     description: l.Description || '',
+    supportNeeded: l.How_can_Eshopbox_support_your_business || '',
+    productType: l.What_type_of_products_do_you_sell || '',
+    city: l.City || '',
+    shippingSetup: l.Shipping_Setup || '',
+    fulfillmentSetup: l.Current_Fulfillment_Setup || '',
+    inventoryTimeline: l.Inventory_Move_Timeline || '',
+    website: l.Website || '',
   }
 }
 
