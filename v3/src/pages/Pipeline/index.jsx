@@ -175,28 +175,16 @@ function PipelineList() {
   const [listColWidths, setListColWidths] = useState([])
 
   useEffect(() => {
-    const mainEl = document.querySelector('.main')
-    console.log('Pipeline list sticky - mainEl:', mainEl)
-    console.log('Pipeline list sticky - listTheadEl:', listTheadEl)
-
-    if (!mainEl || !listTheadEl) {
-      console.log('MISSING - mainEl or listTheadEl')
-      return
-    }
+    if (!listTheadEl) return
 
     const handleScroll = () => {
+      if (!listTheadEl) return
       const theadRect = listTheadEl.getBoundingClientRect()
-      const mainRect = mainEl.getBoundingClientRect()
-      const tableRect = listTableRef.current?.getBoundingClientRect()
-      console.log('scroll fired', {
-        theadTop: theadRect.top,
-        mainTop: mainRect.top,
-        shouldShow: theadRect.top < mainRect.top
-      })
 
-      if (theadRect.top < mainRect.top) {
+      if (theadRect.top < 0) {
+        const tableRect = listTableRef.current?.getBoundingClientRect()
         setShowListStickyHeader(true)
-        setListStickyLeft(tableRect?.left || mainRect.left)
+        setListStickyLeft(tableRect?.left || 0)
         setListStickyWidth(tableRect?.width || 0)
         const firstRow = listTableRef.current?.querySelector('tbody tr:first-child')
         if (firstRow) {
@@ -211,8 +199,15 @@ function PipelineList() {
       }
     }
 
-    mainEl.addEventListener('scroll', handleScroll)
-    return () => mainEl.removeEventListener('scroll', handleScroll)
+    const mainEl = document.querySelector('.main')
+    const containers = [
+      mainEl,
+      listTableRef.current?.parentElement,
+      window
+    ].filter(Boolean)
+
+    containers.forEach(el => el.addEventListener('scroll', handleScroll))
+    return () => containers.forEach(el => el.removeEventListener('scroll', handleScroll))
   }, [listTheadEl])
 
   useEffect(() => {
