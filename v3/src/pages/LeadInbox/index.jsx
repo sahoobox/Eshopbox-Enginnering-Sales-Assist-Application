@@ -377,64 +377,80 @@ export default function LeadInbox() {
       <div className="table-wrap" style={{ overflowX: 'auto' }}>
         <table className="t" style={{ minWidth: 1180, tableLayout: 'fixed' }}>
           <colgroup>
-            <col style={{ width: '200px' }} />
-            <col style={{ width: '220px' }} />
-            <col style={{ width: '160px' }} />
-            <col style={{ width: '140px' }} />
-            <col style={{ width: '100px' }} />
+            <col style={{ width: '90px' }} />
+            <col style={{ width: '150px' }} />
+            <col style={{ width: '180px' }} />
+            <col style={{ width: '120px' }} />
             <col style={{ width: '140px' }} />
             <col style={{ width: '120px' }} />
+            <col style={{ width: '120px' }} />
+            <col style={{ width: '100px' }} />
           </colgroup>
           <thead>
             <tr>
+              <th>Date</th>
               <th>Brand</th>
               <th>Contact</th>
+              <th>Status</th>
               <th>Volume</th>
               <th>Source</th>
-              <th>UTM</th>
               <th>Assigned to</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {paginated.length === 0 && (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>No leads found</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>No leads found</td></tr>
             )}
             {paginated.map(lead => {
-              const isToday = lead.createdAt?.startsWith(todayStr)
               const canConvert = lead.leadStatus === 'New'
-              const createdTime = lead.createdAt
-                ? (isToday
-                    ? `Today ${new Date(lead.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })}`
-                    : new Date(lead.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }))
+              const createdDate = lead.createdAt
+                ? new Date(lead.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })
                 : '—'
+              const createdTime = lead.createdAt
+                ? new Date(lead.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+                : ''
+              const STATUS_STYLE = {
+                'Connected':   { background: '#F0FFF4', color: '#2F9E44' },
+                'Connecting':  { background: '#F0F4FF', color: '#3B5BDB' },
+                'Bad Timing':  { background: '#FFF7ED', color: '#C2410C' },
+              }
+              const statusStyle = STATUS_STYLE[lead.leadStatus] || { background: 'var(--surface-2)', color: 'var(--ink-3)' }
 
               return (
                 <tr key={lead.id} onClick={() => navigate(`/leads/${lead.id}`)} style={{ cursor: 'pointer' }}>
-                  <td style={{ overflow: 'hidden' }}>
-                    <b style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td style={{ whiteSpace: 'nowrap', padding: '14px 16px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-1)' }}>{createdDate}</div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{createdTime}</div>
+                  </td>
+                  <td style={{ overflow: 'hidden', padding: '14px 16px' }}>
+                    <b style={{ fontSize: 13, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {lead.company || '—'}
                     </b>
-                    <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2 }}>{createdTime}</div>
                   </td>
-                  <td style={{ overflow: 'hidden' }}>
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td style={{ overflow: 'hidden', padding: '14px 16px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {lead.fullName || `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || '—'}
                     </div>
-                    <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {lead.email}
                     </div>
                   </td>
-                  <td>{lead.orderVolume || '—'}</td>
-                  <td>
+                  <td style={{ padding: '14px 16px' }}>
+                    {lead.leadStatus
+                      ? <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20, display: 'inline-block', ...statusStyle }}>{lead.leadStatus}</span>
+                      : <span style={{ color: 'var(--ink-3)' }}>—</span>
+                    }
+                  </td>
+                  <td style={{ fontSize: 13, padding: '14px 16px' }}>{lead.orderVolume || '—'}</td>
+                  <td style={{ padding: '14px 16px' }}>
                     {lead.leadSource
                       ? <span className="pill pill-neutral">{lead.leadSource}</span>
                       : <span style={{ color: 'var(--ink-3)' }}>—</span>
                     }
                   </td>
-                  <td style={{ color: 'var(--ink-3)', fontSize: 12 }}>{lead.utmSource || 'direct'}</td>
-                  <td>{lead.ownerName || '—'}</td>
-                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap', paddingRight: 12 }}>
+                  <td style={{ fontSize: 13, padding: '14px 16px' }}>{lead.ownerName || '—'}</td>
+                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap', padding: '14px 12px' }}>
                     <button
                       className="btn btn-sm btn-danger"
                       disabled={!canConvert}
