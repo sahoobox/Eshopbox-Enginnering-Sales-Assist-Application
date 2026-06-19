@@ -25,6 +25,7 @@ export default function LeadDetail() {
   const [logSaving, setLogSaving] = useState(false)
   const [dedup, setDedup] = useState(null)
   const [showReassign, setShowReassign] = useState(false)
+  const [sideTab, setSideTab] = useState('lead')
 
   useEffect(() => {
     authFetch(`/api/leads/${leadId}`)
@@ -200,27 +201,6 @@ export default function LeadDetail() {
         {/* Left */}
         <div className="ws-main">
 
-          {/* UTM & Tracking */}
-          <div className="card" style={{ marginBottom: 14 }}>
-            <div className="ws-side-head"><h4>UTM & Tracking</h4></div>
-            <div className="ws-side-body">
-              {[
-                { k: 'UTM source', v: lead.utmSource || '—' },
-                { k: 'UTM campaign', v: lead.utmCampaign || '—' },
-                { k: 'UTM medium', v: lead.utmMedium || '—' },
-                { k: 'Same-day contact', v: needsSameDay
-                  ? <span className="pill pill-warn">Same-day · today by 6pm</span>
-                  : <span style={{ color: 'var(--ink-3)' }}>—</span>
-                },
-              ].map((row, i) => (
-                <div key={i} className="ws-side-row">
-                  <span className="k">{row.k}</span>
-                  <span className="v">{row.v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Dedup check */}
           <div className="card card-pad" style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Dedup check</div>
@@ -341,11 +321,17 @@ export default function LeadDetail() {
             </div>
           </div>
 
-          {/* Lead fields */}
+          {/* Lead fields / UTM tabs */}
           <div className="card">
-            <div className="ws-side-head"><h4>Lead fields</h4></div>
+            <div className="tabs" style={{ padding: '0 14px' }}>
+              {[{ id: 'lead', label: 'Lead Fields' }, { id: 'utm', label: 'UTM & Tracking' }].map(t => (
+                <button key={t.id} className={`tab ${sideTab === t.id ? 'active' : ''}`} onClick={() => setSideTab(t.id)}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
             <div className="ws-side-body">
-              {[
+              {sideTab === 'lead' ? [
                 { k: 'Lead Name', v: lead.fullName || '—' },
                 { k: 'Lead Owner', v: lead.ownerName || '—' },
                 { k: 'Lead Status', v: lead.leadStatus
@@ -357,12 +343,25 @@ export default function LeadDetail() {
                 { k: 'Lead Source', v: lead.leadSource || '—' },
                 { k: 'City', v: lead.city || '—' },
                 { k: 'Website', v: lead.website || '—' },
-                { k: 'Orders / month', v: lead.orderVolume || '—' },
-                { k: 'How Eshopbox can help', v: lead.supportNeeded || '—' },
-                { k: 'Products sold', v: lead.productType || '—' },
-                { k: 'Shipping setup', v: lead.shippingSetup || '—' },
-                { k: 'Fulfillment setup', v: lead.fulfillmentSetup || '—' },
-                { k: 'Inventory timeline', v: lead.inventoryTimeline || '—' },
+                { k: 'How many orders do you ship in a month?', v: lead.orderVolume || '—' },
+                { k: 'How can Eshopbox support your business?', v: lead.supportNeeded || '—' },
+                { k: 'What type of products do you sell?', v: lead.productType || '—' },
+                { k: 'Shipping Setup', v: lead.shippingSetup || '—' },
+                { k: 'Current Fulfillment Setup', v: lead.fulfillmentSetup || '—' },
+                { k: 'Inventory Move Timeline', v: lead.inventoryTimeline || '—' },
+              ].map((row, i) => (
+                <div key={i} className="ws-side-row">
+                  <span className="k">{row.k}</span>
+                  <span className="v">{row.v}</span>
+                </div>
+              )) : [
+                { k: 'UTM Source', v: lead.utmSource || '—' },
+                { k: 'UTM Medium', v: lead.utmMedium || '—' },
+                { k: 'UTM Campaign', v: lead.utmCampaign || '—' },
+                { k: 'Same-day contact', v: needsSameDay
+                  ? <span className="pill pill-warn">Same-day · today by 6pm</span>
+                  : <span style={{ color: 'var(--ink-3)' }}>—</span>
+                },
               ].map((row, i) => (
                 <div key={i} className="ws-side-row">
                   <span className="k">{row.k}</span>
