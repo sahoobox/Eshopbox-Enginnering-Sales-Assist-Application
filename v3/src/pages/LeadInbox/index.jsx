@@ -401,7 +401,7 @@ export default function LeadInbox() {
         </select>
       </div>
 
-      <div className="table-wrap" style={{ overflowX: 'auto' }}>
+      <div className="table-wrap" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)', position: 'relative' }}>
         <table className="t" style={{ minWidth: 1180, tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: '90px' }} />
@@ -413,16 +413,16 @@ export default function LeadInbox() {
             <col style={{ width: '120px' }} />
             <col style={{ width: '100px' }} />
           </colgroup>
-          <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--surface)', boxShadow: '0 1px 0 var(--line)' }}>
+          <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
             <tr>
-              <th>Date</th>
-              <th>Brand</th>
-              <th>Contact</th>
-              <th>Status</th>
-              <th>Volume</th>
-              <th>Source</th>
-              <th>Assigned to</th>
-              <th></th>
+              <th style={{ background: 'white' }}>Date</th>
+              <th style={{ background: 'white' }}>Brand</th>
+              <th style={{ background: 'white' }}>Contact</th>
+              <th style={{ background: 'white' }}>Status</th>
+              <th style={{ background: 'white' }}>Volume</th>
+              <th style={{ background: 'white' }}>Source</th>
+              <th style={{ background: 'white' }}>Assigned to</th>
+              <th style={{ background: 'white' }}></th>
             </tr>
           </thead>
           <tbody>

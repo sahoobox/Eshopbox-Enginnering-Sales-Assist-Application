@@ -629,16 +629,16 @@ function ListView({ deals, onOpen }) {
   return (
     <div className="table-wrap" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
       <table className="t">
-        <thead>
+        <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
           <tr>
-            <th>Brand</th>
-            <th>Owner</th>
-            <th>Stage</th>
-            <th>Solution</th>
-            <th>Volume</th>
-            <th>Grade</th>
-            <th>Flags</th>
-            <th></th>
+            <th style={{ background: 'white' }}>Brand</th>
+            <th style={{ background: 'white' }}>Owner</th>
+            <th style={{ background: 'white' }}>Stage</th>
+            <th style={{ background: 'white' }}>Solution</th>
+            <th style={{ background: 'white' }}>Volume</th>
+            <th style={{ background: 'white' }}>Grade</th>
+            <th style={{ background: 'white' }}>Flags</th>
+            <th style={{ background: 'white' }}></th>
           </tr>
         </thead>
         <tbody>
