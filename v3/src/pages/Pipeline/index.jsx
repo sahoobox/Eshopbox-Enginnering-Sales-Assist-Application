@@ -166,6 +166,44 @@ function PipelineList() {
 
   const filterBarRef = useRef(null)
 
+  const listTableRef = useRef(null)
+  const [listTheadEl, setListTheadEl] = useState(null)
+  const listTheadRef = useCallback(node => { if (node) setListTheadEl(node) }, [])
+  const [showListStickyHeader, setShowListStickyHeader] = useState(false)
+  const [listStickyLeft, setListStickyLeft] = useState(0)
+  const [listStickyWidth, setListStickyWidth] = useState(0)
+  const [listColWidths, setListColWidths] = useState([])
+
+  useEffect(() => {
+    const mainEl = document.querySelector('.main')
+    if (!mainEl || !listTheadEl) return
+
+    const handleScroll = () => {
+      const theadRect = listTheadEl.getBoundingClientRect()
+      const mainRect = mainEl.getBoundingClientRect()
+      const tableRect = listTableRef.current?.getBoundingClientRect()
+
+      if (theadRect.top < mainRect.top) {
+        setShowListStickyHeader(true)
+        setListStickyLeft(tableRect?.left || mainRect.left)
+        setListStickyWidth(tableRect?.width || 0)
+        const firstRow = listTableRef.current?.querySelector('tbody tr:first-child')
+        if (firstRow) {
+          const tds = firstRow.querySelectorAll('td')
+          setListColWidths(Array.from(tds).map(td => td.offsetWidth))
+        } else {
+          const ths = listTheadEl.querySelectorAll('th')
+          setListColWidths(Array.from(ths).map(th => th.offsetWidth))
+        }
+      } else {
+        setShowListStickyHeader(false)
+      }
+    }
+
+    mainEl.addEventListener('scroll', handleScroll)
+    return () => mainEl.removeEventListener('scroll', handleScroll)
+  }, [listTheadEl])
+
   useEffect(() => {
     if (!showLegend) return
     const handler = (e) => {
@@ -349,9 +387,53 @@ function PipelineList() {
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         {view === 'kanban'
           ? <KanbanView deals={tileFilteredDeals} pipelineFilter={pipelineFilter} />
-          : <ListView deals={tileFilteredDeals} onOpen={id => navigate(`/pipeline/${id}`)} />
+          : <ListView
+              deals={tileFilteredDeals}
+              onOpen={id => navigate(`/pipeline/${id}`)}
+              tableRef={listTableRef}
+              theadRef={listTheadRef}
+            />
         }
       </div>
+
+      {showListStickyHeader && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: listStickyLeft,
+          width: listStickyWidth,
+          zIndex: 100,
+          background: 'white',
+          borderBottom: '2px solid var(--line)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          overflow: 'hidden'
+        }}>
+          <table style={{
+            width: '100%',
+            tableLayout: 'fixed',
+            borderCollapse: 'collapse'
+          }}>
+            <thead>
+              <tr>
+                {['BRAND', 'OWNER', 'STAGE', 'SOLUTION', 'VOLUME', 'GRADE', 'FLAGS', ''].map((col, i) => (
+                  <th key={i} style={{
+                    width: listColWidths[i],
+                    padding: '10px 16px',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: 'var(--ink-3)',
+                    textAlign: 'left',
+                    background: 'white',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
@@ -625,140 +707,59 @@ function KanbanView({ deals, pipelineFilter }) {
 }
 
 // ── List view ─────────────────────────────────────────────
-function ListView({ deals, onOpen }) {
-  const tableRef = useRef(null)
-  const [theadEl, setTheadEl] = useState(null)
-  const theadRef = useCallback(node => { if (node) setTheadEl(node) }, [])
-  const [showStickyHeader, setShowStickyHeader] = useState(false)
-  const [stickyLeft, setStickyLeft] = useState(0)
-  const [stickyWidth, setStickyWidth] = useState(0)
-  const [colWidths, setColWidths] = useState([])
-
-  useEffect(() => {
-    const mainEl = document.querySelector('.main')
-    if (!mainEl || !theadEl) return
-
-    const handleScroll = () => {
-      const theadRect = theadEl.getBoundingClientRect()
-      const mainRect = mainEl.getBoundingClientRect()
-      const tableRect = tableRef.current?.getBoundingClientRect()
-
-      if (theadRect.top < mainRect.top) {
-        setShowStickyHeader(true)
-        setStickyLeft(tableRect?.left || mainRect.left)
-        setStickyWidth(tableRect?.width || 0)
-        const firstRow = tableRef.current?.querySelector('tbody tr:first-child')
-        if (firstRow) {
-          const tds = firstRow.querySelectorAll('td')
-          setColWidths(Array.from(tds).map(td => td.offsetWidth))
-        } else {
-          const ths = theadEl.querySelectorAll('th')
-          setColWidths(Array.from(ths).map(th => th.offsetWidth))
-        }
-      } else {
-        setShowStickyHeader(false)
-      }
-    }
-
-    mainEl.addEventListener('scroll', handleScroll)
-    return () => mainEl.removeEventListener('scroll', handleScroll)
-  }, [theadEl])
-
-  const HEADERS = ['Brand', 'Owner', 'Stage', 'Solution', 'Volume', 'Grade', 'Flags', '']
-
+function ListView({ deals, onOpen, tableRef, theadRef }) {
   return (
-    <>
-      <div ref={tableRef} className="table-wrap" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-        <table className="t">
-          <thead ref={theadRef}>
-            <tr>
-              <th style={{ background: 'white' }}>Brand</th>
-              <th style={{ background: 'white' }}>Owner</th>
-              <th style={{ background: 'white' }}>Stage</th>
-              <th style={{ background: 'white' }}>Solution</th>
-              <th style={{ background: 'white' }}>Volume</th>
-              <th style={{ background: 'white' }}>Grade</th>
-              <th style={{ background: 'white' }}>Flags</th>
-              <th style={{ background: 'white' }}></th>
+    <div ref={tableRef} className="table-wrap" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+      <table className="t">
+        <thead ref={theadRef}>
+          <tr>
+            <th style={{ background: 'white' }}>Brand</th>
+            <th style={{ background: 'white' }}>Owner</th>
+            <th style={{ background: 'white' }}>Stage</th>
+            <th style={{ background: 'white' }}>Solution</th>
+            <th style={{ background: 'white' }}>Volume</th>
+            <th style={{ background: 'white' }}>Grade</th>
+            <th style={{ background: 'white' }}>Flags</th>
+            <th style={{ background: 'white' }}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {deals.length === 0 && (
+            <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>No deals found</td></tr>
+          )}
+          {deals.map(deal => (
+            <tr key={deal.id} className="clickable" onClick={() => onOpen(deal.id)}>
+              <td>
+                <b>{deal.brandName || deal.dealName}</b>
+                {deal.mismatch && (
+                  <span className="mismatch-tag" style={{ marginLeft: 6 }}>⚠ {deal.mismatchLabel}</span>
+                )}
+              </td>
+              <td>{deal.repName}</td>
+              <td>
+                <span className={`pill ${getStagePill(deal.stage)}`}>{deal.stage}</span>
+              </td>
+              <td>{deal.solutionInterest || '—'}</td>
+              <td>{deal.orderVolume || '—'}</td>
+              <td>
+                {deal.grade ? (
+                  <span className={`kc-grade kc-grade-${deal.grade.toLowerCase()}`}>{deal.grade}</span>
+                ) : '—'}
+              </td>
+              <td>
+                {deal.flags?.length > 0
+                  ? <span className={`pill ${deal.attentionLevel === 'high' ? 'pill-danger' : 'pill-warn'}`}>{deal.flags.length}</span>
+                  : <span style={{ color: 'var(--ink-3)' }}>—</span>
+                }
+              </td>
+              <td style={{ textAlign: 'right' }}>
+                <button className="btn btn-sm" onClick={e => { e.stopPropagation(); onOpen(deal.id) }}>Open →</button>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {deals.length === 0 && (
-              <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>No deals found</td></tr>
-            )}
-            {deals.map(deal => (
-              <tr key={deal.id} className="clickable" onClick={() => onOpen(deal.id)}>
-                <td>
-                  <b>{deal.brandName || deal.dealName}</b>
-                  {deal.mismatch && (
-                    <span className="mismatch-tag" style={{ marginLeft: 6 }}>⚠ {deal.mismatchLabel}</span>
-                  )}
-                </td>
-                <td>{deal.repName}</td>
-                <td>
-                  <span className={`pill ${getStagePill(deal.stage)}`}>{deal.stage}</span>
-                </td>
-                <td>{deal.solutionInterest || '—'}</td>
-                <td>{deal.orderVolume || '—'}</td>
-                <td>
-                  {deal.grade ? (
-                    <span className={`kc-grade kc-grade-${deal.grade.toLowerCase()}`}>{deal.grade}</span>
-                  ) : '—'}
-                </td>
-                <td>
-                  {deal.flags?.length > 0
-                    ? <span className={`pill ${deal.attentionLevel === 'high' ? 'pill-danger' : 'pill-warn'}`}>{deal.flags.length}</span>
-                    : <span style={{ color: 'var(--ink-3)' }}>—</span>
-                  }
-                </td>
-                <td style={{ textAlign: 'right' }}>
-                  <button className="btn btn-sm" onClick={e => { e.stopPropagation(); onOpen(deal.id) }}>Open →</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {showStickyHeader && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: stickyLeft,
-          width: stickyWidth,
-          zIndex: 100,
-          background: 'white',
-          borderBottom: '2px solid var(--line)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          overflow: 'hidden'
-        }}>
-          <table style={{
-            width: '100%',
-            tableLayout: 'fixed',
-            borderCollapse: 'collapse'
-          }}>
-            <thead>
-              <tr>
-                {HEADERS.map((col, i) => (
-                  <th key={i} style={{
-                    width: colWidths[i],
-                    padding: '10px 16px',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: 'var(--ink-3)',
-                    textAlign: 'left',
-                    background: 'white',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {col}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-          </table>
-        </div>
-      )}
-    </>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
