@@ -12,7 +12,7 @@ export default function LeadDetail() {
   const [lead, setLead] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [tab, setTab] = useState('activity')
+  const [tab, setTab] = useState('leadfields')
   const [disqualifying, setDisqualifying] = useState(false)
   const [showDisqualify, setShowDisqualify] = useState(false)
   const [disqualifyReason, setDisqualifyReason] = useState('')
@@ -220,9 +220,9 @@ export default function LeadDetail() {
           {/* Tabs */}
           <div className="tabs">
             {[
+              { id: 'leadfields', label: 'Lead Fields' },
               { id: 'activity', label: 'Activity' },
               { id: 'notes', label: 'Notes' },
-              { id: 'leadfields', label: 'Lead Fields' },
               { id: 'utm', label: 'UTM & Tracking' },
             ].map(t => (
               <button key={t.id} className={`tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
