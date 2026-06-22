@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useLeads } from '../../hooks/useLeads'
 import { Topbar, Loading } from '../../components/ui'
@@ -272,8 +272,6 @@ const LeadFilterBar = forwardRef(function LeadFilterBar({ filters, onChange, lea
 export default function LeadInbox() {
   const { role, user } = useAuth()
   const { leads, loading, error, refetch } = useLeads()
-  const navigate = useNavigate()
-
   const [searchParams, setSearchParams] = useSearchParams()
   const searchQuery = searchParams.get('q') || ''
   const activeFilters = (() => { try { return JSON.parse(searchParams.get('filters') || '[]') } catch { return [] } })()
@@ -527,7 +525,7 @@ export default function LeadInbox() {
               const statusStyle = STATUS_STYLE[lead.leadStatus] || { background: 'var(--surface-2)', color: 'var(--ink-3)' }
 
               return (
-                <tr key={lead.id} onClick={() => navigate(`/leads/${lead.id}`)} style={{ cursor: 'pointer' }}>
+                <tr key={lead.id} onClick={() => window.open(`/leads/${lead.id}`, '_blank')} style={{ cursor: 'pointer' }}>
                   <td style={{ whiteSpace: 'nowrap', padding: '14px 16px' }}>
                     <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-1)' }}>{createdDate}</div>
                     <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{createdTime}</div>
@@ -564,6 +562,7 @@ export default function LeadInbox() {
                       className="btn btn-sm btn-danger"
                       disabled={!canConvert}
                       style={!canConvert ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                      onClick={e => e.stopPropagation()}
                     >
                       Convert →
                     </button>
