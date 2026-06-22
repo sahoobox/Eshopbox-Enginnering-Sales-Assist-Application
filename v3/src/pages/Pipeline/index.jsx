@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
 import { Topbar, Loading, Empty, ToggleGroup, Pill } from '../../components/ui'
@@ -85,17 +85,28 @@ function matchFilters(deal, filters) {
 function PipelineList() {
   const { role, isMDE, isAE, isAdmin, isMidMarketLead, isEnterpriseLead } = useAuth()
   const { deals, loading, error, refetch } = useDeals()
-  const navigate = useNavigate()
-
-  const [view, setView] = useState('kanban')
+  const [searchParams, setSearchParams] = useSearchParams()
   const defaultPipeline = isAE ? 'enterprise' : 'midmarket'
-  const [pipelineFilter, setPipelineFilter] = useState(defaultPipeline)
-  const [search, setSearch] = useState('')
-  const [activeFilters, setActiveFilters] = useState([])
+  const activeTile = searchParams.get('tile') || 'inbox'
+  const pipelineFilter = searchParams.get('pipeline') || defaultPipeline
+  const view = searchParams.get('view') || 'kanban'
+  const searchQuery = searchParams.get('q') || ''
+  const activeFilters = (() => { try { return JSON.parse(searchParams.get('filters') || '[]') } catch { return [] } })()
   const [showLegend, setShowLegend] = useState(false)
-  const [tileFilter, setTileFilter] = useState('inbox')
   const [listPage, setListPage] = useState(1)
   const [listPageSize, setListPageSize] = useState(50)
+
+  const updateParams = (updates) => {
+    const next = new URLSearchParams(searchParams)
+    Object.entries(updates).forEach(([k, v]) => {
+      if (v === null || v === undefined || v === '') {
+        next.delete(k)
+      } else {
+        next.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v))
+      }
+    })
+    setSearchParams(next, { replace: true })
+  }
 
   const TERMINAL = ['Won/Payment Received', 'Lost/Dropped', 'On Hold']
 
@@ -111,30 +122,30 @@ function PipelineList() {
     if (pipelineFilter === 'midmarket') d = d.filter(deal => deal.pipeline === 'Mid-market')
     else if (pipelineFilter === 'enterprise') d = d.filter(deal => deal.pipeline === 'Enterprise 2.0')
     if (activeFilters.length > 0) d = d.filter(deal => matchFilters(deal, activeFilters))
-    if (search.trim()) {
-      const q = search.toLowerCase()
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
       d = d.filter(deal =>
         (deal.brandName || deal.dealName || '').toLowerCase().includes(q) ||
         (deal.repName || '').toLowerCase().includes(q)
       )
     }
     return d
-  }, [deals, search, pipelineFilter, activeFilters])
+  }, [deals, searchQuery, pipelineFilter, activeFilters])
 
   const tileFilteredDeals = useMemo(() => {
-    if (tileFilter === 'all') return scopedDeals
-    if (tileFilter === 'inbox') return scopedDeals.filter(d =>
+    if (activeTile === 'all') return scopedDeals
+    if (activeTile === 'inbox') return scopedDeals.filter(d =>
       !TERMINAL.includes(d.stage) &&
       (d.flags?.some(f => f.severity === 'critical') || !d.saLogged)
     )
-    if (tileFilter === 'upcoming') return scopedDeals.filter(d => d.stage === 'Upcoming Demo')
-    if (tileFilter === 'logged') return scopedDeals.filter(d => d.saLogged)
-    if (tileFilter === 'notlogged') return scopedDeals.filter(d =>
+    if (activeTile === 'upcoming') return scopedDeals.filter(d => d.stage === 'Upcoming Demo')
+    if (activeTile === 'logged') return scopedDeals.filter(d => d.saLogged)
+    if (activeTile === 'notlogged') return scopedDeals.filter(d =>
       !d.saLogged && !TERMINAL.includes(d.stage) && d.stage !== 'Upcoming Demo'
     )
-    if (tileFilter === 'won') return scopedDeals.filter(d => d.stage === wonStage)
+    if (activeTile === 'won') return scopedDeals.filter(d => d.stage === wonStage)
     return scopedDeals
-  }, [scopedDeals, tileFilter])
+  }, [scopedDeals, activeTile])
 
   const totalListDeals = tileFilteredDeals.length
   const showAllList = listPageSize >= 99999
@@ -239,8 +250,8 @@ function PipelineList() {
         actions={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div className="seg">
-              <button className={view === 'kanban' ? 'is-on' : ''} onClick={() => setView('kanban')}>Kanban</button>
-              <button className={view === 'list' ? 'is-on' : ''} onClick={() => setView('list')}>List</button>
+              <button className={view === 'kanban' ? 'is-on' : ''} onClick={() => updateParams({ view: 'kanban' })}>Kanban</button>
+              <button className={view === 'list' ? 'is-on' : ''} onClick={() => updateParams({ view: 'list' })}>List</button>
             </div>
             <div data-legend style={{ position: 'relative' }}>
               <button
@@ -319,15 +330,15 @@ function PipelineList() {
         {tiles.map(tile => (
           <div
             key={tile.key}
-            onClick={() => setTileFilter(tile.key)}
+            onClick={() => updateParams({ tile: tile.key })}
             title={tileTooltips[tile.key]}
             style={{
               flex: 1, minWidth: 0, padding: '8px 10px',
-              background: tileFilter === tile.key ? 'var(--info-bg)' : 'var(--surface)',
-              color: tileFilter === tile.key ? 'var(--info)' : 'var(--ink-1)',
+              background: activeTile === tile.key ? 'var(--info-bg)' : 'var(--surface)',
+              color: activeTile === tile.key ? 'var(--info)' : 'var(--ink-1)',
               borderRadius: 'var(--radius-md)',
-              border: `2px solid ${tileFilter === tile.key ? 'var(--info)' : 'var(--line)'}`,
-              boxShadow: tileFilter === tile.key ? '0 0 0 3px var(--info-bg)' : 'none',
+              border: `2px solid ${activeTile === tile.key ? 'var(--info)' : 'var(--line)'}`,
+              boxShadow: activeTile === tile.key ? '0 0 0 3px var(--info-bg)' : 'none',
               cursor: 'pointer'
             }}
           >
@@ -340,7 +351,7 @@ function PipelineList() {
         ))}
       </div>
 
-      {tileFilter !== 'all' && (
+      {activeTile !== 'all' && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '6px 12px', marginBottom: 8,
@@ -351,12 +362,12 @@ function PipelineList() {
         }}>
           <span>⚡</span>
           <span>
-            <b>Viewing: {tiles.find(t => t.key === tileFilter)?.label}</b>
+            <b>Viewing: {tiles.find(t => t.key === activeTile)?.label}</b>
             {' · '}
-            {tileTooltips[tileFilter]}
+            {tileTooltips[activeTile]}
           </span>
           <button
-            onClick={() => setTileFilter('all')}
+            onClick={() => updateParams({ tile: 'all' })}
             style={{
               marginLeft: 'auto', background: 'none', border: 'none',
               color: 'var(--info)', cursor: 'pointer', fontSize: 12,
@@ -376,20 +387,20 @@ function PipelineList() {
         <FilterBar
           ref={filterBarRef}
           filters={activeFilters}
-          onChange={setActiveFilters}
+          onChange={fs => updateParams({ filters: fs.length ? fs : null })}
           deals={deals}
           stages={currentStages}
           isAdmin={isAdmin}
           isMidMarketLead={isMidMarketLead}
           isEnterpriseLead={isEnterpriseLead}
-          search={search}
-          onSearch={setSearch}
+          search={searchQuery}
+          onSearch={v => updateParams({ q: v || null })}
         />
 
         {showPipelineToggle && (
           <div className="seg" style={{ flexShrink: 0 }}>
-            <button className={pipelineFilter === 'midmarket' ? 'is-on' : ''} onClick={() => setPipelineFilter('midmarket')}>Mid-Market</button>
-            <button className={pipelineFilter === 'enterprise' ? 'is-on' : ''} onClick={() => setPipelineFilter('enterprise')}>Enterprise</button>
+            <button className={pipelineFilter === 'midmarket' ? 'is-on' : ''} onClick={() => updateParams({ pipeline: 'midmarket' })}>Mid-Market</button>
+            <button className={pipelineFilter === 'enterprise' ? 'is-on' : ''} onClick={() => updateParams({ pipeline: 'enterprise' })}>Enterprise</button>
           </div>
         )}
       </div>
@@ -399,7 +410,7 @@ function PipelineList() {
           ? <KanbanView deals={tileFilteredDeals} pipelineFilter={pipelineFilter} />
           : <ListView
               deals={paginatedDeals}
-              onOpen={id => navigate(`/pipeline/${id}`)}
+              onOpen={id => window.open(`/pipeline/${id}`, '_blank')}
               tableRef={listTableRef}
               theadRef={listTheadRef}
             />

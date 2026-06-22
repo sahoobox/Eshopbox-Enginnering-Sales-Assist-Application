@@ -41,7 +41,7 @@ export default function DealCard({ deal }) {
   ].filter(Boolean)
 
   return (
-    <div className={cardClass} onClick={() => navigate(`/pipeline/${deal.id}`)} style={{ minHeight: 160, display: 'flex', flexDirection: 'column' }}>
+    <div className={cardClass} onClick={() => window.open(`/pipeline/${deal.id}`, '_blank')} style={{ minHeight: 160, display: 'flex', flexDirection: 'column' }}>
       {/* Grade colour strip at top */}
       <div className="kc-labels">
         <div className={labelClass} />

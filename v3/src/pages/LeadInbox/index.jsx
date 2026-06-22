@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useLeads } from '../../hooks/useLeads'
 import { Topbar, Loading } from '../../components/ui'
@@ -274,12 +274,25 @@ export default function LeadInbox() {
   const { leads, loading, error, refetch } = useLeads()
   const navigate = useNavigate()
 
-  const [search, setSearch] = useState('')
-  const [activeFilters, setActiveFilters] = useState([])
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(50)
-  const [sortOrder, setSortOrder] = useState('desc')
-  const [leadPipeline, setLeadPipeline] = useState('all')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const searchQuery = searchParams.get('q') || ''
+  const activeFilters = (() => { try { return JSON.parse(searchParams.get('filters') || '[]') } catch { return [] } })()
+  const currentPage = Number(searchParams.get('page') || 1)
+  const pageSize = Number(searchParams.get('size') || 50)
+  const sortOrder = searchParams.get('sort') || 'desc'
+  const activePipeline = searchParams.get('pipeline') || 'all'
+
+  const updateParams = (updates) => {
+    const next = new URLSearchParams(searchParams)
+    Object.entries(updates).forEach(([k, v]) => {
+      if (v === null || v === undefined || v === '') {
+        next.delete(k)
+      } else {
+        next.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v))
+      }
+    })
+    setSearchParams(next, { replace: true })
+  }
   const filterBarRef = useRef(null)
   const tableRef = useRef(null)
   const [theadEl, setTheadEl] = useState(null)
@@ -304,14 +317,14 @@ export default function LeadInbox() {
   const filteredLeads = useMemo(() => {
     let result = scopedLeads
 
-    if (leadPipeline === 'Enterprise') {
+    if (activePipeline === 'Enterprise') {
       result = result.filter(l => AE_EMAILS.includes(l.ownerEmail))
-    } else if (leadPipeline === 'Mid-Market') {
+    } else if (activePipeline === 'Mid-Market') {
       result = result.filter(l => !AE_EMAILS.includes(l.ownerEmail))
     }
 
-    if (search.trim()) {
-      const q = search.toLowerCase()
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
       result = result.filter(l =>
         (l.company || '').toLowerCase().includes(q) ||
         (l.fullName || '').toLowerCase().includes(q) ||
@@ -330,7 +343,7 @@ export default function LeadInbox() {
     }
 
     return result
-  }, [scopedLeads, search, activeFilters, leadPipeline])
+  }, [scopedLeads, searchQuery, activeFilters, activePipeline])
 
   const sortedLeads = useMemo(() =>
     [...filteredLeads].sort((a, b) => {
@@ -339,7 +352,7 @@ export default function LeadInbox() {
       return sortOrder === 'desc' ? dateB - dateA : dateA - dateB
     }), [filteredLeads, sortOrder])
 
-  useEffect(() => { setPage(1) }, [search, activeFilters, leadPipeline])
+  useEffect(() => { updateParams({ page: null }) }, [searchQuery, activeFilters, activePipeline])
 
   useEffect(() => {
     const mainEl = document.querySelector('.main')
@@ -379,7 +392,7 @@ export default function LeadInbox() {
   const totalLeads = sortedLeads.length
   const showAll = pageSize >= 99999
   const totalPages = showAll ? 1 : Math.max(1, Math.ceil(totalLeads / pageSize))
-  const safePage = Math.min(page, totalPages)
+  const safePage = Math.min(currentPage, totalPages)
   const start = totalLeads === 0 ? 0 : (safePage - 1) * pageSize + 1
   const end = showAll ? totalLeads : Math.min(safePage * pageSize, totalLeads)
   const paginated = showAll ? sortedLeads : sortedLeads.slice((safePage - 1) * pageSize, safePage * pageSize)
@@ -414,14 +427,14 @@ export default function LeadInbox() {
         <input
           className="pipeline-searchbar-input"
           placeholder="Search by brand, contact, email, rep, source, volume..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
+          value={searchQuery}
+          onChange={e => updateParams({ q: e.target.value || null })}
         />
         <div className="seg" style={{ flexShrink: 0 }}>
           {['all', 'Mid-Market', 'Enterprise'].map(p => (
             <button key={p}
-              className={leadPipeline === p ? 'is-on' : ''}
-              onClick={() => setLeadPipeline(p)}
+              className={activePipeline === p ? 'is-on' : ''}
+              onClick={() => updateParams({ pipeline: p === 'all' ? null : p })}
             >{p === 'all' ? 'All' : p}</button>
           ))}
         </div>
@@ -431,7 +444,7 @@ export default function LeadInbox() {
         <LeadFilterBar
           ref={filterBarRef}
           filters={activeFilters}
-          onChange={setActiveFilters}
+          onChange={fs => updateParams({ filters: fs.length ? fs : null })}
           leads={scopedLeads}
           showOwnerFilter={showOwnerFilter}
         />
@@ -447,7 +460,7 @@ export default function LeadInbox() {
         </span>
         <select
           value={pageSize}
-          onChange={e => { setPageSize(Number(e.target.value)); setPage(1) }}
+          onChange={e => updateParams({ size: Number(e.target.value) === 50 ? null : Number(e.target.value), page: null })}
           style={{
             marginLeft: 12,
             padding: '4px 8px',
@@ -481,7 +494,7 @@ export default function LeadInbox() {
           </colgroup>
           <thead ref={theadRef}>
             <tr>
-              <th onClick={() => setSortOrder(s => s === 'desc' ? 'asc' : 'desc')}
+              <th onClick={() => updateParams({ sort: sortOrder === 'desc' ? 'asc' : 'desc' })}
                 style={{ cursor: 'pointer', userSelect: 'none' }}>
                 DATE {sortOrder === 'desc' ? '↓' : '↑'}
               </th>
@@ -611,7 +624,7 @@ export default function LeadInbox() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 16 }}>
           <button
             className="btn btn-sm"
-            onClick={() => setPage(p => Math.max(1, p - 1))}
+            onClick={() => updateParams({ page: currentPage <= 1 ? null : currentPage - 1 })}
             disabled={safePage === 1}
           >
             ← Previous
@@ -621,7 +634,7 @@ export default function LeadInbox() {
           </span>
           <button
             className="btn btn-sm"
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            onClick={() => updateParams({ page: Math.min(totalPages, currentPage + 1) })}
             disabled={safePage === totalPages}
           >
             Next →
