@@ -557,6 +557,15 @@ function LeadNotesTab({ leadId, lead }) {
     } finally { setSaving(false) }
   }
 
+  function normalizeContent(str) {
+    return (str || '')
+      .toLowerCase()
+      .replace(/^sales assist note:?\s*/i, '')
+      .replace(/^\[note\]\s*/i, '')
+      .trim()
+      .slice(0, 80)
+  }
+  const d1Contents = new Set(d1Notes.map(n => normalizeContent(n.content)))
   const d1Times = new Set(d1Notes.map(n => (n.created_at || n.createdAt || '').slice(0, 16)))
   const zohoNotes = (lead?.notes || []).map(n => ({
     id: n.id,
@@ -567,7 +576,7 @@ function LeadNotesTab({ leadId, lead }) {
   }))
   const dedupedZohoNotes = zohoNotes.filter(n => {
     const minute = (n.date || '').slice(0, 16)
-    const contentMatch = d1Notes.some(d => d.content?.slice(0, 50) === n.content?.slice(0, 50))
+    const contentMatch = d1Contents.has(normalizeContent(n.content))
     return !d1Times.has(minute) && !contentMatch
   })
   const allNotes = [

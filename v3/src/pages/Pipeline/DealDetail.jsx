@@ -1366,6 +1366,28 @@ function NotesTab({ dealId, deal }) {
     } finally { setSaving(false) }
   }
 
+  function normalizeContent(str) {
+    return (str || '')
+      .toLowerCase()
+      .replace(/^sales assist note:?\s*/i, '')
+      .replace(/^\[note\]\s*/i, '')
+      .trim()
+      .slice(0, 80)
+  }
+  const d1Contents = new Set(d1Notes.map(n => normalizeContent(n.content)))
+  const d1Times = new Set(d1Notes.map(n => (n.createdAt || '').slice(0, 16)))
+  const zohoNotes = (deal?.notes || []).map(n => ({
+    id: n.id,
+    content: n.description,
+    authorName: n.createdBy,
+    date: n.date,
+    source: 'zoho',
+  }))
+  const dedupedZohoNotes = zohoNotes.filter(n => {
+    const minute = (n.date || '').slice(0, 16)
+    const contentMatch = d1Contents.has(normalizeContent(n.content))
+    return !d1Times.has(minute) && !contentMatch
+  })
   const allNotes = [
     ...(d1Notes || []).map(n => ({
       id: n.id,
@@ -1374,13 +1396,7 @@ function NotesTab({ dealId, deal }) {
       date: n.createdAt,
       source: 'salesassist',
     })),
-    ...(deal?.notes || []).map(n => ({
-      id: n.id,
-      content: n.description,
-      authorName: n.createdBy,
-      date: n.date,
-      source: 'zoho',
-    })),
+    ...dedupedZohoNotes,
   ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 
   if (loading) return <div className="card card-pad" style={{ color: 'var(--ink-3)' }}>Loading notes…</div>
