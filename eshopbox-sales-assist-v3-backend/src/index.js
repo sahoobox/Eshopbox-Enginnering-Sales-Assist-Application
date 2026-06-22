@@ -3819,12 +3819,10 @@ app.post('/api/leads/bulk-reassign', requireAuth, async (c) => {
     const zohoUser = zohoUsers?.users?.find(u => u.email === newOwnerEmail)
     if (!zohoUser) return c.json({ error: 'User not found in Zoho' }, 404)
 
-    const massUpdateRes = await zohoAPI(c.env, 'POST', '/Leads/actions/mass_update', {
-      data: [{ Owner: { id: zohoUser.id } }],
-      ids: leadIds,
-      over_write: true,
+    const massUpdateRes = await zohoAPI(c.env, 'PUT', '/Leads', {
+      data: leadIds.map(id => ({ id, Owner: { id: zohoUser.id } })),
     })
-    console.log('Zoho leads mass_update response:', JSON.stringify(massUpdateRes))
+    console.log('Zoho bulk PUT response:', JSON.stringify(massUpdateRes))
 
     try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch (_) {}
 
@@ -3876,12 +3874,10 @@ app.post('/api/deals/bulk-reassign', requireAuth, async (c) => {
     const zohoUser = zohoUsers?.users?.find(u => u.email === newOwnerEmail)
     if (!zohoUser) return c.json({ error: 'User not found in Zoho' }, 404)
 
-    const massUpdateRes = await zohoAPI(c.env, 'POST', '/Deals/actions/mass_update', {
-      data: [{ Owner: { id: zohoUser.id } }],
-      ids: dealIds,
-      over_write: true,
+    const massUpdateRes = await zohoAPI(c.env, 'PUT', '/Deals', {
+      data: dealIds.map(id => ({ id, Owner: { id: zohoUser.id } })),
     })
-    console.log('Zoho deals mass_update response:', JSON.stringify(massUpdateRes))
+    console.log('Zoho bulk PUT response:', JSON.stringify(massUpdateRes))
 
     try { await c.env.TOKEN_CACHE.delete('v3_deals_cache') } catch (_) {}
 
