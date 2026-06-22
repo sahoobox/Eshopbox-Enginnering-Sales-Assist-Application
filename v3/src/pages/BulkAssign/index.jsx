@@ -112,7 +112,7 @@ function ReassignModal({ module, count, assignableUsers, onConfirm, onClose }) {
 }
 
 // ── Deals Tab ─────────────────────────────────────────────
-function DealsTab({ deals, searchQuery, setSearchQuery, selectedIds, setSelectedIds }) {
+function DealsTab({ deals, searchQuery, setSearchQuery, selectedIds, setSelectedIds, onRefresh }) {
   const { role } = useAuth()
   const defaultPipeline = role === ROLES.SALES_LEAD_MIDMARKET ? 'midmarket' : role === ROLES.SALES_LEAD_ENTERPRISE ? 'enterprise' : 'all'
   const [pipeline, setPipeline] = useState(defaultPipeline)
@@ -217,6 +217,16 @@ function DealsTab({ deals, searchQuery, setSearchQuery, selectedIds, setSelected
         >
           Date {sort === 'desc' ? '↓' : '↑'}
         </button>
+        <button
+          onClick={onRefresh}
+          style={{
+            padding: '7px 14px', borderRadius: 8,
+            border: '1.5px solid var(--line)',
+            background: 'transparent', fontSize: 13,
+            cursor: 'pointer', color: 'var(--ink-2)',
+            display: 'flex', alignItems: 'center', gap: 6
+          }}
+        >↻ Refresh</button>
       </div>
 
       <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 8 }}>
@@ -297,7 +307,7 @@ function DealsTab({ deals, searchQuery, setSearchQuery, selectedIds, setSelected
 // ── Leads Tab ─────────────────────────────────────────────
 const AE_EMAILS = ['taufeeq.ahmad@eshopbox.com','afzal.maknoo@eshopbox.com','gautam@eshopbox.com','jeevan.more@eshopbox.com']
 
-function LeadsTab({ leads, searchQuery, setSearchQuery, selectedIds, setSelectedIds }) {
+function LeadsTab({ leads, searchQuery, setSearchQuery, selectedIds, setSelectedIds, onRefresh }) {
   const { role } = useAuth()
   const defaultPipeline = role === ROLES.SALES_LEAD_MIDMARKET ? 'midmarket' : role === ROLES.SALES_LEAD_ENTERPRISE ? 'enterprise' : 'all'
   const [pipeline, setPipeline] = useState(defaultPipeline)
@@ -402,6 +412,16 @@ function LeadsTab({ leads, searchQuery, setSearchQuery, selectedIds, setSelected
         >
           Date {sort === 'desc' ? '↓' : '↑'}
         </button>
+        <button
+          onClick={onRefresh}
+          style={{
+            padding: '7px 14px', borderRadius: 8,
+            border: '1.5px solid var(--line)',
+            background: 'transparent', fontSize: 13,
+            cursor: 'pointer', color: 'var(--ink-2)',
+            display: 'flex', alignItems: 'center', gap: 6
+          }}
+        >↻ Refresh</button>
       </div>
 
       <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 8 }}>
@@ -537,6 +557,9 @@ export default function BulkAssign() {
   const [assignableUsers, setAssignableUsers] = useState([])
   const [history, setHistory] = useState([])
   const [loadingHistory, setLoadingHistory] = useState(true)
+  const [dealsLoaded, setDealsLoaded] = useState(false)
+  const [leadsLoaded, setLeadsLoaded] = useState(false)
+  const [fetchedAt, setFetchedAt] = useState(null)
   const [toast, setToast] = useState(null)
 
   const fetchHistory = useCallback(async () => {
@@ -549,25 +572,29 @@ export default function BulkAssign() {
     setLoadingHistory(false)
   }, [authFetch])
 
-  // FIX 1 — fresh data + reset on every tab switch
   useEffect(() => {
+    if (activeModule === 'history') return
+    if (activeModule === 'deals' && dealsLoaded) return
+    if (activeModule === 'leads' && leadsLoaded) return
+
     setLoading(true)
     setSelectedIds(new Set())
     setSearchQuery('')
+
     if (activeModule === 'deals') {
       authFetch('/api/deals?refresh=true')
         .then(r => r.json())
-        .then(d => setDeals(d.deals || []))
+        .then(d => { setDeals(d.deals || []); setDealsLoaded(true); setFetchedAt(new Date()) })
         .catch(() => {})
         .finally(() => setLoading(false))
-    } else {
+    } else if (activeModule === 'leads') {
       authFetch('/api/leads?refresh=true')
         .then(r => r.json())
-        .then(d => setLeads(d.leads || []))
+        .then(d => { setLeads(d.leads || []); setLeadsLoaded(true); setFetchedAt(new Date()) })
         .catch(() => {})
         .finally(() => setLoading(false))
     }
-  }, [activeModule])
+  }, [activeModule, dealsLoaded, leadsLoaded])
 
   useEffect(() => {
     authFetch('/api/team/assignable-users')
@@ -632,6 +659,12 @@ export default function BulkAssign() {
 
   return (
     <div className="main">
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
       <Topbar
         title="Bulk Assign"
         subtitle="Select deals or leads and reassign them to a team member"
@@ -652,15 +685,30 @@ export default function BulkAssign() {
       <div className="seg" style={{ marginBottom: 20, width: 'fit-content' }}>
         <button className={activeModule === 'deals' ? 'is-on' : ''} onClick={() => setActiveModule('deals')}>Deals</button>
         <button className={activeModule === 'leads' ? 'is-on' : ''} onClick={() => setActiveModule('leads')}>Leads</button>
+        <button className={activeModule === 'history' ? 'is-on' : ''} onClick={() => setActiveModule('history')}>History</button>
       </div>
 
-      {/* FIX 2 — inline loading spinner while fetching */}
+      {/* Tab content */}
       {loading ? (
         <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 60, color: 'var(--ink-3)', fontSize: 14
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          padding: 80, gap: 16
         }}>
-          Loading {activeModule === 'deals' ? 'deals' : 'leads'}...
+          <div style={{
+            width: 36, height: 36,
+            border: '3px solid var(--line)',
+            borderTop: '3px solid var(--accent)',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite'
+          }} />
+          <div style={{
+            fontSize: 14, color: 'var(--ink-3)',
+            textAlign: 'center', lineHeight: 1.6
+          }}>
+            Fetching live data from Zoho CRM,<br />
+            please wait...
+          </div>
         </div>
       ) : activeModule === 'deals' ? (
         <DealsTab
@@ -669,18 +717,40 @@ export default function BulkAssign() {
           setSearchQuery={setSearchQuery}
           selectedIds={selectedIds}
           setSelectedIds={setSelectedIds}
+          onRefresh={() => setDealsLoaded(false)}
         />
-      ) : (
+      ) : activeModule === 'leads' ? (
         <LeadsTab
           leads={leads}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           selectedIds={selectedIds}
           setSelectedIds={setSelectedIds}
+          onRefresh={() => setLeadsLoaded(false)}
         />
+      ) : (
+        <HistorySection history={history} loadingHistory={loadingHistory} />
       )}
 
-      <HistorySection history={history} loadingHistory={loadingHistory} />
+      {/* Fetch timestamp — only shown for deals/leads tabs */}
+      {fetchedAt && activeModule !== 'history' && !loading && (
+        <div style={{
+          fontSize: 11, color: 'var(--ink-3)',
+          padding: '4px 0'
+        }}>
+          Data fetched at {fetchedAt.toLocaleTimeString('en-IN')}
+          {' · '}
+          <span
+            onClick={() => {
+              if (activeModule === 'deals') setDealsLoaded(false)
+              if (activeModule === 'leads') setLeadsLoaded(false)
+            }}
+            style={{ cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline' }}
+          >
+            Refresh
+          </span>
+        </div>
+      )}
 
       {/* Selection bar */}
       {selectedIds.size > 0 && (
