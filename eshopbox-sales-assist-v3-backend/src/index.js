@@ -1197,8 +1197,8 @@ app.post('/api/deals/:id/day2/mark-sent', requireAuth, async (c) => {
       ).bind(dealId, 'day2').run();
     } else {
       await c.env.DB.prepare(
-        `INSERT INTO deal_emails (id, deal_id, email_type, status, sent_at, created_at, updated_at)
-         VALUES (?, ?, 'day2', 'sent', datetime('now'), datetime('now'), datetime('now'))`
+        `INSERT INTO deal_emails (id, deal_id, email_type, subject, body, status, sent_at, created_at, updated_at)
+         VALUES (?, ?, 'day2', '', '', 'sent', datetime('now'), datetime('now'), datetime('now'))`
       ).bind(crypto.randomUUID(), dealId).run();
     }
     try {
