@@ -278,6 +278,8 @@ export default function LeadInbox() {
   const [activeFilters, setActiveFilters] = useState([])
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
+  const [sortOrder, setSortOrder] = useState('desc')
+  const [leadPipeline, setLeadPipeline] = useState('all')
   const filterBarRef = useRef(null)
   const tableRef = useRef(null)
   const [theadEl, setTheadEl] = useState(null)
@@ -302,6 +304,12 @@ export default function LeadInbox() {
   const filteredLeads = useMemo(() => {
     let result = scopedLeads
 
+    if (leadPipeline === 'Enterprise') {
+      result = result.filter(l => AE_EMAILS.includes(l.ownerEmail))
+    } else if (leadPipeline === 'Mid-Market') {
+      result = result.filter(l => !AE_EMAILS.includes(l.ownerEmail))
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase()
       result = result.filter(l =>
@@ -322,9 +330,16 @@ export default function LeadInbox() {
     }
 
     return result
-  }, [scopedLeads, search, activeFilters])
+  }, [scopedLeads, search, activeFilters, leadPipeline])
 
-  useEffect(() => { setPage(1) }, [search, activeFilters])
+  const sortedLeads = useMemo(() =>
+    [...filteredLeads].sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0)
+      const dateB = new Date(b.createdAt || 0)
+      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB
+    }), [filteredLeads, sortOrder])
+
+  useEffect(() => { setPage(1) }, [search, activeFilters, leadPipeline])
 
   useEffect(() => {
     const mainEl = document.querySelector('.main')
@@ -361,13 +376,13 @@ export default function LeadInbox() {
     }
   }
 
-  const totalLeads = filteredLeads.length
+  const totalLeads = sortedLeads.length
   const showAll = pageSize >= 99999
   const totalPages = showAll ? 1 : Math.max(1, Math.ceil(totalLeads / pageSize))
   const safePage = Math.min(page, totalPages)
   const start = totalLeads === 0 ? 0 : (safePage - 1) * pageSize + 1
   const end = showAll ? totalLeads : Math.min(safePage * pageSize, totalLeads)
-  const paginated = showAll ? filteredLeads : filteredLeads.slice((safePage - 1) * pageSize, safePage * pageSize)
+  const paginated = showAll ? sortedLeads : sortedLeads.slice((safePage - 1) * pageSize, safePage * pageSize)
 
   const todayStr = new Date().toISOString().split('T')[0]
   const leadsToday = scopedLeads.filter(l => l.createdAt?.startsWith(todayStr))
@@ -402,6 +417,23 @@ export default function LeadInbox() {
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          {['all', 'Mid-Market', 'Enterprise'].map(p => (
+            <button key={p}
+              onClick={() => setLeadPipeline(p)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 8,
+                border: '1.5px solid var(--line)',
+                background: leadPipeline === p ? 'var(--ink-1)' : 'transparent',
+                color: leadPipeline === p ? 'white' : 'var(--ink-2)',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >{p === 'all' ? 'All' : p}</button>
+          ))}
+        </div>
       </div>
 
       <div style={{ flexShrink: 0 }}>
@@ -458,7 +490,10 @@ export default function LeadInbox() {
           </colgroup>
           <thead ref={theadRef}>
             <tr>
-              <th>Date</th>
+              <th onClick={() => setSortOrder(s => s === 'desc' ? 'asc' : 'desc')}
+                style={{ cursor: 'pointer', userSelect: 'none' }}>
+                DATE {sortOrder === 'desc' ? '↓' : '↑'}
+              </th>
               <th>Brand</th>
               <th>Contact</th>
               <th>Status</th>
