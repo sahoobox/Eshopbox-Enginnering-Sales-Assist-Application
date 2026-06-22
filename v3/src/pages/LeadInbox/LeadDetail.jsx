@@ -557,6 +557,19 @@ function LeadNotesTab({ leadId, lead }) {
     } finally { setSaving(false) }
   }
 
+  const d1Times = new Set(d1Notes.map(n => (n.created_at || n.createdAt || '').slice(0, 16)))
+  const zohoNotes = (lead?.notes || []).map(n => ({
+    id: n.id,
+    content: n.Note_Content || n.description || n.content,
+    authorName: n.Created_By?.name || n.createdBy,
+    date: n.Created_Time || n.date,
+    source: 'zoho',
+  }))
+  const dedupedZohoNotes = zohoNotes.filter(n => {
+    const minute = (n.date || '').slice(0, 16)
+    const contentMatch = d1Notes.some(d => d.content?.slice(0, 50) === n.content?.slice(0, 50))
+    return !d1Times.has(minute) && !contentMatch
+  })
   const allNotes = [
     ...(d1Notes || []).map(n => ({
       id: n.id,
@@ -565,13 +578,7 @@ function LeadNotesTab({ leadId, lead }) {
       date: n.created_at || n.createdAt,
       source: 'salesassist',
     })),
-    ...(lead?.notes || []).map(n => ({
-      id: n.id,
-      content: n.Note_Content || n.description || n.content,
-      authorName: n.Created_By?.name || n.createdBy,
-      date: n.Created_Time || n.date,
-      source: 'zoho',
-    })),
+    ...dedupedZohoNotes,
   ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 
   if (loading) return <div className="card card-pad" style={{ color: 'var(--ink-3)' }}>Loading notes…</div>

@@ -3514,7 +3514,9 @@ app.patch('/api/leads/:id/meeting/:meetingId/complete', requireAuth, async (c) =
       const pad = n => String(n).padStart(2, '0')
       return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:00+05:30`
     }
-    await zohoAPI(c.env, 'PUT', `/Events/${meetingId}`, { data: [{ id: meetingId, End_DateTime: msToZohoIST(Date.now() + 60000) }] })
+    const endMs = Date.now() + (60 * 1000)
+    const res = await zohoAPI(c.env, 'PUT', `/Events/${meetingId}`, { data: [{ id: meetingId, End_DateTime: msToZohoIST(endMs) }] })
+    console.log('Lead meeting complete Zoho response:', JSON.stringify(res))
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
