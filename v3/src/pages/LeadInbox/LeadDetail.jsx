@@ -39,6 +39,7 @@ export default function LeadDetail() {
   const [showDisqualify, setShowDisqualify] = useState(false)
   const [disqualifyReason, setDisqualifyReason] = useState('')
   const [converting, setConverting] = useState(false)
+  const [convertError, setConvertError] = useState(null)
   const [showLogCall, setShowLogCall] = useState(false)
   const [logSubject, setLogSubject] = useState('')
   const [logNotes, setLogNotes] = useState('')
@@ -93,22 +94,31 @@ export default function LeadDetail() {
   async function handleConvert() {
     if (!confirm(`Convert ${lead.company || lead.fullName} to a deal?`)) return
     setConverting(true)
+    setConvertError(null)
     try {
       const res = await authFetch(`/api/leads/${leadId}/convert`, {
         method: 'POST'
       })
-      const data = await res.json()
-      if (data.success) {
-        if (data.dealId) {
-          navigate(`/pipeline/${data.dealId}`)
-        } else {
-          navigate('/leads')
-        }
+      const contentType = res.headers.get('content-type')
+      let data
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json()
       } else {
-        alert(data.error || 'Conversion failed. Please try again.')
+        const text = await res.text()
+        throw new Error(`Server error: ${res.status} ${text.slice(0, 100)}`)
       }
-    } catch {
-      alert('Network error. Please try again.')
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Conversion failed')
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Conversion failed')
+      }
+
+      navigate(`/pipeline/${data.dealId}`)
+    } catch (err) {
+      setConvertError(err.message || 'Conversion failed. Please try again.')
     } finally {
       setConverting(false)
     }
@@ -303,6 +313,14 @@ export default function LeadDetail() {
               <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleConvert} disabled={converting}>
                 {converting ? 'Converting…' : 'Convert to deal →'}
               </button>
+              {convertError && (
+                <div style={{
+                  color: '#E5484D', fontSize: 12,
+                  marginTop: 6, textAlign: 'center'
+                }}>
+                  {convertError}
+                </div>
+              )}
               <div style={{ marginTop: 12 }}>
                 {dedup === null ? (
                   <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Checking for existing records…</div>
