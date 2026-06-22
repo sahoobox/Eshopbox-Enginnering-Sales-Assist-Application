@@ -197,7 +197,7 @@ function DealsTab({ deals, searchQuery, setSearchQuery, selectedIds, setSelected
         <select
           value={stageFilter}
           onChange={e => setStageFilter(e.target.value)}
-          style={{ padding: '6px 10px', borderRadius: 6, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)' }}
+          style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink-1)', cursor: 'pointer', minWidth: 140 }}
         >
           <option value="all">All stages</option>
           {stages.map(s => <option key={s} value={s}>{s}</option>)}
@@ -205,7 +205,7 @@ function DealsTab({ deals, searchQuery, setSearchQuery, selectedIds, setSelected
         <select
           value={ownerFilter}
           onChange={e => setOwnerFilter(e.target.value)}
-          style={{ padding: '6px 10px', borderRadius: 6, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)' }}
+          style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink-1)', cursor: 'pointer', minWidth: 140 }}
         >
           <option value="all">All owners</option>
           {owners.map(o => <option key={o} value={o}>{o}</option>)}
@@ -392,7 +392,7 @@ function LeadsTab({ leads, searchQuery, setSearchQuery, selectedIds, setSelected
         <select
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
-          style={{ padding: '6px 10px', borderRadius: 6, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)' }}
+          style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink-1)', cursor: 'pointer', minWidth: 140 }}
         >
           <option value="all">All statuses</option>
           {statuses.map(s => <option key={s} value={s}>{s}</option>)}
@@ -400,7 +400,7 @@ function LeadsTab({ leads, searchQuery, setSearchQuery, selectedIds, setSelected
         <select
           value={ownerFilter}
           onChange={e => setOwnerFilter(e.target.value)}
-          style={{ padding: '6px 10px', borderRadius: 6, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)' }}
+          style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink-1)', cursor: 'pointer', minWidth: 140 }}
         >
           <option value="all">All owners</option>
           {owners.map(o => <option key={o} value={o}>{o}</option>)}
