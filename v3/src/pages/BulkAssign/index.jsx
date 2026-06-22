@@ -548,7 +548,8 @@ export default function BulkAssign() {
   const [activeModule, setActiveModule] = useState('deals')
   const [deals, setDeals] = useState([])
   const [leads, setLeads] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [dealsLoading, setDealsLoading] = useState(false)
+  const [leadsLoading, setLeadsLoading] = useState(false)
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [showModal, setShowModal] = useState(false)
@@ -556,7 +557,8 @@ export default function BulkAssign() {
   const [assigning, setAssigning] = useState(false)
   const [assignableUsers, setAssignableUsers] = useState([])
   const [history, setHistory] = useState([])
-  const [loadingHistory, setLoadingHistory] = useState(true)
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [historyLoaded, setHistoryLoaded] = useState(false)
   const [dealsLoaded, setDealsLoaded] = useState(false)
   const [leadsLoaded, setLeadsLoaded] = useState(false)
   const [fetchedAt, setFetchedAt] = useState(null)
@@ -572,27 +574,35 @@ export default function BulkAssign() {
     setLoadingHistory(false)
   }, [authFetch])
 
+  // Fetch history once on mount
+  useEffect(() => {
+    if (!historyLoaded) {
+      fetchHistory().then(() => setHistoryLoaded(true))
+    }
+  }, [])
+
   useEffect(() => {
     if (activeModule === 'history') return
     if (activeModule === 'deals' && dealsLoaded) return
     if (activeModule === 'leads' && leadsLoaded) return
 
-    setLoading(true)
     setSelectedIds(new Set())
     setSearchQuery('')
 
     if (activeModule === 'deals') {
+      setDealsLoading(true)
       authFetch('/api/deals?refresh=true')
         .then(r => r.json())
         .then(d => { setDeals(d.deals || []); setDealsLoaded(true); setFetchedAt(new Date()) })
         .catch(() => {})
-        .finally(() => setLoading(false))
+        .finally(() => setDealsLoading(false))
     } else if (activeModule === 'leads') {
+      setLeadsLoading(true)
       authFetch('/api/leads?refresh=true')
         .then(r => r.json())
         .then(d => { setLeads(d.leads || []); setLeadsLoaded(true); setFetchedAt(new Date()) })
         .catch(() => {})
-        .finally(() => setLoading(false))
+        .finally(() => setLeadsLoading(false))
     }
   }, [activeModule, dealsLoaded, leadsLoaded])
 
@@ -601,8 +611,7 @@ export default function BulkAssign() {
       .then(r => r.json())
       .then(d => setAssignableUsers(d.users || []))
       .catch(() => {})
-    fetchHistory()
-  }, [authFetch, fetchHistory])
+  }, [authFetch])
 
   const allowedRoles = [ROLES.ADMIN, ROLES.SALES_LEAD_MIDMARKET, ROLES.SALES_LEAD_ENTERPRISE]
   if (!allowedRoles.includes(role)) {
@@ -659,12 +668,6 @@ export default function BulkAssign() {
 
   return (
     <div className="main">
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
       <Topbar
         title="Bulk Assign"
         subtitle="Select deals or leads and reassign them to a team member"
@@ -689,16 +692,22 @@ export default function BulkAssign() {
       </div>
 
       {/* Tab content */}
-      {loading ? (
+      {(activeModule === 'deals' && dealsLoading) || (activeModule === 'leads' && leadsLoading) ? (
         <div style={{
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
           padding: 80, gap: 16
         }}>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
           <div style={{
             width: 36, height: 36,
             border: '3px solid var(--line)',
-            borderTop: '3px solid var(--accent)',
+            borderTop: activeModule === 'deals' ? '3px solid #3B5BDB' : '3px solid #2F9E44',
             borderRadius: '50%',
             animation: 'spin 0.8s linear infinite'
           }} />
@@ -706,8 +715,10 @@ export default function BulkAssign() {
             fontSize: 14, color: 'var(--ink-3)',
             textAlign: 'center', lineHeight: 1.6
           }}>
-            Fetching live data from Zoho CRM,<br />
-            please wait...
+            {activeModule === 'deals'
+              ? <>Fetching live <strong>deals</strong> from Zoho CRM,<br />please wait...</>
+              : <>Fetching live <strong>leads</strong> from Zoho CRM,<br />please wait...</>
+            }
           </div>
         </div>
       ) : activeModule === 'deals' ? (
@@ -733,7 +744,7 @@ export default function BulkAssign() {
       )}
 
       {/* Fetch timestamp — only shown for deals/leads tabs */}
-      {fetchedAt && activeModule !== 'history' && !loading && (
+      {fetchedAt && activeModule !== 'history' && !dealsLoading && !leadsLoading && (
         <div style={{
           fontSize: 11, color: 'var(--ink-3)',
           padding: '4px 0'
