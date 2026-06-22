@@ -271,6 +271,7 @@ const LeadFilterBar = forwardRef(function LeadFilterBar({ filters, onChange, lea
 // ── Lead Inbox page ───────────────────────────────────────
 export default function LeadInbox() {
   const { role, user } = useAuth()
+  const isAdmin = role === ROLES.ADMIN
   const { leads, loading, error, refetch } = useLeads()
   const [searchParams, setSearchParams] = useSearchParams()
   const searchQuery = searchParams.get('q') || ''
@@ -278,7 +279,8 @@ export default function LeadInbox() {
   const currentPage = Number(searchParams.get('page') || 1)
   const pageSize = Number(searchParams.get('size') || 50)
   const sortOrder = searchParams.get('sort') || 'desc'
-  const activePipeline = searchParams.get('pipeline') || 'all'
+  const defaultLeadPipeline = role === ROLES.SALES_LEAD_MIDMARKET ? 'Mid-Market' : role === ROLES.SALES_LEAD_ENTERPRISE ? 'Enterprise' : 'all'
+  const activePipeline = searchParams.get('pipeline') || defaultLeadPipeline
 
   const updateParams = (updates) => {
     const next = new URLSearchParams(searchParams)
@@ -428,14 +430,16 @@ export default function LeadInbox() {
           value={searchQuery}
           onChange={e => updateParams({ q: e.target.value || null })}
         />
-        <div className="seg" style={{ flexShrink: 0 }}>
-          {['all', 'Mid-Market', 'Enterprise'].map(p => (
-            <button key={p}
-              className={activePipeline === p ? 'is-on' : ''}
-              onClick={() => updateParams({ pipeline: p === 'all' ? null : p })}
-            >{p === 'all' ? 'All' : p}</button>
-          ))}
-        </div>
+        {isAdmin && (
+          <div className="seg" style={{ flexShrink: 0 }}>
+            {['all', 'Mid-Market', 'Enterprise'].map(p => (
+              <button key={p}
+                className={activePipeline === p ? 'is-on' : ''}
+                onClick={() => updateParams({ pipeline: p === 'all' ? null : p })}
+              >{p === 'all' ? 'All' : p}</button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ flexShrink: 0 }}>
