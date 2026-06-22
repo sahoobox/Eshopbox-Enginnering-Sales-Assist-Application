@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Loading } from '../../components/ui'
 import { TaskModal } from '../Tasks'
+import { StickyNote, Phone, Calendar, CheckSquare, RefreshCw } from 'lucide-react'
 
 function formatDate(d) {
   if (!d) return '—'
@@ -203,7 +204,7 @@ export default function LeadDetail() {
           <div className="tabs">
             {[
               { id: 'leadfields', label: 'Lead Fields' },
-              { id: 'activity', label: 'Activity' },
+              { id: 'timeline', label: 'Timeline' },
               { id: 'activities', label: 'Activities' },
               { id: 'notes', label: 'Notes' },
               { id: 'utm', label: 'UTM & Tracking' },
@@ -214,25 +215,8 @@ export default function LeadDetail() {
             ))}
           </div>
 
-          {tab === 'activity' && (
-            <div>
-              {(!lead.activities || lead.activities.length === 0) ? (
-                <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>
-                  No activity yet. Log a call to start the conversation.
-                </div>
-              ) : (
-                <div className="card">
-                  {lead.activities.map((a, i) => (
-                    <div key={i} style={{ padding: '12px 16px', borderBottom: i < lead.activities.length - 1 ? '1px solid var(--line)' : 'none' }}>
-                      <div style={{ fontSize: 13, fontWeight: 500 }}>{a.Subject || a.description || '—'}</div>
-                      <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 3 }}>
-                        {a.Activity_Type || a.type || 'Activity'} · {a.Created_Time ? new Date(a.Created_Time).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+          {tab === 'timeline' && (
+            <LeadTimelineTab leadId={leadId} lead={lead} />
           )}
 
           {tab === 'activities' && (
@@ -431,6 +415,114 @@ export default function LeadDetail() {
           }}
         />
       )}
+    </div>
+  )
+}
+
+function LeadTimelineTab({ leadId, lead }) {
+  const { authFetch } = useAuth()
+  const [events, setEvents] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    Promise.all([
+      authFetch(`/api/leads/${leadId}/tasks`).then(r => r.json()).catch(() => ({ tasks: [] })),
+      authFetch(`/api/leads/${leadId}/meetings`).then(r => r.json()).catch(() => ({ meetings: [] })),
+      authFetch(`/api/leads/${leadId}/calls`).then(r => r.json()).catch(() => ({ calls: [] })),
+    ]).then(([tData, mData, cData]) => {
+      const taskEvents = (tData.tasks || []).map(t => ({
+        id: `task-${t.id}`,
+        event_type: 'task_created',
+        description: t.subject || 'Task',
+        actor_name: t.ownerName || '',
+        created_at: t.dueDate || t.createdTime || '',
+        source: 'zoho',
+      }))
+      const meetingEvents = (mData.meetings || []).map(m => ({
+        id: `meeting-${m.id}`,
+        event_type: 'meeting_created',
+        description: m.title || 'Meeting',
+        actor_name: m.createdBy || '',
+        created_at: m.from || '',
+        source: 'zoho',
+      }))
+      const callEvents = (cData.calls || []).map(c => ({
+        id: `call-${c.id}`,
+        event_type: c.status === 'Scheduled' ? 'call_scheduled' : 'call_logged',
+        description: c.subject || (c.purpose && c.purpose !== 'None' ? c.purpose : 'Call'),
+        actor_name: c.createdBy || '',
+        created_at: c.timing || '',
+        source: 'zoho',
+      }))
+      const noteEvents = (lead?.notes || []).map((n, i) => ({
+        id: `note-${n.id || i}`,
+        event_type: 'note_added',
+        description: (n.Note_Content || n.content || '').slice(0, 120) || 'Note added',
+        actor_name: n.Created_By?.name || n.createdBy || '',
+        created_at: n.Created_Time || n.date || '',
+        source: 'zoho',
+      }))
+      const all = [...taskEvents, ...meetingEvents, ...callEvents, ...noteEvents]
+        .filter(e => e.created_at)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      setEvents(all)
+    }).finally(() => setLoading(false))
+  }, [leadId])
+
+  const iconMap = {
+    task_created:    <CheckSquare size={14} />,
+    meeting_created: <Calendar size={14} />,
+    call_logged:     <Phone size={14} />,
+    call_scheduled:  <Phone size={14} />,
+    note_added:      <StickyNote size={14} />,
+  }
+  const colorMap = {
+    task_created:    '#3B5BDB',
+    meeting_created: '#2F9E44',
+    call_logged:     '#C2255C',
+    call_scheduled:  '#C2255C',
+    note_added:      '#6B7280',
+  }
+
+  if (loading) return (
+    <div style={{ padding: 24, color: 'var(--ink-3)', fontSize: 13 }}>Loading timeline...</div>
+  )
+  if (events.length === 0) return (
+    <div style={{ padding: 24, color: 'var(--ink-3)', fontSize: 13 }}>No timeline events yet.</div>
+  )
+
+  return (
+    <div style={{ padding: '4px 0' }}>
+      {events.map((event, i) => {
+        const color = colorMap[event.event_type] || '#6B7280'
+        const icon = iconMap[event.event_type] || <RefreshCw size={14} />
+        return (
+          <div key={event.id || i} style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--line)' }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: color + '18', color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+              {icon}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-1)', marginBottom: 2 }}>
+                {event.description}
+              </div>
+              {event.actor_name && (
+                <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                  {event.actor_name}
+                  <span style={{ marginLeft: 6, fontSize: 10, background: '#EEF2FF', color: '#4F46E5', padding: '1px 6px', borderRadius: 10, fontWeight: 600 }}>Zoho CRM</span>
+                </div>
+              )}
+              {!event.actor_name && (
+                <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                  <span style={{ fontSize: 10, background: '#EEF2FF', color: '#4F46E5', padding: '1px 6px', borderRadius: 10, fontWeight: 600 }}>Zoho CRM</span>
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
+                {new Date(event.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
