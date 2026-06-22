@@ -417,20 +417,11 @@ export default function LeadInbox() {
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
-        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+        <div className="seg" style={{ flexShrink: 0 }}>
           {['all', 'Mid-Market', 'Enterprise'].map(p => (
             <button key={p}
+              className={leadPipeline === p ? 'is-on' : ''}
               onClick={() => setLeadPipeline(p)}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 8,
-                border: '1.5px solid var(--line)',
-                background: leadPipeline === p ? 'var(--ink-1)' : 'transparent',
-                color: leadPipeline === p ? 'white' : 'var(--ink-2)',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
             >{p === 'all' ? 'All' : p}</button>
           ))}
         </div>

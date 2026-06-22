@@ -1,8 +1,29 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Loading } from '../../components/ui'
-import { UserCheck } from 'lucide-react'
+import { TaskModal } from '../Tasks'
+
+function formatDate(d) {
+  if (!d) return '—'
+  try { return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) } catch { return d }
+}
+
+function formatDateTime(dt) {
+  if (!dt) return ''
+  try { return new Date(dt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) } catch { return dt }
+}
+
+const CALL_PURPOSE_OPTIONS = [
+  'None', 'Intro/first contact', 'Discovery call', 'Request for demo',
+  'Follow-up Call', 'Pricing Discussion', 'Proposal Review',
+  'Negotiations', 'Contract Review/Signature',
+]
+
+const CALL_RESULT_OPTIONS = [
+  'None', 'Connected', 'No answer/busy', 'Requested Callback',
+  'Requested more info', 'Not interested', 'No business/brand',
+]
 
 export default function LeadDetail() {
   const { leadId } = useParams()
@@ -17,8 +38,6 @@ export default function LeadDetail() {
   const [showDisqualify, setShowDisqualify] = useState(false)
   const [disqualifyReason, setDisqualifyReason] = useState('')
   const [converting, setConverting] = useState(false)
-  const [note, setNote] = useState('')
-  const [savingNote, setSavingNote] = useState(false)
   const [showLogCall, setShowLogCall] = useState(false)
   const [logSubject, setLogSubject] = useState('')
   const [logNotes, setLogNotes] = useState('')
@@ -33,7 +52,6 @@ export default function LeadDetail() {
         if (data.error) { setError(data.error); setLoading(false); return }
         setLead(data)
         setLoading(false)
-        // Dedup check
         if (data.email || data.company) {
           checkDedup(data.email, data.company)
         }
@@ -43,7 +61,6 @@ export default function LeadDetail() {
 
   async function checkDedup(email, company) {
     try {
-      const domain = email?.split('@')[1]
       const res = await authFetch(`/api/deals/search?q=${encodeURIComponent(company || email || '')}`)
       const data = await res.json()
       setDedup({
@@ -96,22 +113,6 @@ export default function LeadDetail() {
     }
   }
 
-  async function saveNote() {
-    if (!note.trim()) return
-    setSavingNote(true)
-    try {
-      await authFetch(`/api/leads/${leadId}/notes`, {
-        method: 'POST',
-        body: JSON.stringify({ content: note })
-      })
-      setNote('')
-      const r = await authFetch(`/api/leads/${leadId}`)
-      const d = await r.json()
-      setLead(d)
-    } catch { alert('Failed to save note') }
-    finally { setSavingNote(false) }
-  }
-
   async function saveLogCall() {
     if (!logSubject.trim()) return
     setLogSaving(true)
@@ -140,10 +141,8 @@ export default function LeadDetail() {
 
   const company = lead.company || lead.fullName || '—'
   const isToday = lead.createdAt?.startsWith(new Date().toISOString().split('T')[0])
-  const isPast6pm = new Date().getHours() >= 18
   const needsSameDay = isToday && lead.leadStatus === 'New'
 
-  // Routing decision
   const getRouting = () => {
     const vol = lead.orderVolume || ''
     if (vol.includes('500') && !vol.includes('501')) return { label: 'Self-Serve / Dormant', color: 'var(--ink-3)', desc: 'Volume < 500 → no MDE assignment' }
@@ -205,6 +204,7 @@ export default function LeadDetail() {
             {[
               { id: 'leadfields', label: 'Lead Fields' },
               { id: 'activity', label: 'Activity' },
+              { id: 'activities', label: 'Activities' },
               { id: 'notes', label: 'Notes' },
               { id: 'utm', label: 'UTM & Tracking' },
             ].map(t => (
@@ -235,39 +235,14 @@ export default function LeadDetail() {
             </div>
           )}
 
-          {tab === 'notes' && (
-            <div>
-              <div className="card card-pad" style={{ marginBottom: 10 }}>
-                <textarea
-                  className="input"
-                  rows={3}
-                  style={{ width: '100%', marginBottom: 8 }}
-                  placeholder="Add a note…"
-                  value={note}
-                  onChange={e => setNote(e.target.value)}
-                />
-                <button className="btn btn-primary btn-sm" onClick={saveNote} disabled={savingNote || !note.trim()}>
-                  {savingNote ? 'Saving…' : 'Save note'}
-                </button>
-              </div>
-              {(!lead.notes || lead.notes.length === 0) ? (
-                <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>
-                  No notes yet.
-                </div>
-              ) : (
-                <div className="card">
-                  {lead.notes.map((n, i) => (
-                    <div key={i} style={{ padding: '12px 16px', borderBottom: i < lead.notes.length - 1 ? '1px solid var(--line)' : 'none' }}>
-                      <div style={{ fontSize: 13 }}>{n.Note_Content || n.content || '—'}</div>
-                      <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 3 }}>
-                        {n.Created_Time ? new Date(n.Created_Time).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+          {tab === 'activities' && (
+            <LeadActivitiesTab leadId={leadId} />
           )}
+
+          {tab === 'notes' && (
+            <LeadNotesTab leadId={leadId} lead={lead} />
+          )}
+
           {tab === 'leadfields' && (
             <div className="card">
               <div className="ws-side-body">
@@ -456,6 +431,548 @@ export default function LeadDetail() {
           }}
         />
       )}
+    </div>
+  )
+}
+
+function LeadNotesTab({ leadId, lead }) {
+  const { authFetch } = useAuth()
+  const [d1Notes, setD1Notes] = useState([])
+  const [newNote, setNewNote] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    authFetch(`/api/leads/${leadId}/notes`)
+      .then(r => r.json())
+      .then(d => setD1Notes(d.notes || []))
+      .finally(() => setLoading(false))
+  }, [leadId])
+
+  async function addNote() {
+    if (!newNote.trim()) return
+    setSaving(true)
+    try {
+      const res = await authFetch(`/api/leads/${leadId}/notes`, {
+        method: 'POST',
+        body: JSON.stringify({ content: newNote })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setD1Notes(prev => [data.note, ...prev])
+        setNewNote('')
+      }
+    } finally { setSaving(false) }
+  }
+
+  const allNotes = [
+    ...(d1Notes || []).map(n => ({
+      id: n.id,
+      content: n.content,
+      authorName: n.authorName,
+      date: n.created_at || n.createdAt,
+      source: 'salesassist',
+    })),
+    ...(lead?.notes || []).map(n => ({
+      id: n.id,
+      content: n.Note_Content || n.description || n.content,
+      authorName: n.Created_By?.name || n.createdBy,
+      date: n.Created_Time || n.date,
+      source: 'zoho',
+    })),
+  ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+
+  if (loading) return <div className="card card-pad" style={{ color: 'var(--ink-3)' }}>Loading notes…</div>
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="card card-pad">
+        <textarea
+          value={newNote}
+          onChange={e => setNewNote(e.target.value)}
+          placeholder="Add a note…"
+          style={{ width: '100%', minHeight: 80, border: 'none', outline: 'none', resize: 'vertical', fontSize: 13, fontFamily: 'inherit', background: 'transparent' }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <button className="btn btn-sm btn-primary" onClick={addNote} disabled={saving || !newNote.trim()}>
+            {saving ? 'Saving…' : 'Add note'}
+          </button>
+        </div>
+      </div>
+      {allNotes.length === 0 ? (
+        <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>No notes yet.</div>
+      ) : (
+        allNotes.map((note, i) => (
+          <div key={note.id || i} className="card card-pad">
+            <div style={{ fontSize: 13, lineHeight: 1.6 }}>{note.content}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                {note.authorName && `${note.authorName} · `}{formatDate(note.date)}
+              </span>
+              {note.source === 'salesassist' ? (
+                <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: 'var(--ok-bg, #e6f4ea)', color: 'var(--ok, #1a7f37)', letterSpacing: '0.04em' }}>
+                  Sales Assist
+                </span>
+              ) : (
+                <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: 'var(--info-bg, #e8f0fe)', color: 'var(--info, #1a56db)', letterSpacing: '0.04em' }}>
+                  Zoho CRM
+                </span>
+              )}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  )
+}
+
+function LeadActivitiesTab({ leadId }) {
+  const { authFetch } = useAuth()
+  const [tasks, setTasks] = useState([])
+  const [meetings, setMeetings] = useState([])
+  const [calls, setCalls] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [localCompleted, setLocalCompleted] = useState(new Set())
+  const [confirmModal, setConfirmModal] = useState(null)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [showTaskModal, setShowTaskModal] = useState(false)
+  const [showMeetingModal, setShowMeetingModal] = useState(false)
+  const [showCallModal, setShowCallModal] = useState(false)
+  const todayStr = new Date().toISOString().split('T')[0]
+
+  useEffect(() => {
+    if (!showDropdown) return
+    const handler = (e) => {
+      if (!e.target.closest('[data-activity-dropdown]')) setShowDropdown(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showDropdown])
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [tRes, mRes, cRes] = await Promise.all([
+        authFetch(`/api/leads/${leadId}/tasks`).then(r => r.json()),
+        authFetch(`/api/leads/${leadId}/meetings`).then(r => r.json()),
+        authFetch(`/api/leads/${leadId}/calls`).then(r => r.json()),
+      ])
+      setTasks(tRes.tasks || [])
+      setMeetings(mRes.meetings || [])
+      setCalls(cRes.calls || [])
+    } catch { /* ignore */ }
+    finally { setLoading(false) }
+  }, [leadId, authFetch])
+
+  useEffect(() => { fetchAll() }, [fetchAll])
+
+  async function toggleTask(taskId, isComplete) {
+    if (!isComplete) {
+      setConfirmModal({
+        onConfirm: async () => {
+          setConfirmModal(null)
+          await authFetch(`/api/leads/${leadId}/tasks/${taskId}`, { method: 'PATCH' })
+          setTasks(prev => prev.map(t => t.id === taskId ? { ...t, isComplete: true, status: 'Completed' } : t))
+        }
+      })
+    }
+  }
+
+  function completeMeeting(meetingId) {
+    setConfirmModal({
+      onConfirm: async () => {
+        setConfirmModal(null)
+        await authFetch(`/api/leads/${leadId}/meeting/${meetingId}/complete`, { method: 'PATCH' })
+        setLocalCompleted(prev => new Set([...prev, meetingId]))
+      }
+    })
+  }
+
+  function completeCall(callId) {
+    setConfirmModal({
+      onConfirm: async () => {
+        setConfirmModal(null)
+        await authFetch(`/api/leads/${leadId}/call/${callId}/complete`, { method: 'PATCH' })
+        setLocalCompleted(prev => new Set([...prev, callId]))
+      }
+    })
+  }
+
+  const allActivities = [
+    ...tasks.map(t => ({ id: t.id, type: 'Task', date: t.dueDate, done: t.status === 'Completed', _t: t })),
+    ...meetings.map(m => ({ id: m.id, type: 'Meeting', date: m.from, done: (m.to && new Date(m.to) < new Date()) || localCompleted.has(m.id), _m: m })),
+    ...calls.map(c => ({ id: c.id, type: 'Call', date: c.timing, done: (c.status !== 'Scheduled' && c.status !== 'scheduled' && c.status !== '' && c.status !== null) || localCompleted.has(c.id), _c: c })),
+  ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+
+  const TYPE_PILL_STYLE = {
+    Task:    { background: '#F0F4FF', color: '#3B5BDB' },
+    Meeting: { background: '#F0FFF4', color: '#2F9E44' },
+    Call:    { background: '#FFF0F6', color: '#C2255C' },
+  }
+  const typePill = (type) => (
+    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, display: 'inline-block', ...(TYPE_PILL_STYLE[type] || {}) }}>{type}</span>
+  )
+  const typeBadge = (label) => (
+    <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--ink-3)', flexShrink: 0 }}>{label}</span>
+  )
+
+  if (loading) return <div className="card card-pad" style={{ color: 'var(--ink-3)' }}>Loading activities…</div>
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <div data-activity-dropdown style={{ position: 'relative' }}>
+          <button className="btn btn-sm btn-primary" onClick={() => setShowDropdown(v => !v)}>
+            + New Activity ▾
+          </button>
+          {showDropdown && (
+            <div style={{
+              position: 'absolute', top: '100%', right: 0, zIndex: 200,
+              background: 'var(--surface)', border: '1px solid var(--line-2)',
+              borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-2)',
+              marginTop: 4, minWidth: 140, overflow: 'hidden'
+            }}>
+              {['Task', 'Meeting', 'Call'].map(item => (
+                <button key={item}
+                  onClick={() => {
+                    setShowDropdown(false)
+                    if (item === 'Task') setShowTaskModal(true)
+                    else if (item === 'Meeting') setShowMeetingModal(true)
+                    else setShowCallModal(true)
+                  }}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    padding: '10px 14px', border: 'none', background: 'none',
+                    fontSize: 13, cursor: 'pointer', color: 'var(--ink)',
+                    fontFamily: 'inherit'
+                  }}
+                  onMouseEnter={e => e.target.style.background = 'var(--surface-2)'}
+                  onMouseLeave={e => e.target.style.background = 'none'}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {allActivities.length === 0 ? (
+        <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>No activities on this lead.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {allActivities.map((item, idx) => {
+            if (item.type === 'Task') {
+              const t = item._t
+              const isOverdue = t.dueDate && t.dueDate < todayStr && !item.done
+              return (
+                <div key={item.id || idx} className="card card-pad"
+                  style={{ opacity: item.done ? 0.75 : 1, color: item.done ? 'var(--ink-3)' : 'inherit' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <input type="checkbox" checked={item.done} onChange={() => toggleTask(t.id, item.done)}
+                      style={{ cursor: item.done ? 'default' : 'pointer', width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 600, fontSize: 13.5 }}>{t.subject}</span>
+                        {typePill('Task')}
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: t.description ? 6 : 0 }}>
+                        {t.dueDate && <span style={{ color: isOverdue ? 'var(--danger)' : 'var(--ink-3)' }}>Due: {formatDate(t.dueDate)}</span>}
+                        {t.priority && <span>Priority: {t.priority}</span>}
+                        <span>Status: {t.status || 'Not Started'}</span>
+                        {t.ownerName && <span>Assigned: {t.ownerName}</span>}
+                      </div>
+                      {t.description && <div style={{ fontSize: 12.5, color: item.done ? 'var(--ink-3)' : 'var(--ink-2)', lineHeight: 1.5, marginTop: 2 }}>{t.description}</div>}
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+
+            if (item.type === 'Meeting') {
+              const m = item._m
+              return (
+                <div key={item.id || idx} className="card card-pad" style={{ opacity: item.done ? 0.75 : 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <input type="checkbox" checked={item.done}
+                      onChange={item.done ? () => {} : () => completeMeeting(m.id)}
+                      style={{ cursor: item.done ? 'default' : 'pointer', width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 600, fontSize: 13.5 }}>{m.title}</span>
+                        {typePill('Meeting')}
+                        {m.status && typeBadge(m.status)}
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: m.description ? 6 : 0 }}>
+                        {m.venue && <span>Venue: {m.venue}</span>}
+                        {m.from && <span>From: {formatDateTime(m.from)}</span>}
+                        {m.to && <span>To: {formatDateTime(m.to)}</span>}
+                        {m.createdBy && <span>By: {m.createdBy}</span>}
+                      </div>
+                      {m.description && <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5, marginTop: 2 }}>{m.description}</div>}
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+
+            if (item.type === 'Call') {
+              const c = item._c
+              return (
+                <div key={item.id || idx} className="card card-pad" style={{ opacity: item.done ? 0.75 : 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <input type="checkbox" checked={item.done}
+                      onChange={item.done ? () => {} : () => completeCall(c.id)}
+                      style={{ cursor: item.done ? 'default' : 'pointer', width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 600, fontSize: 13.5 }}>{c.subject}</span>
+                        {typePill('Call')}
+                        {typeBadge(c.status === 'Scheduled' ? 'Scheduled' : 'Completed')}
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: (c.agenda || c.description) ? 6 : 0 }}>
+                        {c.timing && <span>{formatDateTime(c.timing)}</span>}
+                        {c.purpose && c.purpose !== 'None' && <span>Purpose: {c.purpose}</span>}
+                        {c.result && c.result !== 'None' && <span>Result: {c.result}</span>}
+                        {c.createdBy && <span>By: {c.createdBy}</span>}
+                      </div>
+                      {c.agenda && <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5, marginTop: 2 }}>Agenda: {c.agenda}</div>}
+                      {c.description && <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5, marginTop: 2 }}>{c.description}</div>}
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+
+            return null
+          })}
+        </div>
+      )}
+
+      {showTaskModal && (
+        <TaskModal
+          dealId={leadId}
+          onClose={() => setShowTaskModal(false)}
+          onSubmit={async (data) => {
+            const res = await authFetch(`/api/leads/${leadId}/tasks`, { method: 'POST', body: JSON.stringify(data) })
+            const json = await res.json()
+            if (json.success) { setShowTaskModal(false); fetchAll() }
+            else alert(json.error || 'Failed to create task')
+          }}
+        />
+      )}
+      {showMeetingModal && (
+        <LeadMeetingModal
+          leadId={leadId}
+          onClose={() => setShowMeetingModal(false)}
+          onSuccess={() => { setShowMeetingModal(false); fetchAll() }}
+        />
+      )}
+      {showCallModal && (
+        <LeadCallModal
+          leadId={leadId}
+          onClose={() => setShowCallModal(false)}
+          onSuccess={() => { setShowCallModal(false); fetchAll() }}
+        />
+      )}
+
+      {confirmModal && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center',
+          justifyContent: 'center', zIndex: 1000
+        }}>
+          <div style={{
+            background: 'var(--surface)',
+            borderRadius: 'var(--radius-md)',
+            padding: '28px 32px',
+            maxWidth: 380, width: '100%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)'
+          }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-1)', marginBottom: 8 }}>
+              Mark as completed?
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 24 }}>
+              This action cannot be undone.
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmModal(null)}
+                style={{
+                  padding: '8px 18px', borderRadius: 8,
+                  border: '1.5px solid var(--line)',
+                  background: 'transparent', fontSize: 13,
+                  fontWeight: 600, cursor: 'pointer',
+                  color: 'var(--ink-2)', fontFamily: 'inherit'
+                }}>
+                Cancel
+              </button>
+              <button onClick={confirmModal.onConfirm}
+                style={{
+                  padding: '8px 18px', borderRadius: 8,
+                  border: 'none',
+                  background: '#E5484D', fontSize: 13,
+                  fontWeight: 700, cursor: 'pointer',
+                  color: '#FFFFFF', fontFamily: 'inherit'
+                }}>
+                Yes, mark complete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function LeadMeetingModal({ leadId, onClose, onSuccess }) {
+  const { authFetch } = useAuth()
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({ title: '', venue: 'Online', from: '', to: '', description: '' })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  async function submit() {
+    if (!form.title.trim() || !form.from || !form.to) return alert('Title, From and To are required')
+    if (form.to <= form.from) return alert('End time must be after start time')
+    setSaving(true)
+    try {
+      const res = await authFetch(`/api/leads/${leadId}/meeting`, {
+        method: 'POST',
+        body: JSON.stringify(form)
+      })
+      const data = await res.json()
+      if (data.success) onSuccess()
+      else alert(data.error || 'Failed to create meeting')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-head"><h3>Log Meeting</h3><button className="btn-close" onClick={onClose}>✕</button></div>
+        <div className="modal-body">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Title *</label>
+              <input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Meeting title" className="input" style={{ width: '100%' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Meeting Venue</label>
+              <select value={form.venue} onChange={e => set('venue', e.target.value)} className="input" style={{ width: '100%' }}>
+                <option value="In-office">In-office</option>
+                <option value="Client location">Client location</option>
+                <option value="Online">Online</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>From *</label>
+              <input type="datetime-local" value={form.from} onChange={e => set('from', e.target.value)} className="input" style={{ width: '100%' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>To *</label>
+              <input type="datetime-local" value={form.to} onChange={e => set('to', e.target.value)} className="input" style={{ width: '100%' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Description</label>
+              <textarea value={form.description} onChange={e => set('description', e.target.value)} placeholder="Optional notes…" className="input" style={{ width: '100%', minHeight: 70, resize: 'vertical' }} />
+            </div>
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving}>
+            {saving ? 'Saving…' : 'Log Meeting'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LeadCallModal({ leadId, onClose, onSuccess }) {
+  const { authFetch } = useAuth()
+  const [callMode, setCallMode] = useState('log')
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({
+    callPurpose: 'None',
+    callAgenda: '',
+    callResult: 'None',
+    callTiming: '',
+    description: '',
+  })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  async function submit() {
+    if (!form.callTiming) return alert('Call timing is required')
+    setSaving(true)
+    try {
+      const endpoint = callMode === 'log' ? 'log-call' : 'schedule-call'
+      const res = await authFetch(`/api/leads/${leadId}/${endpoint}`, {
+        method: 'POST',
+        body: JSON.stringify(form)
+      })
+      const data = await res.json()
+      if (data.success) onSuccess()
+      else alert(data.error || 'Failed to log call')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-head"><h3>Log Call</h3><button className="btn-close" onClick={onClose}>✕</button></div>
+        <div className="modal-body">
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <button
+              className={`btn btn-sm${callMode === 'log' ? ' btn-primary' : ''}`}
+              onClick={() => setCallMode('log')}
+            >Log a Call</button>
+            <button
+              className={`btn btn-sm${callMode === 'schedule' ? ' btn-primary' : ''}`}
+              onClick={() => setCallMode('schedule')}
+            >Schedule a Call</button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Call Purpose *</label>
+              <select value={form.callPurpose} onChange={e => set('callPurpose', e.target.value)} className="input" style={{ width: '100%' }}>
+                {CALL_PURPOSE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Call Agenda</label>
+              <input value={form.callAgenda} onChange={e => set('callAgenda', e.target.value)} placeholder="Agenda…" className="input" style={{ width: '100%' }} />
+            </div>
+            {callMode === 'log' && (
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Call Result *</label>
+                <select value={form.callResult} onChange={e => set('callResult', e.target.value)} className="input" style={{ width: '100%' }}>
+                  {CALL_RESULT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+            )}
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>
+                {callMode === 'log' ? 'Call Timing *' : 'Scheduled For *'}
+              </label>
+              <input type="datetime-local" value={form.callTiming} onChange={e => set('callTiming', e.target.value)}
+                {...(callMode === 'log' ? { max: new Date().toISOString().slice(0, 16) } : { min: new Date().toISOString().slice(0, 16) })}
+                className="input" style={{ width: '100%' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Description</label>
+              <textarea value={form.description} onChange={e => set('description', e.target.value)} placeholder="Optional notes…" className="input" style={{ width: '100%', minHeight: 70, resize: 'vertical' }} />
+            </div>
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving}>
+            {saving ? 'Saving…' : callMode === 'log' ? 'Log Call' : 'Schedule Call'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

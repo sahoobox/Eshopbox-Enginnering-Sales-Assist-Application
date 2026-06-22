@@ -3204,13 +3204,35 @@ app.post('/api/leads/:id/activity', requireAuth, async (c) => {
   }
 })
 
+app.get('/api/leads/:id/notes', requireAuth, async (c) => {
+  try {
+    const leadId = c.req.param('id')
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM deal_notes WHERE deal_id = ? ORDER BY created_at DESC'
+    ).bind(leadId).all()
+    return c.json({ notes: (results || []).map(n => ({ ...n, authorName: n.author_name })) })
+  } catch (err) {
+    return c.json({ notes: [] })
+  }
+})
+
 app.post('/api/leads/:id/notes', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
+    const user = c.get('user')
     const { content } = await c.req.json()
     if (!content?.trim()) return c.json({ error: 'Note content required' }, 400)
-    const result = await createLeadNote(c.env, leadId, content)
-    return c.json({ success: true, result })
+    const id = crypto.randomUUID()
+    const now = new Date().toISOString()
+    await c.env.DB.prepare(
+      'INSERT INTO deal_notes (id, deal_id, content, author_email, author_name, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(id, leadId, content, user.email, user.name, now).run()
+    try {
+      await createLeadNote(c.env, leadId, content)
+    } catch (zohoErr) {
+      console.error('Zoho lead note sync failed (non-blocking):', zohoErr.message)
+    }
+    return c.json({ success: true, note: { id, content, author_name: user.name, authorName: user.name, authorEmail: user.email, created_at: now } })
   } catch (err) {
     return c.json({ error: 'Failed to create note', details: err.message }, 500)
   }
@@ -3333,6 +3355,200 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
     return c.json({ success: true, dealId, accountId, contactId, pipeline })
   } catch (err) {
     console.error('Convert error:', err.message)
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+// ── LEAD ACTIVITIES ───────────────────────────────────────
+
+app.get('/api/leads/:id/tasks', requireAuth, async (c) => {
+  try {
+    const leadId = c.req.param('id')
+    const res = await zohoAPI(c.env, 'GET', `/Tasks/search?criteria=(What_Id:equals:${leadId})&fields=id,Subject,Status,Due_Date,Priority,Description,Owner,Created_Time`)
+    if (!res?.data) return c.json({ tasks: [] })
+    return c.json({ tasks: res.data.map(mapZohoTask) })
+  } catch (err) {
+    return c.json({ tasks: [] })
+  }
+})
+
+app.post('/api/leads/:id/tasks', requireAuth, async (c) => {
+  try {
+    const leadId = c.req.param('id')
+    const body = await c.req.json()
+    if (!body.subject?.trim()) return c.json({ error: 'Subject required' }, 400)
+    const result = await zohoAPI(c.env, 'POST', '/Tasks', {
+      data: [{
+        Subject: body.subject,
+        Due_Date: body.dueDate || body.due_date || new Date(Date.now() + 86400000).toISOString().split('T')[0],
+        Status: 'Not Started',
+        Priority: body.priority || 'Normal',
+        Description: body.description || '',
+        What_Id: leadId,
+        '$se_module': 'Leads',
+      }]
+    })
+    if (result?.data?.[0]?.code !== 'SUCCESS') return c.json({ error: 'Failed to create task in Zoho' }, 500)
+    return c.json({ success: true, taskId: result.data[0].details.id })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.get('/api/leads/:id/meetings', requireAuth, async (c) => {
+  try {
+    const leadId = c.req.param('id')
+    const res = await zohoAPI(c.env, 'GET', `/Events/search?criteria=(What_Id:equals:${leadId})&fields=id,Event_Title,Venue,Start_DateTime,End_DateTime,Description,Status,Created_By`)
+    return c.json({ meetings: (res?.data || []).map(m => ({
+      id: m.id, title: m.Event_Title || '', venue: m.Venue || '',
+      from: m.Start_DateTime, to: m.End_DateTime, description: m.Description || '',
+      status: m.Status || '', createdBy: m.Created_By?.name || '',
+    })) })
+  } catch (err) {
+    return c.json({ meetings: [] })
+  }
+})
+
+app.post('/api/leads/:id/meeting', requireAuth, async (c) => {
+  try {
+    const leadId = c.req.param('id')
+    const body = await c.req.json()
+    const result = await zohoAPI(c.env, 'POST', '/Events', {
+      data: [{
+        Event_Title: body.title,
+        Venue: body.venue || 'Online',
+        Start_DateTime: toZohoDateTime(body.from),
+        End_DateTime: toZohoDateTime(body.to),
+        Description: body.description || '',
+        What_Id: leadId,
+        '$se_module': 'Leads',
+      }]
+    })
+    if (!result || result.data?.[0]?.status === 'error') return c.json({ error: 'Zoho API error', details: result }, 500)
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.get('/api/leads/:id/calls', requireAuth, async (c) => {
+  try {
+    const leadId = c.req.param('id')
+    const res = await zohoAPI(c.env, 'GET', `/Calls/search?criteria=(What_Id:equals:${leadId})&fields=id,Subject,Call_Purpose,Call_Agenda,Call_Result,Call_Start_Time,Call_Status,Outbound_Call_Status,Description,Created_By`)
+    return c.json({ calls: (res?.data || []).map(cl => ({
+      id: cl.id, subject: cl.Subject || '', purpose: cl.Call_Purpose || '',
+      agenda: cl.Call_Agenda || '', result: cl.Call_Result || '',
+      timing: cl.Call_Start_Time, status: cl.Call_Status || '',
+      description: cl.Description || '', createdBy: cl.Created_By?.name || '',
+    })) })
+  } catch (err) {
+    return c.json({ calls: [] })
+  }
+})
+
+app.post('/api/leads/:id/log-call', requireAuth, async (c) => {
+  try {
+    const leadId = c.req.param('id')
+    const body = await c.req.json()
+    const result = await zohoAPI(c.env, 'POST', '/Calls', {
+      data: [{
+        Subject: `Call - ${body.callPurpose || 'Call'}`,
+        Call_Type: 'Outbound',
+        Call_Status: 'Completed',
+        Call_Duration: '00:05',
+        Call_Purpose: body.callPurpose || 'None',
+        Call_Agenda: body.callAgenda || '',
+        Call_Result: body.callResult || 'None',
+        Call_Start_Time: toZohoDateTime(body.callTiming),
+        Description: body.description || '',
+        What_Id: leadId,
+        '$se_module': 'Leads',
+      }]
+    })
+    if (!result || result.data?.[0]?.status === 'error') return c.json({ error: 'Zoho API error', details: result }, 500)
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.post('/api/leads/:id/schedule-call', requireAuth, async (c) => {
+  try {
+    const leadId = c.req.param('id')
+    const body = await c.req.json()
+    const result = await zohoAPI(c.env, 'POST', '/Calls', {
+      data: [{
+        Subject: `Scheduled Call - ${body.callPurpose || 'Call'}`,
+        Call_Type: 'Outbound',
+        Call_Status: 'Scheduled',
+        Call_Purpose: body.callPurpose || 'None',
+        Call_Agenda: body.callAgenda || '',
+        Call_Start_Time: toZohoDateTime(body.callTiming),
+        Description: body.description || '',
+        What_Id: leadId,
+        '$se_module': 'Leads',
+      }]
+    })
+    if (!result || result.data?.[0]?.status === 'error') return c.json({ error: 'Zoho API error', details: result }, 500)
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.patch('/api/leads/:id/tasks/:taskId', requireAuth, async (c) => {
+  try {
+    const taskId = c.req.param('taskId')
+    await updateTaskStatus(c.env, taskId, 'Completed')
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.patch('/api/leads/:id/meeting/:meetingId/complete', requireAuth, async (c) => {
+  try {
+    const meetingId = c.req.param('meetingId')
+    function msToZohoIST(ms) {
+      const d = new Date(ms + (5.5 * 60 * 60 * 1000))
+      const pad = n => String(n).padStart(2, '0')
+      return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:00+05:30`
+    }
+    await zohoAPI(c.env, 'PUT', `/Events/${meetingId}`, { data: [{ id: meetingId, End_DateTime: msToZohoIST(Date.now() + 60000) }] })
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.patch('/api/leads/:id/call/:callId/complete', requireAuth, async (c) => {
+  try {
+    const leadId = c.req.param('id')
+    const callId = c.req.param('callId')
+    const callRes = await zohoAPI(c.env, 'GET', `/Calls/${callId}?fields=Subject,Call_Purpose,Call_Agenda,Description`)
+    const callData = callRes?.data?.[0]
+    function msToZohoIST(ms) {
+      const d = new Date(ms + (5.5 * 60 * 60 * 1000))
+      const pad = n => String(n).padStart(2, '0')
+      return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:00+05:30`
+    }
+    await zohoAPI(c.env, 'DELETE', `/Calls?ids=${callId}`)
+    await zohoAPI(c.env, 'POST', '/Calls', {
+      data: [{
+        Subject: callData?.Subject || 'Call',
+        Call_Type: 'Outbound',
+        Call_Status: 'Completed',
+        Call_Duration: '00:05',
+        Call_Purpose: callData?.Call_Purpose || '',
+        Call_Agenda: callData?.Call_Agenda || '',
+        Description: callData?.Description || '',
+        Call_Start_Time: msToZohoIST(Date.now()),
+        What_Id: leadId,
+        '$se_module': 'Leads',
+      }]
+    })
+    return c.json({ success: true })
+  } catch (err) {
     return c.json({ error: err.message }, 500)
   }
 })
