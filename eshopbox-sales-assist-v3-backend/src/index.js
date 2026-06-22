@@ -3399,6 +3399,7 @@ app.get('/api/leads/:id/meetings', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
     const res = await zohoAPI(c.env, 'GET', `/Events/search?criteria=(What_Id:equals:${leadId})&fields=id,Event_Title,Venue,Start_DateTime,End_DateTime,Description,Status,Created_By`)
+    console.log('Lead meetings End_DateTime sample:', res?.data?.[0]?.End_DateTime)
     return c.json({ meetings: (res?.data || []).map(m => ({
       id: m.id, title: m.Event_Title || '', venue: m.Venue || '',
       from: m.Start_DateTime, to: m.End_DateTime, description: m.Description || '',
@@ -3516,12 +3517,15 @@ app.patch('/api/leads/:id/meeting/:meetingId/complete', requireAuth, async (c) =
     }
     const meetingRes = await zohoAPI(c.env, 'GET', `/Events/${meetingId}?fields=Start_DateTime`)
     const startStr = meetingRes?.data?.[0]?.Start_DateTime
+    console.log('Start_DateTime from Zoho:', startStr)
     if (startStr) {
       const startMs = new Date(startStr).getTime()
       const endMs = startMs + (5 * 60 * 1000)
+      console.log('Setting End_DateTime to:', msToZohoIST(endMs))
       const res = await zohoAPI(c.env, 'PUT', `/Events/${meetingId}`, { data: [{ id: meetingId, End_DateTime: msToZohoIST(endMs) }] })
       console.log('Lead meeting complete Zoho response:', JSON.stringify(res))
     } else {
+      console.log('Setting End_DateTime to:', msToZohoIST(Date.now() + 60000))
       const res = await zohoAPI(c.env, 'PUT', `/Events/${meetingId}`, { data: [{ id: meetingId, End_DateTime: msToZohoIST(Date.now() + 60000) }] })
       console.log('Lead meeting complete Zoho response (fallback):', JSON.stringify(res))
     }
