@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth, ROLES } from '../../context/AuthContext'
-import { useDeals } from '../../hooks/useDeals'
-import { useLeads } from '../../hooks/useLeads'
-import { Topbar, Loading } from '../../components/ui'
+import { Topbar } from '../../components/ui'
 
 function daysAgo(dateStr) {
   if (!dateStr) return null
@@ -15,8 +13,50 @@ function fmtDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })
 }
 
+const SELECT_LIMIT = 100
+
+// ── Confirmation Modal ────────────────────────────────────
+function ConfirmModal({ title, message, onConfirm, onCancel }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000
+    }}>
+      <div style={{
+        background: 'var(--surface)', borderRadius: 12, padding: '28px 32px',
+        maxWidth: 400, width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)'
+      }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-1)', marginBottom: 8 }}>
+          {title}
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 24, lineHeight: 1.6 }}>
+          {message}
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onCancel}
+            style={{
+              padding: '8px 18px', borderRadius: 8, border: '1.5px solid var(--line)',
+              background: 'transparent', fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', color: 'var(--ink-2)', fontFamily: 'inherit'
+            }}
+          >Cancel</button>
+          <button
+            onClick={onConfirm}
+            style={{
+              padding: '8px 18px', borderRadius: 8, border: 'none',
+              background: '#E5484D', fontSize: 13, fontWeight: 700,
+              cursor: 'pointer', color: 'white', fontFamily: 'inherit'
+            }}
+          >Yes, Reassign</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Reassign Modal ────────────────────────────────────────
-function ReassignModal({ module, count, assignableUsers, onConfirm, onClose, assigning }) {
+function ReassignModal({ module, count, assignableUsers, onConfirm, onClose }) {
   const [selectedUser, setSelectedUser] = useState(null)
 
   return (
@@ -56,14 +96,14 @@ function ReassignModal({ module, count, assignableUsers, onConfirm, onClose, ass
         </select>
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button className="btn btn-sm" onClick={onClose} disabled={assigning}>Cancel</button>
+          <button className="btn btn-sm" onClick={onClose}>Cancel</button>
           <button
             className="btn btn-sm"
             style={{ background: 'var(--brand)', color: '#fff', borderColor: 'var(--brand)' }}
-            disabled={!selectedUser || assigning}
+            disabled={!selectedUser}
             onClick={() => selectedUser && onConfirm(selectedUser)}
           >
-            {assigning ? 'Reassigning…' : `Confirm Reassign →`}
+            Confirm Reassign →
           </button>
         </div>
       </div>
@@ -72,8 +112,7 @@ function ReassignModal({ module, count, assignableUsers, onConfirm, onClose, ass
 }
 
 // ── Deals Tab ─────────────────────────────────────────────
-function DealsTab({ deals, selectedIds, setSelectedIds }) {
-  const [search, setSearch] = useState('')
+function DealsTab({ deals, searchQuery, setSearchQuery, selectedIds, setSelectedIds }) {
   const [pipeline, setPipeline] = useState('all')
   const [stageFilter, setStageFilter] = useState('all')
   const [ownerFilter, setOwnerFilter] = useState('all')
@@ -88,11 +127,12 @@ function DealsTab({ deals, selectedIds, setSelectedIds }) {
     else if (pipeline === 'enterprise') d = d.filter(x => x.pipeline === 'Enterprise 2.0')
     if (stageFilter !== 'all') d = d.filter(x => x.stage === stageFilter)
     if (ownerFilter !== 'all') d = d.filter(x => x.repName === ownerFilter)
-    if (search.trim()) {
-      const q = search.toLowerCase()
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
       d = d.filter(x =>
         (x.brandName || x.dealName || '').toLowerCase().includes(q) ||
-        (x.repName || '').toLowerCase().includes(q)
+        (x.repName || '').toLowerCase().includes(q) ||
+        (x.stage || '').toLowerCase().includes(q)
       )
     }
     return [...d].sort((a, b) => {
@@ -100,26 +140,33 @@ function DealsTab({ deals, selectedIds, setSelectedIds }) {
       const db = new Date(b.modifiedTime || b.demoDate || 0)
       return sort === 'desc' ? db - da : da - db
     })
-  }, [deals, search, pipeline, stageFilter, ownerFilter, sort])
+  }, [deals, searchQuery, pipeline, stageFilter, ownerFilter, sort])
 
+  const atLimit = selectedIds.size >= SELECT_LIMIT
   const allSelected = filtered.length > 0 && filtered.every(d => selectedIds.has(d.id))
+  const someSelected = filtered.some(d => selectedIds.has(d.id))
 
   const toggleAll = () => {
-    if (allSelected) {
+    if (allSelected || someSelected) {
       setSelectedIds(prev => {
         const next = new Set(prev)
         filtered.forEach(d => next.delete(d.id))
         return next
       })
     } else {
-      setSelectedIds(prev => new Set([...prev, ...filtered.map(d => d.id)]))
+      const toAdd = filtered.slice(0, SELECT_LIMIT)
+      setSelectedIds(new Set(toAdd.map(d => d.id)))
     }
   }
 
   const toggleOne = (id) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+      } else if (next.size < SELECT_LIMIT) {
+        next.add(id)
+      }
       return next
     })
   }
@@ -128,11 +175,15 @@ function DealsTab({ deals, selectedIds, setSelectedIds }) {
     <>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <input
-          className="pipeline-searchbar-input"
-          placeholder="Search brand or owner…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ flex: 1, minWidth: 180 }}
+          type="text"
+          placeholder="Search brand, owner, stage..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          style={{
+            flex: 1, minWidth: 180, padding: '8px 12px',
+            border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 13,
+            background: 'var(--surface)', color: 'var(--ink-1)'
+          }}
         />
         <div className="seg">
           {[['all','All'],['midmarket','Mid-Market'],['enterprise','Enterprise']].map(([v,l]) => (
@@ -166,6 +217,11 @@ function DealsTab({ deals, selectedIds, setSelectedIds }) {
 
       <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 8 }}>
         {filtered.length} deal{filtered.length !== 1 ? 's' : ''} · {selectedIds.size} selected
+        {filtered.length > SELECT_LIMIT && (
+          <span style={{ color: 'var(--warn)', marginLeft: 8 }}>
+            (select-all limited to first {SELECT_LIMIT})
+          </span>
+        )}
       </div>
 
       <div className="table-wrap">
@@ -173,7 +229,12 @@ function DealsTab({ deals, selectedIds, setSelectedIds }) {
           <thead>
             <tr>
               <th style={{ width: 36, background: 'white' }}>
-                <input type="checkbox" checked={allSelected} onChange={toggleAll} />
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={el => { if (el) el.indeterminate = !allSelected && someSelected }}
+                  onChange={toggleAll}
+                />
               </th>
               <th style={{ background: 'white' }}>Brand</th>
               <th style={{ background: 'white' }}>Owner</th>
@@ -230,14 +291,13 @@ function DealsTab({ deals, selectedIds, setSelectedIds }) {
 }
 
 // ── Leads Tab ─────────────────────────────────────────────
-function LeadsTab({ leads, selectedIds, setSelectedIds }) {
-  const [search, setSearch] = useState('')
+const AE_EMAILS = ['taufeeq.ahmad@eshopbox.com','afzal.maknoo@eshopbox.com','gautam@eshopbox.com','jeevan.more@eshopbox.com']
+
+function LeadsTab({ leads, searchQuery, setSearchQuery, selectedIds, setSelectedIds }) {
   const [pipeline, setPipeline] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [ownerFilter, setOwnerFilter] = useState('all')
   const [sort, setSort] = useState('desc')
-
-  const AE_EMAILS = ['taufeeq.ahmad@eshopbox.com','afzal.maknoo@eshopbox.com','gautam@eshopbox.com','jeevan.more@eshopbox.com']
 
   const statuses = useMemo(() => [...new Set(leads.map(l => l.leadStatus).filter(Boolean))].sort(), [leads])
   const owners = useMemo(() => [...new Set(leads.map(l => l.ownerName).filter(Boolean))].sort(), [leads])
@@ -248,13 +308,13 @@ function LeadsTab({ leads, selectedIds, setSelectedIds }) {
     else if (pipeline === 'midmarket') d = d.filter(l => !AE_EMAILS.includes(l.ownerEmail))
     if (statusFilter !== 'all') d = d.filter(l => l.leadStatus === statusFilter)
     if (ownerFilter !== 'all') d = d.filter(l => l.ownerName === ownerFilter)
-    if (search.trim()) {
-      const q = search.toLowerCase()
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
       d = d.filter(l =>
         (l.company || '').toLowerCase().includes(q) ||
         (l.fullName || '').toLowerCase().includes(q) ||
-        (l.ownerName || '').toLowerCase().includes(q) ||
-        (l.email || '').toLowerCase().includes(q)
+        (l.email || '').toLowerCase().includes(q) ||
+        (l.ownerName || '').toLowerCase().includes(q)
       )
     }
     return [...d].sort((a, b) => {
@@ -262,26 +322,32 @@ function LeadsTab({ leads, selectedIds, setSelectedIds }) {
       const db = new Date(b.createdAt || 0)
       return sort === 'desc' ? db - da : da - db
     })
-  }, [leads, search, pipeline, statusFilter, ownerFilter, sort])
+  }, [leads, searchQuery, pipeline, statusFilter, ownerFilter, sort])
 
   const allSelected = filtered.length > 0 && filtered.every(l => selectedIds.has(l.id))
+  const someSelected = filtered.some(l => selectedIds.has(l.id))
 
   const toggleAll = () => {
-    if (allSelected) {
+    if (allSelected || someSelected) {
       setSelectedIds(prev => {
         const next = new Set(prev)
         filtered.forEach(l => next.delete(l.id))
         return next
       })
     } else {
-      setSelectedIds(prev => new Set([...prev, ...filtered.map(l => l.id)]))
+      const toAdd = filtered.slice(0, SELECT_LIMIT)
+      setSelectedIds(new Set(toAdd.map(l => l.id)))
     }
   }
 
   const toggleOne = (id) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+      } else if (next.size < SELECT_LIMIT) {
+        next.add(id)
+      }
       return next
     })
   }
@@ -290,11 +356,15 @@ function LeadsTab({ leads, selectedIds, setSelectedIds }) {
     <>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <input
-          className="pipeline-searchbar-input"
-          placeholder="Search brand, contact, or owner…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ flex: 1, minWidth: 180 }}
+          type="text"
+          placeholder="Search brand, contact, email..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          style={{
+            flex: 1, minWidth: 180, padding: '8px 12px',
+            border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 13,
+            background: 'var(--surface)', color: 'var(--ink-1)'
+          }}
         />
         <div className="seg">
           {[['all','All'],['midmarket','Mid-Market'],['enterprise','Enterprise']].map(([v,l]) => (
@@ -328,6 +398,11 @@ function LeadsTab({ leads, selectedIds, setSelectedIds }) {
 
       <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 8 }}>
         {filtered.length} lead{filtered.length !== 1 ? 's' : ''} · {selectedIds.size} selected
+        {filtered.length > SELECT_LIMIT && (
+          <span style={{ color: 'var(--warn)', marginLeft: 8 }}>
+            (select-all limited to first {SELECT_LIMIT})
+          </span>
+        )}
       </div>
 
       <div className="table-wrap">
@@ -335,7 +410,12 @@ function LeadsTab({ leads, selectedIds, setSelectedIds }) {
           <thead>
             <tr>
               <th style={{ width: 36, background: 'white' }}>
-                <input type="checkbox" checked={allSelected} onChange={toggleAll} />
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={el => { if (el) el.indeterminate = !allSelected && someSelected }}
+                  onChange={toggleAll}
+                />
               </th>
               <th style={{ background: 'white' }}>Date</th>
               <th style={{ background: 'white' }}>Brand</th>
@@ -436,27 +516,20 @@ function HistorySection({ history, loadingHistory }) {
 // ── Main page ─────────────────────────────────────────────
 export default function BulkAssign() {
   const { role, authFetch } = useAuth()
-  const { deals, loading: dealsLoading } = useDeals()
-  const { leads, loading: leadsLoading } = useLeads()
 
   const [activeModule, setActiveModule] = useState('deals')
+  const [deals, setDeals] = useState([])
+  const [leads, setLeads] = useState([])
+  const [loading, setLoading] = useState(false)
   const [selectedIds, setSelectedIds] = useState(new Set())
+  const [searchQuery, setSearchQuery] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [confirmModal, setConfirmModal] = useState(null)
   const [assigning, setAssigning] = useState(false)
   const [assignableUsers, setAssignableUsers] = useState([])
   const [history, setHistory] = useState([])
   const [loadingHistory, setLoadingHistory] = useState(true)
   const [toast, setToast] = useState(null)
-
-  const allowedRoles = [ROLES.ADMIN, ROLES.SALES_LEAD_MIDMARKET, ROLES.SALES_LEAD_ENTERPRISE]
-  if (!allowedRoles.includes(role)) {
-    return (
-      <div className="main">
-        <Topbar title="Bulk Assign" />
-        <div className="callout danger">You don't have permission to access this page.</div>
-      </div>
-    )
-  }
 
   const fetchHistory = useCallback(async () => {
     setLoadingHistory(true)
@@ -468,6 +541,26 @@ export default function BulkAssign() {
     setLoadingHistory(false)
   }, [authFetch])
 
+  // FIX 1 — fresh data + reset on every tab switch
+  useEffect(() => {
+    setLoading(true)
+    setSelectedIds(new Set())
+    setSearchQuery('')
+    if (activeModule === 'deals') {
+      authFetch('/api/deals?refresh=true')
+        .then(r => r.json())
+        .then(d => setDeals(d.deals || []))
+        .catch(() => {})
+        .finally(() => setLoading(false))
+    } else {
+      authFetch('/api/leads?refresh=true')
+        .then(r => r.json())
+        .then(d => setLeads(d.leads || []))
+        .catch(() => {})
+        .finally(() => setLoading(false))
+    }
+  }, [activeModule])
+
   useEffect(() => {
     authFetch('/api/team/assignable-users')
       .then(r => r.json())
@@ -476,33 +569,36 @@ export default function BulkAssign() {
     fetchHistory()
   }, [authFetch, fetchHistory])
 
-  useEffect(() => { setSelectedIds(new Set()) }, [activeModule])
+  const allowedRoles = [ROLES.ADMIN, ROLES.SALES_LEAD_MIDMARKET, ROLES.SALES_LEAD_ENTERPRISE]
+  if (!allowedRoles.includes(role)) {
+    return (
+      <div className="main">
+        <Topbar title="Bulk Assign" />
+        <div className="callout danger">You don't have permission to access this page.</div>
+      </div>
+    )
+  }
 
   const showToast = (msg, type = 'ok') => {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 4000)
   }
 
-  const handleConfirmReassign = async ({ name: newOwnerName, email: newOwnerEmail }) => {
+  const handleBulkAssign = async (assignTo) => {
     setAssigning(true)
     try {
       const ids = [...selectedIds]
-      const endpoint = activeModule === 'deals'
-        ? '/api/deals/bulk-reassign'
-        : '/api/leads/bulk-reassign'
+      const endpoint = activeModule === 'deals' ? '/api/deals/bulk-reassign' : '/api/leads/bulk-reassign'
       const bodyKey = activeModule === 'deals' ? 'dealIds' : 'leadIds'
-
       const res = await authFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [bodyKey]: ids, newOwnerEmail, newOwnerName }),
+        body: JSON.stringify({ [bodyKey]: ids, newOwnerEmail: assignTo.email, newOwnerName: assignTo.name }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Reassign failed')
-
       setSelectedIds(new Set())
-      setShowModal(false)
-      showToast(`${data.updated} ${activeModule} reassigned to ${newOwnerName}`)
+      showToast(`${data.updated} ${activeModule} reassigned to ${assignTo.name}`)
       await fetchHistory()
     } catch (err) {
       showToast(err.message, 'danger')
@@ -511,7 +607,20 @@ export default function BulkAssign() {
     }
   }
 
-  const loading = activeModule === 'deals' ? dealsLoading : leadsLoading
+  // FIX 6 — show confirmation modal before calling API
+  const handleReassignModalConfirm = (user) => {
+    setShowModal(false)
+    setConfirmModal({
+      title: 'Confirm Reassignment',
+      message: `This will reassign ${selectedIds.size} ${activeModule === 'deals' ? 'deal' : 'lead'}${selectedIds.size !== 1 ? 's' : ''} to ${user.name}. This action will update Zoho CRM immediately.`,
+      onConfirm: () => {
+        setConfirmModal(null)
+        handleBulkAssign(user)
+      },
+    })
+  }
+
+  const overLimit = selectedIds.size > SELECT_LIMIT
 
   return (
     <div className="main">
@@ -537,12 +646,31 @@ export default function BulkAssign() {
         <button className={activeModule === 'leads' ? 'is-on' : ''} onClick={() => setActiveModule('leads')}>Leads</button>
       </div>
 
-      {loading
-        ? <Loading text={`Fetching ${activeModule}…`} />
-        : activeModule === 'deals'
-          ? <DealsTab deals={deals} selectedIds={selectedIds} setSelectedIds={setSelectedIds} />
-          : <LeadsTab leads={leads} selectedIds={selectedIds} setSelectedIds={setSelectedIds} />
-      }
+      {/* FIX 2 — inline loading spinner while fetching */}
+      {loading ? (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 60, color: 'var(--ink-3)', fontSize: 14
+        }}>
+          Loading {activeModule === 'deals' ? 'deals' : 'leads'}...
+        </div>
+      ) : activeModule === 'deals' ? (
+        <DealsTab
+          deals={deals}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          selectedIds={selectedIds}
+          setSelectedIds={setSelectedIds}
+        />
+      ) : (
+        <LeadsTab
+          leads={leads}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          selectedIds={selectedIds}
+          setSelectedIds={setSelectedIds}
+        />
+      )}
 
       <HistorySection history={history} loadingHistory={loadingHistory} />
 
@@ -554,25 +682,36 @@ export default function BulkAssign() {
           borderRadius: 32, padding: '12px 24px',
           display: 'flex', alignItems: 'center', gap: 16,
           boxShadow: '0 4px 24px rgba(0,0,0,0.25)', zIndex: 500,
-          fontSize: 14, fontWeight: 600,
-          whiteSpace: 'nowrap'
+          fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap'
         }}>
           <span>{selectedIds.size} {activeModule === 'deals' ? 'deal' : 'lead'}{selectedIds.size !== 1 ? 's' : ''} selected</span>
           <button
             onClick={() => setSelectedIds(new Set())}
-            style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
-              borderRadius: 20, padding: '4px 12px', cursor: 'pointer', fontSize: 13 }}
+            style={{
+              background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
+              borderRadius: 20, padding: '4px 12px', cursor: 'pointer', fontSize: 13
+            }}
           >
             Clear
           </button>
-          <button
-            onClick={() => setShowModal(true)}
-            style={{ background: '#fff', color: 'var(--ink-1)', border: 'none',
-              borderRadius: 20, padding: '6px 16px', cursor: 'pointer',
-              fontSize: 13, fontWeight: 700 }}
-          >
-            Reassign Selected →
-          </button>
+          {/* FIX 5 — warn instead of reassign button when over limit */}
+          {overLimit ? (
+            <span style={{ color: '#E5484D', fontSize: 13 }}>
+              Only {SELECT_LIMIT} records can be assigned at once. Please deselect some ({selectedIds.size - SELECT_LIMIT} over limit).
+            </span>
+          ) : (
+            <button
+              onClick={() => setShowModal(true)}
+              disabled={assigning}
+              style={{
+                background: '#fff', color: 'var(--ink-1)', border: 'none',
+                borderRadius: 20, padding: '6px 16px', cursor: 'pointer',
+                fontSize: 13, fontWeight: 700
+              }}
+            >
+              {assigning ? 'Reassigning…' : 'Reassign Selected →'}
+            </button>
+          )}
         </div>
       )}
 
@@ -581,9 +720,17 @@ export default function BulkAssign() {
           module={activeModule === 'deals' ? 'Deals' : 'Leads'}
           count={selectedIds.size}
           assignableUsers={assignableUsers}
-          onConfirm={handleConfirmReassign}
+          onConfirm={handleReassignModalConfirm}
           onClose={() => setShowModal(false)}
-          assigning={assigning}
+        />
+      )}
+
+      {confirmModal && (
+        <ConfirmModal
+          title={confirmModal.title}
+          message={confirmModal.message}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal(null)}
         />
       )}
     </div>
