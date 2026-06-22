@@ -755,41 +755,61 @@ export default function BulkAssign() {
       {/* Selection bar */}
       {selectedIds.size > 0 && (
         <div style={{
-          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-          background: 'var(--ink-1)', color: '#fff',
-          borderRadius: 32, padding: '12px 24px',
-          display: 'flex', alignItems: 'center', gap: 16,
-          boxShadow: '0 4px 24px rgba(0,0,0,0.25)', zIndex: 500,
-          fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap'
+          position: 'fixed',
+          bottom: 0,
+          left: 216,
+          right: 0,
+          padding: '14px 24px',
+          background: '#1D1D1D',
+          color: '#FFFFFF',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          zIndex: 100,
+          boxShadow: '0 -2px 8px rgba(0,0,0,0.15)'
         }}>
-          <span>{selectedIds.size} {activeModule === 'deals' ? 'deal' : 'lead'}{selectedIds.size !== 1 ? 's' : ''} selected</span>
-          <button
-            onClick={() => setSelectedIds(new Set())}
-            style={{
-              background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
-              borderRadius: 20, padding: '4px 12px', cursor: 'pointer', fontSize: 13
-            }}
-          >
-            Clear
-          </button>
-          {/* FIX 5 — warn instead of reassign button when over limit */}
-          {overLimit ? (
-            <span style={{ color: '#E5484D', fontSize: 13 }}>
-              Only {SELECT_LIMIT} records can be assigned at once. Please deselect some ({selectedIds.size - SELECT_LIMIT} over limit).
-            </span>
-          ) : (
+          <span style={{ fontSize: 14, fontWeight: 500, color: '#FFFFFF' }}>
+            {selectedIds.size} {activeModule === 'deals' ? 'deal' : 'lead'}{selectedIds.size !== 1 ? 's' : ''} selected
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
-              onClick={() => setShowModal(true)}
-              disabled={assigning}
+              onClick={() => setSelectedIds(new Set())}
               style={{
-                background: '#fff', color: 'var(--ink-1)', border: 'none',
-                borderRadius: 20, padding: '6px 16px', cursor: 'pointer',
-                fontSize: 13, fontWeight: 700
+                padding: '7px 16px',
+                borderRadius: 8,
+                border: '1.5px solid rgba(255,255,255,0.3)',
+                background: 'transparent',
+                color: '#FFFFFF',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer'
               }}
             >
-              {assigning ? 'Reassigning…' : 'Reassign Selected →'}
+              Clear
             </button>
-          )}
+            {overLimit ? (
+              <span style={{ color: '#F87171', fontSize: 13 }}>
+                Only {SELECT_LIMIT} records at once — {selectedIds.size - SELECT_LIMIT} over limit
+              </span>
+            ) : (
+              <button
+                onClick={() => setShowModal(true)}
+                disabled={assigning}
+                style={{
+                  padding: '7px 16px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#F95253',
+                  color: '#FFFFFF',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                {assigning ? 'Reassigning…' : 'Reassign Selected →'}
+              </button>
+            )}
+          </div>
         </div>
       )}
 
