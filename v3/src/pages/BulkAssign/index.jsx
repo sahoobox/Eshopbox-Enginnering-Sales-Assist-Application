@@ -58,6 +58,11 @@ function ConfirmModal({ title, message, onConfirm, onCancel }) {
 // ── Reassign Modal ────────────────────────────────────────
 function ReassignModal({ module, count, assignableUsers, onConfirm, onClose }) {
   const [selectedUser, setSelectedUser] = useState(null)
+  const [search, setSearch] = useState('')
+
+  const filteredUsers = assignableUsers.filter(u =>
+    u.name.toLowerCase().includes(search.toLowerCase())
+  )
 
   return (
     <div style={{
@@ -66,7 +71,7 @@ function ReassignModal({ module, count, assignableUsers, onConfirm, onClose }) {
     }}>
       <div style={{
         background: 'var(--surface)', borderRadius: 'var(--radius-lg)',
-        boxShadow: 'var(--shadow-3)', width: 400, padding: 24
+        boxShadow: 'var(--shadow-3)', width: 440, padding: 24
       }}>
         <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>
           Reassign {count} {module.slice(0, -1)}{count !== 1 ? 's' : ''}
@@ -75,35 +80,108 @@ function ReassignModal({ module, count, assignableUsers, onConfirm, onClose }) {
           Select a team member to assign these {module.toLowerCase()} to.
         </div>
 
-        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', marginBottom: 6 }}>
-          Assign to
-        </label>
-        <select
-          value={selectedUser ? JSON.stringify(selectedUser) : ''}
-          onChange={e => setSelectedUser(e.target.value ? JSON.parse(e.target.value) : null)}
-          style={{
-            width: '100%', padding: '8px 10px', borderRadius: 6,
-            border: '1.5px solid var(--line)', fontSize: 13,
-            background: 'var(--surface)', color: 'var(--ink-1)', marginBottom: 20
-          }}
-        >
-          <option value="">— Select person —</option>
-          {assignableUsers.map(u => (
-            <option key={u.email} value={JSON.stringify({ name: u.name, email: u.email })}>
-              {u.name} · {u.role}
-            </option>
-          ))}
-        </select>
+        <div style={{ marginBottom: 16 }}>
+          <input
+            type="text"
+            placeholder="Search team member..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              width: '100%', padding: '8px 12px',
+              border: '1.5px solid var(--line)',
+              borderRadius: 8, fontSize: 13,
+              background: 'var(--surface)',
+              color: 'var(--ink-1)',
+              marginBottom: 8,
+              boxSizing: 'border-box'
+            }}
+          />
+          <div style={{
+            maxHeight: 240,
+            overflowY: 'auto',
+            border: '1.5px solid var(--line)',
+            borderRadius: 8,
+            background: 'var(--surface)'
+          }}>
+            {filteredUsers.map(u => (
+              <div
+                key={u.email}
+                onClick={() => setSelectedUser(u)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '10px 14px',
+                  cursor: 'pointer',
+                  background: selectedUser?.email === u.email
+                    ? 'var(--accent-light, #EEF2FF)'
+                    : 'transparent',
+                  borderBottom: '0.5px solid var(--line)',
+                  transition: 'background 0.15s'
+                }}
+                onMouseEnter={e => {
+                  if (selectedUser?.email !== u.email)
+                    e.currentTarget.style.background = 'var(--surface-2, #F5F5F5)'
+                }}
+                onMouseLeave={e => {
+                  if (selectedUser?.email !== u.email)
+                    e.currentTarget.style.background = 'transparent'
+                }}
+              >
+                <div style={{
+                  width: 34, height: 34,
+                  borderRadius: '50%',
+                  background: '#EEF2FF',
+                  color: '#3B5BDB',
+                  display: 'flex', alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 12, fontWeight: 700,
+                  flexShrink: 0
+                }}>
+                  {u.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-1)' }}>
+                    {u.name}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'capitalize' }}>
+                    {u.role.replace(/-/g, ' ')}
+                  </div>
+                </div>
+                {selectedUser?.email === u.email && (
+                  <div style={{ color: '#3B5BDB', fontSize: 16, fontWeight: 700 }}>✓</div>
+                )}
+              </div>
+            ))}
+            {filteredUsers.length === 0 && (
+              <div style={{ padding: 20, textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>
+                No team members found
+              </div>
+            )}
+          </div>
+        </div>
 
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button className="btn btn-sm" onClick={onClose}>Cancel</button>
+        <div style={{ display: 'flex', gap: 8 }}>
           <button
             className="btn btn-sm"
-            style={{ background: 'var(--brand)', color: '#fff', borderColor: 'var(--brand)' }}
-            disabled={!selectedUser}
-            onClick={() => selectedUser && onConfirm(selectedUser)}
+            onClick={onClose}
+            style={{ flexShrink: 0 }}
           >
-            Confirm Reassign →
+            Cancel
+          </button>
+          <button
+            onClick={() => selectedUser && onConfirm(selectedUser)}
+            disabled={!selectedUser}
+            style={{
+              flex: 1, padding: '10px',
+              borderRadius: 8, border: 'none',
+              background: selectedUser ? '#3B5BDB' : 'var(--line)',
+              color: 'white', fontSize: 14,
+              fontWeight: 600, cursor: selectedUser ? 'pointer' : 'not-allowed',
+              transition: 'background 0.2s'
+            }}
+          >
+            {selectedUser ? `Assign to ${selectedUser.name} →` : 'Select a team member first'}
           </button>
         </div>
       </div>
