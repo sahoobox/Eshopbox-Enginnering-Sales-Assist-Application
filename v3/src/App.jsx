@@ -9,7 +9,7 @@ import DemoForm from './pages/DemoForm'
 import AccountSettings from './pages/AccountSettings'
 import {
   MyDay, LeadInbox, Accounts,
-  Tasks, Performance, Reports, Settings, NotFound, NeedAttention,
+  Tasks, Performance, Reports, Settings, NotFound, NeedAttention, BulkAssign,
 } from './pages'
 import { Loading } from './components/ui'
 
@@ -65,6 +65,13 @@ function AppLayout() {
             role === ROLES.SALES_LEAD_ENTERPRISE ||
             role === ROLES.ADMIN) && (
             <Route path="/reports" element={<Reports />} />
+          )}
+
+          {/* Bulk Assign — Admin and Sales Leads */}
+          {(role === ROLES.ADMIN ||
+            role === ROLES.SALES_LEAD_MIDMARKET ||
+            role === ROLES.SALES_LEAD_ENTERPRISE) && (
+            <Route path="/bulk-assign" element={<BulkAssign />} />
           )}
 
           {/* Settings — Admin and Sales Lead */}

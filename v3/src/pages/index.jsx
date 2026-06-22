@@ -24,6 +24,9 @@ export { default as Reports } from './Reports'
 // ── Settings ─────────────────────────────────────────────
 export { default as Settings } from './Settings'
 
+// ── Bulk Assign ───────────────────────────────────────────
+export { default as BulkAssign } from './BulkAssign'
+
 // ── 404 ──────────────────────────────────────────────────
 export function NotFound() {
   return (

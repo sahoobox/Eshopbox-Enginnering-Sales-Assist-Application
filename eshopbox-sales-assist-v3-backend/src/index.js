@@ -8,6 +8,7 @@ import { zohoAPI, createDeal, createTask, getDeals, getAllDeals, getDeal, getDea
 import { generateEmailDrafts, generateReengagement, generateDealAnalysis, generateDealSummary } from './services/claude.js';
 import getAttentionFlags, { getAttentionLevel } from './services/attentionRules.js';
 import { logTimelineEvent } from './services/timeline.js';
+import { logLeadTimelineEvent } from './services/leadTimeline.js';
 import { sendGmailEmail, sendGmailEmailWithToken, createGmailDraft, checkDraftSent, getRealMessageId } from './services/gmail.js';
 
 const app = new Hono();
@@ -3232,6 +3233,12 @@ app.post('/api/leads/:id/notes', requireAuth, async (c) => {
     } catch (zohoErr) {
       console.error('Zoho lead note sync failed (non-blocking):', zohoErr.message)
     }
+    await logLeadTimelineEvent(c.env, leadId, {
+      eventType: 'note_added',
+      description: 'Note added',
+      actorName: user.name,
+      actorEmail: user.email,
+    })
     return c.json({ success: true, note: { id, content, author_name: user.name, authorName: user.name, authorEmail: user.email, created_at: now } })
   } catch (err) {
     return c.json({ error: 'Failed to create note', details: err.message }, 500)
@@ -3375,6 +3382,7 @@ app.get('/api/leads/:id/tasks', requireAuth, async (c) => {
 app.post('/api/leads/:id/tasks', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
+    const user = c.get('user')
     const body = await c.req.json()
     if (!body.subject?.trim()) return c.json({ error: 'Subject required' }, 400)
     const result = await zohoAPI(c.env, 'POST', '/Tasks', {
@@ -3389,6 +3397,12 @@ app.post('/api/leads/:id/tasks', requireAuth, async (c) => {
       }]
     })
     if (result?.data?.[0]?.code !== 'SUCCESS') return c.json({ error: 'Failed to create task in Zoho' }, 500)
+    await logLeadTimelineEvent(c.env, leadId, {
+      eventType: 'task_created',
+      description: `Task created: ${body.subject}`,
+      actorName: user.name,
+      actorEmail: user.email,
+    })
     return c.json({ success: true, taskId: result.data[0].details.id })
   } catch (err) {
     return c.json({ error: err.message }, 500)
@@ -3412,6 +3426,7 @@ app.get('/api/leads/:id/meetings', requireAuth, async (c) => {
 app.post('/api/leads/:id/meeting', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
+    const user = c.get('user')
     const body = await c.req.json()
     const result = await zohoAPI(c.env, 'POST', '/Events', {
       data: [{
@@ -3425,6 +3440,13 @@ app.post('/api/leads/:id/meeting', requireAuth, async (c) => {
       }]
     })
     if (!result || result.data?.[0]?.status === 'error') return c.json({ error: 'Zoho API error', details: result }, 500)
+    await logLeadTimelineEvent(c.env, leadId, {
+      eventType: 'meeting_created',
+      description: `Meeting scheduled: ${body.title}`,
+      actorName: user.name,
+      actorEmail: user.email,
+      metadata: { title: body.title, venue: body.venue },
+    })
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
@@ -3449,6 +3471,7 @@ app.get('/api/leads/:id/calls', requireAuth, async (c) => {
 app.post('/api/leads/:id/log-call', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
+    const user = c.get('user')
     const body = await c.req.json()
     const result = await zohoAPI(c.env, 'POST', '/Calls', {
       data: [{
@@ -3466,6 +3489,13 @@ app.post('/api/leads/:id/log-call', requireAuth, async (c) => {
       }]
     })
     if (!result || result.data?.[0]?.status === 'error') return c.json({ error: 'Zoho API error', details: result }, 500)
+    await logLeadTimelineEvent(c.env, leadId, {
+      eventType: 'call_logged',
+      description: `Call logged: ${body.callPurpose}`,
+      actorName: user.name,
+      actorEmail: user.email,
+      metadata: { purpose: body.callPurpose, result: body.callResult },
+    })
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
@@ -3475,6 +3505,7 @@ app.post('/api/leads/:id/log-call', requireAuth, async (c) => {
 app.post('/api/leads/:id/schedule-call', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
+    const user = c.get('user')
     const body = await c.req.json()
     const result = await zohoAPI(c.env, 'POST', '/Calls', {
       data: [{
@@ -3490,6 +3521,13 @@ app.post('/api/leads/:id/schedule-call', requireAuth, async (c) => {
       }]
     })
     if (!result || result.data?.[0]?.status === 'error') return c.json({ error: 'Zoho API error', details: result }, 500)
+    await logLeadTimelineEvent(c.env, leadId, {
+      eventType: 'call_scheduled',
+      description: `Call scheduled: ${body.callPurpose}`,
+      actorName: user.name,
+      actorEmail: user.email,
+      metadata: { purpose: body.callPurpose },
+    })
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
@@ -3751,7 +3789,134 @@ app.patch('/api/leads/:id/reassign', requireAuth, async (c) => {
       data: [{ id: leadId, Owner: { id: zohoUser.id } }]
     })
     try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch (_) {}
+    await logLeadTimelineEvent(c.env, leadId, {
+      eventType: 'lead_reassigned',
+      description: `Lead reassigned to ${newOwnerName}`,
+      actorName: user.name,
+      actorEmail: user.email,
+      metadata: { newOwner: newOwnerName, newOwnerEmail },
+    })
     return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+// ── Bulk assign ────────────────────────────────────────────
+
+app.post('/api/leads/bulk-reassign', requireAuth, async (c) => {
+  try {
+    const user = c.get('user')
+    if (!['admin', 'lead-midmarket', 'lead-enterprise'].includes(user?.role))
+      return c.json({ error: 'Forbidden' }, 403)
+    const { leadIds, newOwnerEmail, newOwnerName } = await c.req.json()
+    if (!Array.isArray(leadIds) || leadIds.length === 0)
+      return c.json({ error: 'leadIds required' }, 400)
+    if (leadIds.length > 100)
+      return c.json({ error: 'Maximum 100 leads per bulk assign' }, 400)
+
+    const zohoUsers = await zohoAPI(c.env, 'GET', '/users?type=ActiveUsers')
+    const zohoUser = zohoUsers?.users?.find(u => u.email === newOwnerEmail)
+    if (!zohoUser) return c.json({ error: 'User not found in Zoho' }, 404)
+
+    await zohoAPI(c.env, 'POST', '/Leads/actions/mass_update', {
+      data: [{ Owner: { id: zohoUser.id } }],
+      ids: leadIds,
+      over_write: true,
+    })
+
+    try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch (_) {}
+
+    for (const leadId of leadIds) {
+      await logLeadTimelineEvent(c.env, leadId, {
+        eventType: 'lead_reassigned',
+        description: `Lead reassigned to ${newOwnerName}`,
+        actorName: user.name,
+        actorEmail: user.email,
+        metadata: { newOwner: newOwnerName, newOwnerEmail },
+      })
+    }
+
+    await c.env.DB.prepare(`
+      INSERT INTO bulk_assign_history
+      (id, module, record_count, to_owner_name, to_owner_email,
+       to_owner_zoho_id, done_by_name, done_by_email, record_ids, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      crypto.randomUUID(), 'Leads', leadIds.length,
+      newOwnerName, newOwnerEmail, zohoUser.id,
+      user.name, user.email,
+      JSON.stringify(leadIds),
+      new Date().toISOString()
+    ).run()
+
+    return c.json({ success: true, updated: leadIds.length })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.post('/api/deals/bulk-reassign', requireAuth, async (c) => {
+  try {
+    const user = c.get('user')
+    if (!['admin', 'lead-midmarket', 'lead-enterprise'].includes(user?.role))
+      return c.json({ error: 'Forbidden' }, 403)
+    const { dealIds, newOwnerEmail, newOwnerName } = await c.req.json()
+    if (!Array.isArray(dealIds) || dealIds.length === 0)
+      return c.json({ error: 'dealIds required' }, 400)
+    if (dealIds.length > 100)
+      return c.json({ error: 'Maximum 100 deals per bulk assign' }, 400)
+
+    const zohoUsers = await zohoAPI(c.env, 'GET', '/users?type=ActiveUsers')
+    const zohoUser = zohoUsers?.users?.find(u => u.email === newOwnerEmail)
+    if (!zohoUser) return c.json({ error: 'User not found in Zoho' }, 404)
+
+    await zohoAPI(c.env, 'POST', '/Deals/actions/mass_update', {
+      data: [{ Owner: { id: zohoUser.id } }],
+      ids: dealIds,
+      over_write: true,
+    })
+
+    try { await c.env.TOKEN_CACHE.delete('v3_deals_cache') } catch (_) {}
+
+    for (const dealId of dealIds) {
+      await logTimelineEvent(c.env, dealId, {
+        eventType: 'deal_reassigned',
+        description: `Deal reassigned to ${newOwnerName}`,
+        actorName: user.name,
+        actorEmail: user.email,
+        metadata: { newOwner: newOwnerName, newOwnerEmail },
+      })
+    }
+
+    await c.env.DB.prepare(`
+      INSERT INTO bulk_assign_history
+      (id, module, record_count, to_owner_name, to_owner_email,
+       to_owner_zoho_id, done_by_name, done_by_email, record_ids, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      crypto.randomUUID(), 'Deals', dealIds.length,
+      newOwnerName, newOwnerEmail, zohoUser.id,
+      user.name, user.email,
+      JSON.stringify(dealIds),
+      new Date().toISOString()
+    ).run()
+
+    return c.json({ success: true, updated: dealIds.length })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.get('/api/bulk-assign/history', requireAuth, async (c) => {
+  try {
+    const user = c.get('user')
+    if (!['admin', 'lead-midmarket', 'lead-enterprise'].includes(user?.role))
+      return c.json({ error: 'Forbidden' }, 403)
+    const result = await c.env.DB.prepare(
+      'SELECT * FROM bulk_assign_history ORDER BY created_at DESC LIMIT 50'
+    ).all()
+    return c.json({ history: result.results })
   } catch (err) {
     return c.json({ error: err.message }, 500)
   }
