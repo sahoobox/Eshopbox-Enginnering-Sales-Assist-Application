@@ -275,7 +275,6 @@ export default function LeadInbox() {
   const { leads, loading, error, refetch } = useLeads()
   const [searchParams, setSearchParams] = useSearchParams()
   const searchQuery = searchParams.get('q') || ''
-  const [localSearch, setLocalSearch] = useState(searchParams.get('q') || '')
   const activeFilters = (() => { try { return JSON.parse(searchParams.get('filters') || '[]') } catch { return [] } })()
   const currentPage = Number(searchParams.get('page') || 1)
   const pageSize = Number(searchParams.get('size') || 50)
@@ -294,13 +293,6 @@ export default function LeadInbox() {
     })
     setSearchParams(next, { replace: true })
   }
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      updateParams({ q: localSearch || null, page: null })
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [localSearch])
 
   const filterBarRef = useRef(null)
   const tableRef = useRef(null)
@@ -361,7 +353,7 @@ export default function LeadInbox() {
       return sortOrder === 'desc' ? dateB - dateA : dateA - dateB
     }), [filteredLeads, sortOrder])
 
-  useEffect(() => { updateParams({ page: null }) }, [activeFilters, activePipeline])
+  useEffect(() => { updateParams({ page: null }) }, [searchQuery, activeFilters, activePipeline])
 
   useEffect(() => {
     const mainEl = document.querySelector('.main')
@@ -429,15 +421,15 @@ export default function LeadInbox() {
         <StatTile label="TODAY" value={leadsToday.length} sub="new leads" />
       </div>
 
-      <div className="pipeline-searchbar" style={{ cursor: 'text' }}>
+      <div className="pipeline-searchbar">
         <button className="pipeline-filter-trigger" onClick={() => filterBarRef.current?.openAdd()}>
           🔍 + Add filter
         </button>
         <input
           className="pipeline-searchbar-input"
           placeholder="Search by brand, contact, email, rep, source, volume..."
-          value={localSearch}
-          onChange={e => setLocalSearch(e.target.value)}
+          value={searchQuery}
+          onChange={e => updateParams({ q: e.target.value || null })}
         />
         {isAdmin && (
           <div className="seg" style={{ flexShrink: 0 }}>
@@ -587,7 +579,7 @@ export default function LeadInbox() {
         </table>
       </div>
 
-      {showStickyHeader && colWidths.length > 0 && (
+      {showStickyHeader && (
         <div
           ref={stickyRef}
           style={{
