@@ -275,6 +275,9 @@ export default function LeadInbox() {
   const { leads, loading, error, refetch } = useLeads()
   const [searchParams, setSearchParams] = useSearchParams()
   const searchQuery = searchParams.get('q') || ''
+  const [localSearch, setLocalSearch] = useState(
+    () => searchParams.get('q') || ''
+  )
   const activeFilters = (() => { try { return JSON.parse(searchParams.get('filters') || '[]') } catch { return [] } })()
   const currentPage = Number(searchParams.get('page') || 1)
   const pageSize = Number(searchParams.get('size') || 50)
@@ -293,6 +296,25 @@ export default function LeadInbox() {
     })
     setSearchParams(next, { replace: true })
   }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const current = searchParams.get('q') || ''
+      if (localSearch !== current) {
+        setSearchParams(prev => {
+          const next = new URLSearchParams(prev)
+          if (localSearch) {
+            next.set('q', localSearch)
+          } else {
+            next.delete('q')
+          }
+          next.delete('page')
+          return next
+        }, { replace: true })
+      }
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [localSearch])
 
   const filterBarRef = useRef(null)
   const tableRef = useRef(null)
@@ -353,7 +375,7 @@ export default function LeadInbox() {
       return sortOrder === 'desc' ? dateB - dateA : dateA - dateB
     }), [filteredLeads, sortOrder])
 
-  useEffect(() => { updateParams({ page: null }) }, [searchQuery, activeFilters, activePipeline])
+  useEffect(() => { updateParams({ page: null }) }, [activeFilters, activePipeline])
 
   useEffect(() => {
     const mainEl = document.querySelector('.main')
@@ -428,8 +450,8 @@ export default function LeadInbox() {
         <input
           className="pipeline-searchbar-input"
           placeholder="Search by brand, contact, email, rep, source, volume..."
-          value={searchQuery}
-          onChange={e => updateParams({ q: e.target.value || null })}
+          value={localSearch}
+          onChange={e => setLocalSearch(e.target.value)}
         />
         {isAdmin && (
           <div className="seg" style={{ flexShrink: 0 }}>
