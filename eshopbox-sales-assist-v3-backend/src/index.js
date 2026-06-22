@@ -1196,8 +1196,12 @@ app.post('/api/deals/:id/day2/mark-sent', requireAuth, async (c) => {
       await c.env.DB.prepare(
         `UPDATE deal_emails SET status = 'sent', sent_at = datetime('now') WHERE deal_id = ? AND email_type = ?`
       ).bind(dealId, 'day2').run()
+    } else {
+      await c.env.DB.prepare(
+        `INSERT INTO deal_emails (id, deal_id, email_type, subject, body, status, sent_at, created_at, updated_at)
+         VALUES (?, ?, 'day2', '', '', 'sent', datetime('now'), datetime('now'), datetime('now'))`
+      ).bind(crypto.randomUUID(), dealId).run()
     }
-    // If no row exists, skip D1 — just advance stage
     try {
       const dealRes = await getDeal(c.env, dealId)
       const currentStage = dealRes?.data?.[0]?.Stage
