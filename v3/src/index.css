@@ -226,6 +226,7 @@ main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: 
   color: var(--ink);
   outline: none;
   height: 100%;
+  cursor: text !important;
 }
 .pipeline-searchbar-input::placeholder { color: var(--ink-3); }
 .topbar-title-block { flex: 1; min-width: 0; }

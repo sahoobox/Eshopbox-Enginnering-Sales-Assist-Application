@@ -429,7 +429,7 @@ export default function LeadInbox() {
         <StatTile label="TODAY" value={leadsToday.length} sub="new leads" />
       </div>
 
-      <div className="pipeline-searchbar">
+      <div className="pipeline-searchbar" style={{ cursor: 'text' }}>
         <button className="pipeline-filter-trigger" onClick={() => filterBarRef.current?.openAdd()}>
           🔍 + Add filter
         </button>
@@ -587,7 +587,7 @@ export default function LeadInbox() {
         </table>
       </div>
 
-      {showStickyHeader && (
+      {showStickyHeader && colWidths.length > 0 && (
         <div
           ref={stickyRef}
           style={{
