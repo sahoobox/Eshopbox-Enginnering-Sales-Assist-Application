@@ -60,11 +60,11 @@ function getNavItems(role, counts = {}) {
       { id: 'need-attention', label: 'Need Attention', path: '/need-attention', section: null },
       { id: 'lead-inbox',     label: 'Lead Inbox',     path: '/leads',          section: null,
         count: counts.leads },
-      { id: 'bulk-assign',    label: 'Bulk Assign',    path: '/bulk-assign',    section: null },
       { id: 'accounts',    label: 'Accounts',      path: '/accounts',    section: null },
       { id: 'tasks',       label: 'Tasks',         path: '/tasks',       section: null },
       { id: 'performance', label: 'Performance',   path: '/performance', section: null },
       { id: 'reports',     label: 'Reports',       path: '/reports',     section: null },
+      { id: 'bulk-assign', label: 'Bulk Assign',   path: '/bulk-assign', section: 'Admin' },
       { id: 'settings',    label: 'Settings',      path: '/settings',    section: 'Admin' },
     )
   }
