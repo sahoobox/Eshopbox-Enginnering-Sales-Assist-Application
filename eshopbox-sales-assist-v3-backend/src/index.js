@@ -161,7 +161,7 @@ const WAREHOUSING_PAINS_MAP = {
 };
 
 const MIDMARKET_STAGES = ['Upcoming Demo','Demo Done','Proposal Sent','Account Setup in Progress','Awaiting First Shipment','First Shipment Done','Active','On Hold','Won/Payment Received','Lost/Dropped'];
-const ENTERPRISE_STAGES = ['Upcoming Demo','Demo Done','Proposal Sent','Follow up Meeting Done','On Hold','Won/Payment Received','Lost/Dropped'];
+const ENTERPRISE_STAGES = ['Upcoming Demo','Demo Done','Proposal Sent','Follow up Meeting Done','Demo Approved','On Hold','Won/Payment Received','Lost/Dropped'];
 const ALL_VALID_STAGES = [...new Set([...MIDMARKET_STAGES, ...ENTERPRISE_STAGES])];
 
 const MDE_EMAILS = [
@@ -1448,7 +1448,7 @@ app.post('/api/deals/:id/stage', requireAuth, async (c) => {
       'Account Setup in Progress', 'Awaiting First Shipment',
       'First Shipment Done', 'Active', 'On Hold',
       'Won/Payment Received', 'Lost/Dropped',
-      'Follow up Meeting Done'
+      'Follow up Meeting Done', 'Demo Approved'
     ]
     if (!VALID_STAGES.includes(stage)) {
       return c.json({ error: 'Invalid stage' }, 400)

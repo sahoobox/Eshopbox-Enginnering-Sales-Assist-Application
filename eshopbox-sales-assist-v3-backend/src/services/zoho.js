@@ -86,7 +86,7 @@ const VALID_STAGES = [
   'Upcoming Demo', 'Demo Done', 'Proposal Sent',
   'Account Setup in Progress', 'Awaiting First Shipment',
   'First Shipment Done', 'Active', 'Follow up Meeting Done',
-  'On Hold', 'Won/Payment Received', 'Lost/Dropped'
+  'Demo Approved', 'On Hold', 'Won/Payment Received', 'Lost/Dropped'
 ]
 
 export async function getDeals(env) {
