@@ -113,7 +113,9 @@ function ReassignModal({ module, count, assignableUsers, onConfirm, onClose }) {
 
 // ── Deals Tab ─────────────────────────────────────────────
 function DealsTab({ deals, searchQuery, setSearchQuery, selectedIds, setSelectedIds }) {
-  const [pipeline, setPipeline] = useState('all')
+  const { role } = useAuth()
+  const defaultPipeline = role === ROLES.SALES_LEAD_MIDMARKET ? 'midmarket' : role === ROLES.SALES_LEAD_ENTERPRISE ? 'enterprise' : 'all'
+  const [pipeline, setPipeline] = useState(defaultPipeline)
   const [stageFilter, setStageFilter] = useState('all')
   const [ownerFilter, setOwnerFilter] = useState('all')
   const [sort, setSort] = useState('desc')
@@ -185,11 +187,13 @@ function DealsTab({ deals, searchQuery, setSearchQuery, selectedIds, setSelected
             background: 'var(--surface)', color: 'var(--ink-1)'
           }}
         />
-        <div className="seg">
-          {[['all','All'],['midmarket','Mid-Market'],['enterprise','Enterprise']].map(([v,l]) => (
-            <button key={v} className={pipeline === v ? 'is-on' : ''} onClick={() => setPipeline(v)}>{l}</button>
-          ))}
-        </div>
+        {role === ROLES.ADMIN && (
+          <div className="seg">
+            {[['all','All'],['midmarket','Mid-Market'],['enterprise','Enterprise']].map(([v,l]) => (
+              <button key={v} className={pipeline === v ? 'is-on' : ''} onClick={() => setPipeline(v)}>{l}</button>
+            ))}
+          </div>
+        )}
         <select
           value={stageFilter}
           onChange={e => setStageFilter(e.target.value)}
@@ -294,7 +298,9 @@ function DealsTab({ deals, searchQuery, setSearchQuery, selectedIds, setSelected
 const AE_EMAILS = ['taufeeq.ahmad@eshopbox.com','afzal.maknoo@eshopbox.com','gautam@eshopbox.com','jeevan.more@eshopbox.com']
 
 function LeadsTab({ leads, searchQuery, setSearchQuery, selectedIds, setSelectedIds }) {
-  const [pipeline, setPipeline] = useState('all')
+  const { role } = useAuth()
+  const defaultPipeline = role === ROLES.SALES_LEAD_MIDMARKET ? 'midmarket' : role === ROLES.SALES_LEAD_ENTERPRISE ? 'enterprise' : 'all'
+  const [pipeline, setPipeline] = useState(defaultPipeline)
   const [statusFilter, setStatusFilter] = useState('all')
   const [ownerFilter, setOwnerFilter] = useState('all')
   const [sort, setSort] = useState('desc')
@@ -366,11 +372,13 @@ function LeadsTab({ leads, searchQuery, setSearchQuery, selectedIds, setSelected
             background: 'var(--surface)', color: 'var(--ink-1)'
           }}
         />
-        <div className="seg">
-          {[['all','All'],['midmarket','Mid-Market'],['enterprise','Enterprise']].map(([v,l]) => (
-            <button key={v} className={pipeline === v ? 'is-on' : ''} onClick={() => setPipeline(v)}>{l}</button>
-          ))}
-        </div>
+        {role === ROLES.ADMIN && (
+          <div className="seg">
+            {[['all','All'],['midmarket','Mid-Market'],['enterprise','Enterprise']].map(([v,l]) => (
+              <button key={v} className={pipeline === v ? 'is-on' : ''} onClick={() => setPipeline(v)}>{l}</button>
+            ))}
+          </div>
+        )}
         <select
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
