@@ -3,61 +3,25 @@ import { useAuth, ROLES } from '../../context/AuthContext'
 import { Topbar } from '../../components/ui'
 
 
-const RULES = [
-  {
-    n: 1,
-    condition: 'Volume < 500 (any source)',
-    action: 'Tag Self-Serve · add to Dormant list · create SDR outreach task every 90 days',
-  },
-  {
-    n: 2,
-    condition: 'Volume 501–10,000 + Contact Sales form',
-    action: 'Create Lead · round-robin to MDE · alert with same-day contact flag',
-  },
-  {
-    n: 3,
-    condition: 'Volume 501–10,000 + Sign Up',
-    action: 'Create Deal at Account Setup In Progress (SME) · round-robin to MDE · alert',
-  },
-  {
-    n: 4,
-    condition: 'Volume > 10,000 (any source)',
-    action: 'Assign to AE-Enterprise · alert with same-day contact flag',
-  },
-  {
-    n: 5,
-    condition: 'Deal has no activity for 21 days',
-    action: 'Flag deal · alert Sales Lead · suggest moving to On Hold',
-  },
-  {
-    n: 6,
-    condition: 'Deal in On Hold stage for 60 days',
-    action: 'Create SDR re-engagement task',
-  },
-  {
-    n: 7,
-    condition: 'Account Setup In Progress · no contact in 24 hours',
-    action: 'Alert MDE and Sales Lead',
-  },
-  {
-    n: 8,
-    condition: 'Awaiting First Shipment for 7+ days',
-    action: 'Alert MDE and Sales Lead',
-  },
+const FLAGS = [
+  { id: 'R1',  description: 'Recap email not sent within 24hrs of demo',          pipeline: 'Both',        severity: 'high',   skip: 'Terminal stage, not SA logged, no demo date' },
+  { id: 'R2',  description: 'Day 2 pricing proposal not sent within 3 days',      pipeline: 'Both',        severity: 'high',   skip: 'Terminal stage, not SA logged, stage past Demo Done' },
+  { id: 'R3',  description: 'Day 3 ROI email overdue 2+ days',                    pipeline: 'Both',        severity: 'medium', skip: 'Terminal stage, not SA logged' },
+  { id: 'R4',  description: 'No follow-up meeting booked within 2 days of demo',  pipeline: 'Enterprise',  severity: 'high',   skip: 'Mid-Market, terminal stage' },
+  { id: 'R5',  description: 'Follow-up meeting passed, stage not updated',         pipeline: 'Enterprise',  severity: 'high',   skip: 'Mid-Market, terminal stage, no meeting date' },
+  { id: 'R6',  description: 'Stuck in same stage for 7+ days',                    pipeline: 'Both',        severity: 'medium', skip: 'Terminal stages, Upcoming Demo' },
+  { id: 'R7',  description: 'Follow up Meeting Done — deal going quiet 5+ days',  pipeline: 'Enterprise',  severity: 'medium', skip: 'Mid-Market, terminal stage' },
+  { id: 'R8',  description: 'Nudge (Day 9) email sent — no response after 1 day', pipeline: 'Both',        severity: 'medium', skip: 'Terminal stage, not SA logged' },
+  { id: 'R9',  description: 'Grade A deal — no in-person meeting after 5 days',   pipeline: 'Enterprise',  severity: 'medium', skip: 'Mid-Market, terminal stage' },
+  { id: 'R10', description: 'Lost deal — no reason logged',                        pipeline: 'Both',        severity: 'medium', skip: 'Only fires on Lost/Dropped' },
+  { id: 'R11', description: 'Upcoming Demo 10+ days — no demo scheduled',          pipeline: 'Both',        severity: 'high',   skip: 'Demo date already set' },
+  { id: 'R12', description: 'Demo Done but form not logged in Sales Assist',       pipeline: 'Both',        severity: 'high',   skip: 'Terminal stage, SA logged' },
+  { id: 'R13', description: 'Account Setup in Progress 14+ days',                  pipeline: 'Mid-Market',  severity: 'medium', skip: 'Enterprise, terminal stage' },
+  { id: 'R14', description: 'Awaiting First Shipment 21+ days',                    pipeline: 'Mid-Market',  severity: 'medium', skip: 'Enterprise, terminal stage' },
+  { id: 'R15', description: 'First Shipment Done 14+ days, not activated',         pipeline: 'Mid-Market',  severity: 'medium', skip: 'Enterprise, terminal stage' },
 ]
 
-const TEMPLATES = [
-  { name: 'Pre-Demo: Meeting confirmation + agenda', timing: 'Day 0',          type: 'Manual', body: `Hi {FirstName}, confirming our demo on {Date} at {Time}. Here's what we'll cover: [Agenda]. Please let me know if you'd like to adjust anything.` },
-  { name: 'Pre-Demo: Pre-read',                      timing: 'Meeting day −2', type: 'Auto',   body: `Hi {FirstName}, ahead of our call on {Date}, I've attached a quick overview of how Eshopbox works for brands like yours. Excited to show you the platform.` },
-  { name: 'Pre-Demo: Reminder',                      timing: 'Meeting day −1', type: 'Auto',   body: `Hi {FirstName}, just a quick reminder about our demo tomorrow at {Time}. Here's the meeting link: {Link}. See you then!` },
-  { name: 'Post-Demo Day 1: Recap email',             timing: 'Day 1',          type: 'Manual', body: `Hi {FirstName}, thank you for the time today! Here's a summary of what we discussed: [Key points]. Next step: {NextStep} by {Date}.` },
-  { name: 'Post-Demo Day 3: ROI email',               timing: 'Day 3',          type: 'Auto',   body: `Hi {FirstName}, based on your volume of {Volume} orders/month, Eshopbox typically helps brands like yours reduce fulfillment cost by 15–20%. Happy to put together a custom ROI model.` },
-  { name: 'Post-Demo Day 4: Objection handler',       timing: 'Day 4',          type: 'Auto',   body: `Hi {FirstName}, I know switching fulfillment partners feels like a big move. Here are the three concerns we hear most often — and how we address them: [Objections].` },
-  { name: 'Post-Demo Day 5+: Decision nudge',         timing: 'Day 5+',         type: 'Auto',   body: `Hi {FirstName}, we'd love to get your account set up before the busy season. Can we lock in a go-live date this week? Happy to jump on a quick call.` },
-]
-
-
-const TABS = ['Team', 'Rule Engine', 'Email Templates', 'Integrations']
+const TABS = ['Team', 'Flags', 'Integrations']
 
 export default function Settings() {
   const { isAdmin, role } = useAuth()
@@ -86,10 +50,9 @@ export default function Settings() {
             ))}
           </div>
 
-          {tab === 'Team'           && <TeamTab />}
-          {tab === 'Rule Engine'    && <RuleEngineTab />}
-          {tab === 'Email Templates'&& <EmailTemplatesTab />}
-          {tab === 'Integrations'   && <IntegrationsTab />}
+          {tab === 'Team'         && <TeamTab />}
+          {tab === 'Flags'        && <FlagsTab />}
+          {tab === 'Integrations' && <IntegrationsTab />}
         </>
       )}
     </div>
@@ -392,102 +355,66 @@ function TeamTab() {
   )
 }
 
-// ── Tab 2: Rule Engine ────────────────────────────────────
-function RuleEngineTab() {
+// ── Tab 2: Flags ─────────────────────────────────────────
+function FlagsTab() {
   return (
     <div className="card">
       <div className="ws-side-head">
         <div>
-          <h4>Routing &amp; Automation Rules</h4>
+          <h4>Attention Flags · R1–R15</h4>
           <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink-3)' }}>
-            Read-only in v1. Contact developer to modify rules.
+            These flags are automatically evaluated on every deal and surface in the Need Attention page.
+            Contact the developer to modify rules.
           </p>
         </div>
       </div>
-      <div style={{ padding: '4px 20px 16px' }}>
-        {RULES.map(rule => (
-          <div
-            key={rule.n}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '28px 1fr 1fr 80px',
-              gap: 16,
-              alignItems: 'start',
-              padding: '10px 0',
-              borderBottom: 'var(--border)',
-            }}
-          >
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-3)', paddingTop: 1 }}>#{rule.n}</div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', color: 'var(--ink-3)', marginBottom: 3 }}>CONDITION</div>
-              <div style={{ fontSize: 13, color: 'var(--ink-1)' }}>{rule.condition}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', color: 'var(--ink-3)', marginBottom: 3 }}>ACTION</div>
-              <div style={{ fontSize: 13, color: 'var(--ink-2)' }}>{rule.action}</div>
-            </div>
-            <div style={{ paddingTop: 16 }}>
-              <span className="pill pill-ok">Active</span>
-            </div>
-          </div>
-        ))}
+      <div style={{ overflowX: 'auto' }}>
+        <table className="t" style={{ minWidth: 700 }}>
+          <thead>
+            <tr>
+              <th style={{ width: 52 }}>Rule</th>
+              <th>Description</th>
+              <th style={{ width: 120 }}>Pipeline</th>
+              <th style={{ width: 90 }}>Severity</th>
+              <th>Skip conditions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {FLAGS.map(f => (
+              <tr key={f.id}>
+                <td>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-1)' }}>{f.id}</span>
+                </td>
+                <td style={{ fontSize: 13, color: 'var(--ink-1)' }}>{f.description}</td>
+                <td>
+                  {f.pipeline === 'Both' && (
+                    <span className="pill pill-info" style={{ fontSize: 11 }}>Both</span>
+                  )}
+                  {f.pipeline === 'Mid-Market' && (
+                    <span className="pill pill-ok" style={{ fontSize: 11 }}>Mid-Market</span>
+                  )}
+                  {f.pipeline === 'Enterprise' && (
+                    <span className="pill pill-purple" style={{ fontSize: 11 }}>Enterprise</span>
+                  )}
+                </td>
+                <td>
+                  {f.severity === 'high' ? (
+                    <span className="pill pill-danger" style={{ fontSize: 11 }}>High</span>
+                  ) : (
+                    <span className="pill pill-warn" style={{ fontSize: 11 }}>Medium</span>
+                  )}
+                </td>
+                <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{f.skip}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
 }
 
-// ── Tab 3: Email Templates ────────────────────────────────
-function EmailTemplatesTab() {
-  return (
-    <div className="card">
-      <div className="ws-side-head">
-        <div>
-          <h4>Sequence Email Templates</h4>
-          <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink-3)' }}>
-            Edit content only. Sequence timing and triggers are configured in Zoho.
-          </p>
-        </div>
-      </div>
-      <div style={{ padding: '4px 20px 16px' }}>
-        {TEMPLATES.map(tpl => (
-          <div
-            key={tpl.name}
-            style={{
-              padding: '12px 0',
-              borderBottom: 'var(--border)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{tpl.name}</span>
-                <span className="pill pill-neutral" style={{ fontSize: 11 }}>{tpl.timing}</span>
-                <span className={`pill ${tpl.type === 'Manual' ? 'pill-warn' : 'pill-info'}`} style={{ fontSize: 11 }}>{tpl.type}</span>
-              </div>
-              <button
-                className="btn btn-sm"
-                onClick={() => alert('Template editing coming in v2')}
-              >
-                Edit
-              </button>
-            </div>
-            <div style={{
-              fontSize: 12,
-              color: 'var(--ink-3)',
-              background: 'var(--surface-2)',
-              borderRadius: 6,
-              padding: '8px 12px',
-              lineHeight: 1.55,
-            }}>
-              {tpl.body}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── Tab 4: Integrations ───────────────────────────────────
+// ── Tab 3: Integrations ───────────────────────────────────
 function IntegrationsTab() {
   const { authFetch } = useAuth()
   const [gmailStatus, setGmailStatus] = useState(null)
