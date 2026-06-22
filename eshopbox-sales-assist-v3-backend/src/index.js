@@ -3819,22 +3819,27 @@ app.post('/api/leads/bulk-reassign', requireAuth, async (c) => {
     const zohoUser = zohoUsers?.users?.find(u => u.email === newOwnerEmail)
     if (!zohoUser) return c.json({ error: 'User not found in Zoho' }, 404)
 
-    await zohoAPI(c.env, 'POST', '/Leads/actions/mass_update', {
+    const massUpdateRes = await zohoAPI(c.env, 'POST', '/Leads/actions/mass_update', {
       data: [{ Owner: { id: zohoUser.id } }],
       ids: leadIds,
       over_write: true,
     })
+    console.log('Zoho leads mass_update response:', JSON.stringify(massUpdateRes))
 
     try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch (_) {}
 
     for (const leadId of leadIds) {
-      await logLeadTimelineEvent(c.env, leadId, {
-        eventType: 'lead_reassigned',
-        description: `Lead reassigned to ${newOwnerName}`,
-        actorName: user.name,
-        actorEmail: user.email,
-        metadata: { newOwner: newOwnerName, newOwnerEmail },
-      })
+      try {
+        await logLeadTimelineEvent(c.env, leadId, {
+          eventType: 'lead_reassigned',
+          description: `Lead reassigned to ${newOwnerName}`,
+          actorName: user.name,
+          actorEmail: user.email,
+          metadata: { newOwner: newOwnerName, newOwnerEmail },
+        })
+      } catch (e) {
+        console.error('Timeline log failed for lead:', leadId, e.message)
+      }
     }
 
     await c.env.DB.prepare(`
@@ -3850,7 +3855,7 @@ app.post('/api/leads/bulk-reassign', requireAuth, async (c) => {
       new Date().toISOString()
     ).run()
 
-    return c.json({ success: true, updated: leadIds.length })
+    return c.json({ success: true, updated: leadIds.length, zohoResponse: massUpdateRes })
   } catch (err) {
     return c.json({ error: err.message }, 500)
   }
@@ -3871,22 +3876,27 @@ app.post('/api/deals/bulk-reassign', requireAuth, async (c) => {
     const zohoUser = zohoUsers?.users?.find(u => u.email === newOwnerEmail)
     if (!zohoUser) return c.json({ error: 'User not found in Zoho' }, 404)
 
-    await zohoAPI(c.env, 'POST', '/Deals/actions/mass_update', {
+    const massUpdateRes = await zohoAPI(c.env, 'POST', '/Deals/actions/mass_update', {
       data: [{ Owner: { id: zohoUser.id } }],
       ids: dealIds,
       over_write: true,
     })
+    console.log('Zoho deals mass_update response:', JSON.stringify(massUpdateRes))
 
     try { await c.env.TOKEN_CACHE.delete('v3_deals_cache') } catch (_) {}
 
     for (const dealId of dealIds) {
-      await logTimelineEvent(c.env, dealId, {
-        eventType: 'deal_reassigned',
-        description: `Deal reassigned to ${newOwnerName}`,
-        actorName: user.name,
-        actorEmail: user.email,
-        metadata: { newOwner: newOwnerName, newOwnerEmail },
-      })
+      try {
+        await logTimelineEvent(c.env, dealId, {
+          eventType: 'deal_reassigned',
+          description: `Deal reassigned to ${newOwnerName}`,
+          actorName: user.name,
+          actorEmail: user.email,
+          metadata: { newOwner: newOwnerName, newOwnerEmail },
+        })
+      } catch (e) {
+        console.error('Timeline log failed for deal:', dealId, e.message)
+      }
     }
 
     await c.env.DB.prepare(`
@@ -3902,7 +3912,7 @@ app.post('/api/deals/bulk-reassign', requireAuth, async (c) => {
       new Date().toISOString()
     ).run()
 
-    return c.json({ success: true, updated: dealIds.length })
+    return c.json({ success: true, updated: dealIds.length, zohoResponse: massUpdateRes })
   } catch (err) {
     return c.json({ error: err.message }, 500)
   }
