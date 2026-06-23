@@ -377,7 +377,7 @@ export async function getAllLeads(env) {
     allLeads = allLeads.concat(res.data)
     if (!res.info?.more_records) break
     page++
-    if (page > 100) break // safety cap — 20k leads max
+    if (page > 200) break // safety cap — 40k leads max
   }
 
   const SYSTEM_EMAILS = ['shikhar.gupta@eshopbox.com']
