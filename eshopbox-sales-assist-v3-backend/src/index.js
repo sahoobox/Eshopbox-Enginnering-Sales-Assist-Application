@@ -3249,6 +3249,7 @@ app.post('/api/leads/:id/notes', requireAuth, async (c) => {
 app.post('/api/leads/:id/convert', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
+    console.log('Convert step 1: fetching lead', leadId)
     const token = await getAccessToken(c.env)
 
     // 1. Get lead details
@@ -3259,6 +3260,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
 
     if (!leadRes?.data?.[0]) return c.json({ error: 'Lead not found' }, 404)
     const lead = leadRes.data[0]
+    console.log('Convert step 2: lead data', JSON.stringify(lead))
 
     const email = lead.Email || ''
     const company = lead.Company || ''
@@ -3290,6 +3292,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       ).then(r => r.json())
       accountId = accountCreate?.data?.[0]?.details?.id || ''
     }
+    console.log('Convert step 3: account result', accountId)
 
     // 3. Find or create Contact
     let contactId = ''
@@ -3318,6 +3321,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       ).then(r => r.json())
       contactId = contactCreate?.data?.[0]?.details?.id || ''
     }
+    console.log('Convert step 4: contact result', contactId)
 
     // 4. Create Deal
     const dealCreate = await fetch(
@@ -3341,6 +3345,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
 
     console.log('Deal create response:', JSON.stringify(dealCreate))
     const dealId = dealCreate?.data?.[0]?.details?.id || ''
+    console.log('Convert step 5: deal result', dealId)
 
     if (!dealId) {
       return c.json({ error: 'Failed to create deal', details: dealCreate }, 400)
@@ -3362,7 +3367,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
 
     return c.json({ success: true, dealId, accountId, contactId, pipeline })
   } catch (err) {
-    console.error('Convert error:', err.message)
+    console.error('Convert error:', err.message, err.stack)
     return c.json({ error: err.message }, 500)
   }
 })
