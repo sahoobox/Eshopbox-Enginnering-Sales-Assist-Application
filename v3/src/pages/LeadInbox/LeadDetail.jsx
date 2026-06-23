@@ -40,10 +40,10 @@ export default function LeadDetail() {
   const [disqualifyReason, setDisqualifyReason] = useState('')
   const [converting, setConverting] = useState(false)
   const [convertError, setConvertError] = useState(null)
-  const [showLogCall, setShowLogCall] = useState(false)
-  const [logSubject, setLogSubject] = useState('')
-  const [logNotes, setLogNotes] = useState('')
-  const [logSaving, setLogSaving] = useState(false)
+  const [showActivityDropdown, setShowActivityDropdown] = useState(false)
+  const [showTaskModal, setShowTaskModal] = useState(false)
+  const [showMeetingModal, setShowMeetingModal] = useState(false)
+  const [showCallModal, setShowCallModal] = useState(false)
   const [dedup, setDedup] = useState(null)
   const [showReassign, setShowReassign] = useState(false)
 
@@ -124,24 +124,6 @@ export default function LeadDetail() {
     }
   }
 
-  async function saveLogCall() {
-    if (!logSubject.trim()) return
-    setLogSaving(true)
-    try {
-      await authFetch(`/api/leads/${leadId}/activity`, {
-        method: 'POST',
-        body: JSON.stringify({ type: 'Call', subject: logSubject, description: logNotes })
-      })
-      setShowLogCall(false)
-      setLogSubject('')
-      setLogNotes('')
-      const r = await authFetch(`/api/leads/${leadId}`)
-      const d = await r.json()
-      setLead(d)
-    } catch { alert('Failed to log call') }
-    finally { setLogSaving(false) }
-  }
-
   if (loading) return <div className="main"><Loading text="Loading lead…" /></div>
   if (error || !lead) return (
     <div className="main">
@@ -192,7 +174,56 @@ export default function LeadDetail() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-            <button className="btn btn-sm" onClick={() => setShowLogCall(true)}>Log call</button>
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowActivityDropdown(s => !s)}
+                style={{
+                  padding: '7px 14px', borderRadius: 8,
+                  border: '1.5px solid var(--line)',
+                  background: 'var(--surface)',
+                  fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', color: 'var(--ink-2)'
+                }}
+              >
+                + Log Activity ▾
+              </button>
+              {showActivityDropdown && (
+                <>
+                  <div
+                    style={{ position: 'fixed', inset: 0, zIndex: 99 }}
+                    onClick={() => setShowActivityDropdown(false)}
+                  />
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0,
+                    marginTop: 4, background: 'var(--surface)',
+                    border: '1.5px solid var(--line)',
+                    borderRadius: 8, zIndex: 100,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    minWidth: 140, overflow: 'hidden'
+                  }}>
+                    {['Task', 'Meeting', 'Call'].map(type => (
+                      <div key={type}
+                        onClick={() => {
+                          setShowActivityDropdown(false)
+                          if (type === 'Task') setShowTaskModal(true)
+                          if (type === 'Meeting') setShowMeetingModal(true)
+                          if (type === 'Call') setShowCallModal(true)
+                        }}
+                        style={{
+                          padding: '10px 16px', fontSize: 13,
+                          cursor: 'pointer', color: 'var(--ink-1)',
+                          borderBottom: '0.5px solid var(--line)'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        {type}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
             {(isAdmin || isSalesLead) && (
               <button className="btn btn-sm" onClick={() => setShowReassign(true)}>Reassign</button>
             )}
@@ -341,35 +372,33 @@ export default function LeadDetail() {
         </div>
       </div>
 
-      {/* Log Call Modal */}
-      {showLogCall && (
-        <div className="modal-overlay" onClick={() => setShowLogCall(false)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <div className="modal-head">
-              <h3>Log Call</h3>
-              <button className="btn-close" onClick={() => setShowLogCall(false)}>×</button>
-            </div>
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5 }}>SUBJECT *</label>
-                <input className="input" style={{ width: '100%' }} placeholder="What happened..."
-                  value={logSubject} onChange={e => setLogSubject(e.target.value)} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 5 }}>NOTES</label>
-                <textarea className="input" style={{ width: '100%', minHeight: 80 }} placeholder="Detail..."
-                  value={logNotes} onChange={e => setLogNotes(e.target.value)} />
-              </div>
-            </div>
-            <div className="modal-foot">
-              <button className="btn" onClick={() => setShowLogCall(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={saveLogCall}
-                disabled={logSaving || !logSubject.trim()}>
-                {logSaving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {showTaskModal && (
+        <TaskModal
+          dealId={lead.id}
+          onClose={() => setShowTaskModal(false)}
+          onSubmit={async (data) => {
+            const res = await authFetch(`/api/leads/${lead.id}/tasks`, { method: 'POST', body: JSON.stringify(data) })
+            const json = await res.json()
+            if (json.success) setShowTaskModal(false)
+            else alert(json.error || 'Failed to create task')
+          }}
+        />
+      )}
+
+      {showMeetingModal && (
+        <LeadMeetingModal
+          leadId={lead.id}
+          onClose={() => setShowMeetingModal(false)}
+          onSuccess={() => setShowMeetingModal(false)}
+        />
+      )}
+
+      {showCallModal && (
+        <LeadCallModal
+          leadId={lead.id}
+          onClose={() => setShowCallModal(false)}
+          onSuccess={() => setShowCallModal(false)}
+        />
       )}
 
       {showDisqualify && (
