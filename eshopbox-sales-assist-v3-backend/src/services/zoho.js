@@ -383,11 +383,9 @@ export async function getAllLeads(env) {
     }
   }
 
-  const SYSTEM_EMAILS = ['shikhar.gupta@eshopbox.com']
   const filtered = allLeads.filter(l =>
     !l.$converted &&
-    l.Lead_Type === 'Inbound' &&
-    !SYSTEM_EMAILS.includes(l.Owner?.email)
+    l.Lead_Type === 'Inbound'
   )
 
   await env.TOKEN_CACHE.put(LEADS_CACHE_KEY, JSON.stringify(filtered), { expirationTtl: 7200 })
