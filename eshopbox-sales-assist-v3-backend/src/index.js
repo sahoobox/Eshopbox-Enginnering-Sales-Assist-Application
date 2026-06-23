@@ -3274,57 +3274,72 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
 
     // 2. Find or create Account
     let accountId = ''
-    const accountSearch = await fetch(
-      `https://www.zohoapis.com/crm/v2/Accounts/search?criteria=(Account_Name:equals:${encodeURIComponent(company)})`,
-      { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
-    ).then(r => r.json())
-
-    if (accountSearch?.data?.[0]) {
-      accountId = accountSearch.data[0].id
-    } else {
-      const accountCreate = await fetch(
-        'https://www.zohoapis.com/crm/v2/Accounts',
-        {
-          method: 'POST',
-          headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: [{ Account_Name: company, Phone: phone, Owner: { id: ownerId } }] })
-        }
+    console.log('Convert step 3: searching account for', company)
+    try {
+      const accountSearchRes = await fetch(
+        `https://www.zohoapis.com/crm/v2/Accounts/search?criteria=(Account_Name:equals:${encodeURIComponent(company)})`,
+        { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
       ).then(r => r.json())
-      accountId = accountCreate?.data?.[0]?.details?.id || ''
+      console.log('Convert step 3 response:', JSON.stringify(accountSearchRes))
+
+      if (accountSearchRes?.data?.[0]) {
+        accountId = accountSearchRes.data[0].id
+      } else {
+        const accountCreate = await fetch(
+          'https://www.zohoapis.com/crm/v2/Accounts',
+          {
+            method: 'POST',
+            headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: [{ Account_Name: company, Phone: phone, Owner: { id: ownerId } }] })
+          }
+        ).then(r => r.json())
+        accountId = accountCreate?.data?.[0]?.details?.id || ''
+      }
+      console.log('Convert step 3: account result', accountId)
+    } catch(e) {
+      console.error('Account search failed:', e.message)
+      throw e
     }
-    console.log('Convert step 3: account result', accountId)
 
     // 3. Find or create Contact
     let contactId = ''
-    const contactSearch = await fetch(
-      `https://www.zohoapis.com/crm/v2/Contacts/search?criteria=(Email:equals:${encodeURIComponent(email)})`,
-      { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
-    ).then(r => r.json())
-
-    if (contactSearch?.data?.[0]) {
-      contactId = contactSearch.data[0].id
-    } else {
-      const contactCreate = await fetch(
-        'https://www.zohoapis.com/crm/v2/Contacts',
-        {
-          method: 'POST',
-          headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: [{
-            First_Name: firstName,
-            Last_Name: lastName || company,
-            Email: email,
-            Phone: phone,
-            Account_Name: { id: accountId },
-            Owner: { id: ownerId }
-          }] })
-        }
+    console.log('Convert step 4: searching contact for', email)
+    try {
+      const contactSearchRes = await fetch(
+        `https://www.zohoapis.com/crm/v2/Contacts/search?criteria=(Email:equals:${encodeURIComponent(email)})`,
+        { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
       ).then(r => r.json())
-      contactId = contactCreate?.data?.[0]?.details?.id || ''
+      console.log('Convert step 4 response:', JSON.stringify(contactSearchRes))
+
+      if (contactSearchRes?.data?.[0]) {
+        contactId = contactSearchRes.data[0].id
+      } else {
+        const contactCreate = await fetch(
+          'https://www.zohoapis.com/crm/v2/Contacts',
+          {
+            method: 'POST',
+            headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: [{
+              First_Name: firstName,
+              Last_Name: lastName || company,
+              Email: email,
+              Phone: phone,
+              Account_Name: { id: accountId },
+              Owner: { id: ownerId }
+            }] })
+          }
+        ).then(r => r.json())
+        contactId = contactCreate?.data?.[0]?.details?.id || ''
+      }
+      console.log('Convert step 4: contact result', contactId)
+    } catch(e) {
+      console.error('Contact search failed:', e.message)
+      throw e
     }
-    console.log('Convert step 4: contact result', contactId)
 
     // 4. Create Deal
-    const dealCreate = await fetch(
+    console.log('Convert step 5: creating deal')
+    const dealRes = await fetch(
       'https://www.zohoapis.com/crm/v2/Deals',
       {
         method: 'POST',
@@ -3343,12 +3358,12 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       }
     ).then(r => r.json())
 
-    console.log('Deal create response:', JSON.stringify(dealCreate))
-    const dealId = dealCreate?.data?.[0]?.details?.id || ''
+    console.log('Convert step 5 response:', JSON.stringify(dealRes))
+    const dealId = dealRes?.data?.[0]?.details?.id || ''
     console.log('Convert step 5: deal result', dealId)
 
     if (!dealId) {
-      return c.json({ error: 'Failed to create deal', details: dealCreate }, 400)
+      return c.json({ error: 'Failed to create deal', details: dealRes }, 400)
     }
 
     // 5. Mark lead as converted
