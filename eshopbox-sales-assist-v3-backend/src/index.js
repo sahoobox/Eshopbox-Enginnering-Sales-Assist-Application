@@ -3247,20 +3247,20 @@ app.post('/api/leads/:id/notes', requireAuth, async (c) => {
 })
 
 app.post('/api/leads/:id/convert', requireAuth, async (c) => {
+  const safeJson = async (res) => { const text = await res.text(); return text ? JSON.parse(text) : null }
+
   try {
     const leadId = c.req.param('id')
-    console.log('Convert step 1: fetching lead', leadId)
     const token = await getAccessToken(c.env)
 
     // 1. Get lead details
-    const leadRes = await fetch(
+    const leadRes = await safeJson(await fetch(
       `https://www.zohoapis.com/crm/v2/Leads/${leadId}`,
       { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
-    ).then(r => r.json())
+    ))
 
     if (!leadRes?.data?.[0]) return c.json({ error: 'Lead not found' }, 404)
     const lead = leadRes.data[0]
-    console.log('Convert step 2: lead data', JSON.stringify(lead))
 
     const email = lead.Email || ''
     const company = lead.Company || ''
@@ -3274,72 +3274,55 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
 
     // 2. Find or create Account
     let accountId = ''
-    console.log('Convert step 3: searching account for', company)
-    try {
-      const accountSearchRes = await fetch(
-        `https://www.zohoapis.com/crm/v2/Accounts/search?criteria=(Account_Name:equals:${encodeURIComponent(company)})`,
-        { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
-      ).then(r => r.json())
-      console.log('Convert step 3 response:', JSON.stringify(accountSearchRes))
+    const accountSearchRes = await safeJson(await fetch(
+      `https://www.zohoapis.com/crm/v2/Accounts/search?criteria=(Account_Name:equals:${encodeURIComponent(company)})`,
+      { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
+    ))
 
-      if (accountSearchRes?.data?.[0]) {
-        accountId = accountSearchRes.data[0].id
-      } else {
-        const accountCreate = await fetch(
-          'https://www.zohoapis.com/crm/v2/Accounts',
-          {
-            method: 'POST',
-            headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: [{ Account_Name: company, Phone: phone, Owner: { id: ownerId } }] })
-          }
-        ).then(r => r.json())
-        accountId = accountCreate?.data?.[0]?.details?.id || ''
-      }
-      console.log('Convert step 3: account result', accountId)
-    } catch(e) {
-      console.error('Account search failed:', e.message)
-      throw e
+    if (accountSearchRes?.data?.[0]) {
+      accountId = accountSearchRes.data[0].id
+    } else {
+      const accountCreate = await safeJson(await fetch(
+        'https://www.zohoapis.com/crm/v2/Accounts',
+        {
+          method: 'POST',
+          headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: [{ Account_Name: company, Phone: phone, Owner: { id: ownerId } }] })
+        }
+      ))
+      accountId = accountCreate?.data?.[0]?.details?.id || ''
     }
 
     // 3. Find or create Contact
     let contactId = ''
-    console.log('Convert step 4: searching contact for', email)
-    try {
-      const contactSearchRes = await fetch(
-        `https://www.zohoapis.com/crm/v2/Contacts/search?criteria=(Email:equals:${encodeURIComponent(email)})`,
-        { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
-      ).then(r => r.json())
-      console.log('Convert step 4 response:', JSON.stringify(contactSearchRes))
+    const contactSearchRes = await safeJson(await fetch(
+      `https://www.zohoapis.com/crm/v2/Contacts/search?criteria=(Email:equals:${encodeURIComponent(email)})`,
+      { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
+    ))
 
-      if (contactSearchRes?.data?.[0]) {
-        contactId = contactSearchRes.data[0].id
-      } else {
-        const contactCreate = await fetch(
-          'https://www.zohoapis.com/crm/v2/Contacts',
-          {
-            method: 'POST',
-            headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: [{
-              First_Name: firstName,
-              Last_Name: lastName || company,
-              Email: email,
-              Phone: phone,
-              Account_Name: { id: accountId },
-              Owner: { id: ownerId }
-            }] })
-          }
-        ).then(r => r.json())
-        contactId = contactCreate?.data?.[0]?.details?.id || ''
-      }
-      console.log('Convert step 4: contact result', contactId)
-    } catch(e) {
-      console.error('Contact search failed:', e.message)
-      throw e
+    if (contactSearchRes?.data?.[0]) {
+      contactId = contactSearchRes.data[0].id
+    } else {
+      const contactCreate = await safeJson(await fetch(
+        'https://www.zohoapis.com/crm/v2/Contacts',
+        {
+          method: 'POST',
+          headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: [{
+            First_Name: firstName,
+            Last_Name: lastName || company,
+            Email: email,
+            Phone: phone,
+            Account_Name: { id: accountId },
+            Owner: { id: ownerId }
+          }] })
+        }
+      ))
+      contactId = contactCreate?.data?.[0]?.details?.id || ''
     }
 
     // 4. Create Deal
-    console.log('Convert step 5: creating deal')
-    const dealRes = await fetch(
+    const dealRes = await safeJson(await fetch(
       'https://www.zohoapis.com/crm/v2/Deals',
       {
         method: 'POST',
@@ -3356,12 +3339,9 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
           Layout: { id: '6483035000025962021' }
         }] })
       }
-    ).then(r => r.json())
+    ))
 
-    console.log('Convert step 5 response:', JSON.stringify(dealRes))
     const dealId = dealRes?.data?.[0]?.details?.id || ''
-    console.log('Convert step 5: deal result', dealId)
-
     if (!dealId) {
       return c.json({ error: 'Failed to create deal', details: dealRes }, 400)
     }
