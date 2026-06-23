@@ -1619,7 +1619,7 @@ app.get('/api/deals/:id/notes', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id')
     const { results } = await c.env.DB.prepare(
-      'SELECT * FROM deal_notes WHERE deal_id = ? ORDER BY created_at DESC'
+      'SELECT id, content, author_name as authorName, author_email as authorEmail, created_at as createdAt FROM deal_notes WHERE deal_id = ? ORDER BY created_at DESC'
     ).bind(dealId).all()
     return c.json({ notes: results || [] })
   } catch (err) {
@@ -3210,9 +3210,9 @@ app.get('/api/leads/:id/notes', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
     const { results } = await c.env.DB.prepare(
-      'SELECT * FROM deal_notes WHERE deal_id = ? ORDER BY created_at DESC'
+      'SELECT id, content, author_name as authorName, author_email as authorEmail, created_at as createdAt FROM deal_notes WHERE deal_id = ? ORDER BY created_at DESC'
     ).bind(leadId).all()
-    return c.json({ notes: (results || []).map(n => ({ ...n, authorName: n.author_name })) })
+    return c.json({ notes: results || [] })
   } catch (err) {
     return c.json({ notes: [] })
   }

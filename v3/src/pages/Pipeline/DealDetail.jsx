@@ -1347,6 +1347,7 @@ function NotesTab({ dealId, deal }) {
     authFetch(`/api/deals/${dealId}/notes`)
       .then(r => r.json())
       .then(d => setD1Notes(d.notes || []))
+      .catch(err => console.error('Notes fetch failed:', err))
       .finally(() => setLoading(false))
   }, [dealId])
 
