@@ -1092,7 +1092,7 @@ app.post('/api/deals/sync', requireAuth, async (c) => {
 ).run();
 
 const currentStage = existingDeal.data[0].Stage;
-const stagesBeforeDemo = ['Qualified To Buy', 'Demo Call Scheduled'];
+const stagesBeforeDemo = ['Upcoming Demo'];
 const shouldUpdateStage = stagesBeforeDemo.includes(currentStage);
 
 const dealPayload = {
