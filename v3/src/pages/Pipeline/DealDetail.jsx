@@ -224,7 +224,7 @@ export default function DealDetail({ dealId }) {
               const isLocked = LOCKED_STAGES.includes(s)
               let cls = 'future'
               if (isTerminal) {
-                cls = 'done'
+                cls = 'future'
               } else if (sIdx < currentIdx) {
                 cls = 'done'
               } else if (sIdx === currentIdx) {
