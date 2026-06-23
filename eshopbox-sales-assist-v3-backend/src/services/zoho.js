@@ -377,7 +377,10 @@ export async function getAllLeads(env) {
     allLeads = allLeads.concat(res.data)
     if (!res.info?.more_records) break
     page++
-    if (page > 200) break // safety cap — 40k leads max
+    if (page > 500) {
+      console.error('getAllLeads: safety cap hit at 500 pages')
+      break
+    }
   }
 
   const SYSTEM_EMAILS = ['shikhar.gupta@eshopbox.com']
