@@ -153,8 +153,12 @@ export async function getDeal(env, dealId) {
   })
   if (res.status === 204) return null
   if (!res.ok) {
-    const errText = await res.text()
-    throw new Error(`Zoho API error: ${res.status} ${errText}`)
+    const errorText = await res.text()
+    console.error('getDeal error for', dealId,
+      'status:', res.status,
+      'body:', errorText,
+      'fields requested:', DEAL_FIELDS)
+    throw new Error(`Zoho API error: ${res.status} ${errorText}`)
   }
   return await res.json()
 }
