@@ -5,21 +5,21 @@ import { useDeals } from '../../hooks/useDeals'
 import { Topbar, Loading } from '../../components/ui'
 
 const RESOLVE_INSTRUCTIONS = {
-  r1:  ['Open the deal', 'Go to Sequence tab', 'Create and send Day 1 recap email'],
-  r2:  ['Open the deal', 'Go to Sequence tab', 'Click Mark Proposal Sent'],
-  r3:  ['Open the deal', 'Go to Sequence tab', 'Create and send Day 3 ROI email'],
-  r4:  ['Open the deal', 'Go to Activities tab', 'Schedule a follow-up meeting'],
-  r5:  ['Open the deal', 'Move stage to Follow up Meeting Done'],
-  r6:  ['Open the deal', 'Review with rep', 'Move to next stage or mark Lost/On Hold'],
-  r7:  ['Open the deal', 'Log a call or schedule follow-up activity'],
-  r8:  ['Open the deal', 'Call the prospect directly'],
-  r9:  ['Open the deal', 'Go to Activities tab', 'Schedule an in-person meeting'],
-  r10: ['Open the deal', 'Click Mark Lost', 'Select lost reason'],
-  r11: ['Open the deal', 'Schedule demo date with prospect'],
-  r12: ['Open the deal', 'Click + Log Demo', 'Fill and submit demo form'],
-  r13: ['Follow up with prospect on account setup progress'],
-  r14: ['Follow up with prospect on shipment timeline'],
-  r15: ['Confirm first shipment', 'Move stage to Active/Won'],
+  r1:  "Recap email not sent after demo. Send the Day 1 recap email from the Sequence tab to keep the prospect engaged while the demo is fresh.",
+  r2:  "Pricing proposal not sent 3+ days after demo. Send or mark the Day 2 proposal as sent from the Sequence tab to move this deal forward.",
+  r3:  "ROI email is overdue. Send the Day 3 ROI email from the Sequence tab — this is critical to maintain momentum after the demo.",
+  r4:  "No follow-up meeting booked after demo. Call the prospect and schedule a follow-up meeting before this deal goes cold.",
+  r5:  "Follow-up meeting has passed but stage not updated. Update the deal stage to reflect what happened in the meeting — or it will be missed in pipeline reviews.",
+  r6:  "This deal has been stuck in the same stage for 7+ days and may be getting ignored. Take action — either advance it to the next stage, put it On Hold, or mark it Lost if there is no progress.",
+  r7:  "No activity logged after follow-up meeting. Log a call or schedule the next touchpoint — deals that go quiet here rarely close.",
+  r8:  "Nudge email sent but no response yet. Follow up with a direct call — don't let this end on an unanswered email.",
+  r9:  "Grade A deal with no in-person meeting yet. High-value deals need face time — schedule an F2F or office visit to build trust and close faster.",
+  r10: "This deal was marked Lost but no reason was given. Add a lost reason so the team can learn and improve future pitches.",
+  r11: "Deal has been in Upcoming Demo for 10+ days with no demo scheduled. Reach out to the prospect and lock in a demo date immediately.",
+  r12: "Demo was done but not logged in Sales Assist. Log the demo form now so the sequence emails and AI analysis can be generated.",
+  r13: "Account setup has been in progress for 14+ days. Follow up with the prospect on setup blockers and push to get them to first shipment.",
+  r14: "Awaiting first shipment for 21+ days. Check in with the prospect — find out what is blocking the first shipment and help unblock it.",
+  r15: "First shipment done but deal not activated after 14 days. Confirm the shipment went well and move this deal to Active/Won.",
 }
 
 export default function NeedAttention() {
@@ -231,11 +231,9 @@ export default function NeedAttention() {
             <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 16 }}>
               {resolveFlag.brandName} · {resolveFlag.repName}
             </div>
-            <ol style={{ paddingLeft: 20, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {(RESOLVE_INSTRUCTIONS[resolveFlag.flagId] || ['Open the deal and investigate']).map((step, i) => (
-                <li key={i} style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>{step}</li>
-              ))}
-            </ol>
+            <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.7, margin: 0, padding: '12px 16px', background: 'var(--surface-2)', borderRadius: 8 }}>
+              {RESOLVE_INSTRUCTIONS[resolveFlag.flagId] || 'Open the deal and investigate the issue.'}
+            </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 24 }}>
               <button onClick={() => setResolveFlag(null)}
                 style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid var(--line)', background: 'transparent', fontSize: 13, cursor: 'pointer', color: 'var(--ink-2)', fontFamily: 'inherit' }}>
