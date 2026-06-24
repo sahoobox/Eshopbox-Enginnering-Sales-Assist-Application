@@ -45,7 +45,7 @@ export default function LeadDetail() {
   const [showMeetingModal, setShowMeetingModal] = useState(false)
   const [showCallModal, setShowCallModal] = useState(false)
   const [dedup, setDedup] = useState(null)
-  const [dedupOpen, setDedupOpen] = useState({ domain: false, phone: false, brand: false })
+  const [dedupOpen, setDedupOpen] = useState({ domain: false, phone: false, brand: false, emailContact: false, phoneContact: false })
   const [showReassign, setShowReassign] = useState(false)
 
   useEffect(() => {
@@ -424,6 +424,57 @@ export default function LeadDetail() {
                         </div>
                       )}
                     </div>
+                    {/* Email in Contacts */}
+                    {dedup?.emailContactMatches?.length > 0 && (
+                      <div>
+                        <div
+                          onClick={() => setDedupOpen(p => ({ ...p, emailContact: !p.emailContact }))}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--line)', background: 'var(--surface)' }}
+                        >
+                          <span style={{ color: '#C2410C', fontWeight: 600 }}>⚠ {dedup.emailContactMatches.length} existing contact(s) with same email</span>
+                          <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{dedupOpen.emailContact ? '▲' : '▼'}</span>
+                        </div>
+                        {dedupOpen.emailContact && (
+                          <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {dedup.emailContactMatches.map(m => (
+                              <div key={m.id} style={{ padding: '8px 10px', background: '#EEF2FF', borderRadius: 6, fontSize: 11, color: 'var(--ink-2)', lineHeight: 1.7 }}>
+                                <div style={{ fontWeight: 600, color: '#3B5BDB' }}>
+                                  {m.fullName} <span style={{ marginLeft: 4, fontWeight: 400, color: 'var(--ink-3)' }}>(Contact)</span>
+                                </div>
+                                <div>{m.email}</div>
+                                <div>📞 {m.phone || '—'}</div>
+                                <div>Account: {m.accountName || '—'}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* Phone in Contacts */}
+                    {dedup?.phoneContactMatches?.length > 0 && (
+                      <div>
+                        <div
+                          onClick={() => setDedupOpen(p => ({ ...p, phoneContact: !p.phoneContact }))}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--line)', background: 'var(--surface)' }}
+                        >
+                          <span style={{ color: '#C2410C', fontWeight: 600 }}>⚠ {dedup.phoneContactMatches.length} existing contact(s) with same phone</span>
+                          <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{dedupOpen.phoneContact ? '▲' : '▼'}</span>
+                        </div>
+                        {dedupOpen.phoneContact && (
+                          <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {dedup.phoneContactMatches.map(m => (
+                              <div key={m.id} style={{ padding: '8px 10px', background: '#EEF2FF', borderRadius: 6, fontSize: 11, color: 'var(--ink-2)', lineHeight: 1.7 }}>
+                                <div style={{ fontWeight: 600, color: '#3B5BDB' }}>
+                                  {m.fullName} <span style={{ marginLeft: 4, fontWeight: 400, color: 'var(--ink-3)' }}>(Contact)</span>
+                                </div>
+                                <div>{m.email}</div>
+                                <div>🏢 Account: {m.accountName || '—'}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {/* Brand Section */}
                     <div>
                       <div
@@ -466,6 +517,8 @@ export default function LeadDetail() {
                                 {m.dealName} <span style={{ marginLeft: 4, fontWeight: 400, color: 'var(--ink-3)' }}>(Deal)</span>
                               </div>
                               <div>Stage: {m.stage}</div>
+                              <div>Pipeline: {m.pipeline || '—'}</div>
+                              <div>Account: {m.accountName || '—'}</div>
                               <div>Rep: {m.ownerName}</div>
                               <div style={{ color: 'var(--ink-3)' }}>Matched on: Deal name contains "{lead.company}"</div>
                             </div>

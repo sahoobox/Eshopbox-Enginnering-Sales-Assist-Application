@@ -3401,7 +3401,7 @@ app.get('/api/leads/:id/dedup-check', requireAuth, async (c) => {
     const emailDomain = email.includes('@') ? email.split('@')[1] : ''
     const isPersonalEmail = PERSONAL_DOMAINS.includes(emailDomain)
 
-    const [emailDomainRes, phoneRes, brandLeadsRes, brandDealsRes] = await Promise.all([
+    const [emailDomainRes, phoneRes, brandLeadsRes, brandDealsRes, emailContactRes, phoneContactRes] = await Promise.all([
       !isPersonalEmail && emailDomain
         ? fetch(
             `https://www.zohoapis.com/crm/v2/Leads/search?criteria=(Email:contains:@${emailDomain})&fields=id,Full_Name,Email,Phone,Company,Lead_Status,$converted&per_page=10`,
@@ -3425,7 +3425,21 @@ app.get('/api/leads/:id/dedup-check', requireAuth, async (c) => {
 
       company
         ? fetch(
-            `https://www.zohoapis.com/crm/v2/Deals/search?word=${encodeURIComponent(company)}&fields=id,Deal_Name,Stage,Owner&per_page=5`,
+            `https://www.zohoapis.com/crm/v2/Deals/search?word=${encodeURIComponent(company)}&fields=id,Deal_Name,Stage,Owner,Pipeline,Account_Name&per_page=5`,
+            { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
+          ).then(r => r.status === 204 ? { data: [] } : r.json()).catch(() => ({ data: [] }))
+        : Promise.resolve({ data: [] }),
+
+      email
+        ? fetch(
+            `https://www.zohoapis.com/crm/v2/Contacts/search?criteria=(Email:equals:${encodeURIComponent(email)})&fields=id,Full_Name,Email,Phone,Account_Name&per_page=5`,
+            { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
+          ).then(r => r.status === 204 ? { data: [] } : r.json()).catch(() => ({ data: [] }))
+        : Promise.resolve({ data: [] }),
+
+      phone
+        ? fetch(
+            `https://www.zohoapis.com/crm/v2/Contacts/search?criteria=(Phone:equals:${encodeURIComponent(phone)})&fields=id,Full_Name,Email,Phone,Account_Name&per_page=5`,
             { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
           ).then(r => r.status === 204 ? { data: [] } : r.json()).catch(() => ({ data: [] }))
         : Promise.resolve({ data: [] }),
@@ -3441,6 +3455,14 @@ app.get('/api/leads/:id/dedup-check', requireAuth, async (c) => {
       converted: l.$converted || false,
     })
 
+    const mapContact = c => ({
+      id: c.id,
+      fullName: c.Full_Name,
+      email: c.Email,
+      phone: c.Phone,
+      accountName: c.Account_Name?.name || c.Account_Name,
+    })
+
     const emailDomainMatches = (emailDomainRes.data || []).filter(l => l.id !== leadId).map(mapLead)
     const phoneMatches = (phoneRes.data || []).filter(l => l.id !== leadId).map(mapLead)
     const brandLeadMatches = (brandLeadsRes.data || []).filter(l => l.id !== leadId).map(mapLead)
@@ -3449,7 +3471,11 @@ app.get('/api/leads/:id/dedup-check', requireAuth, async (c) => {
       dealName: d.Deal_Name,
       stage: d.Stage,
       ownerName: d.Owner?.name,
+      pipeline: d.Pipeline,
+      accountName: d.Account_Name?.name || d.Account_Name,
     }))
+    const emailContactMatches = (emailContactRes.data || []).map(mapContact)
+    const phoneContactMatches = (phoneContactRes.data || []).map(mapContact)
 
     return c.json({
       isPersonalEmail,
@@ -3458,7 +3484,9 @@ app.get('/api/leads/:id/dedup-check', requireAuth, async (c) => {
       phoneMatches,
       brandLeadMatches,
       brandDealMatches,
-      hasDuplicates: emailDomainMatches.length > 0 || phoneMatches.length > 0 || brandLeadMatches.length > 0 || brandDealMatches.length > 0,
+      emailContactMatches,
+      phoneContactMatches,
+      hasDuplicates: emailDomainMatches.length > 0 || phoneMatches.length > 0 || brandLeadMatches.length > 0 || brandDealMatches.length > 0 || emailContactMatches.length > 0 || phoneContactMatches.length > 0,
     })
   } catch (err) {
     console.error('Dedup check error:', err.message)
