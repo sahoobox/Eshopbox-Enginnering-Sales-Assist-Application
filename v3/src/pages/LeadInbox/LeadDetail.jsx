@@ -125,6 +125,8 @@ export default function LeadDetail() {
   )
 
   const company = lead.company || lead.fullName || '—'
+  const isToday = lead.createdAt?.startsWith(new Date().toISOString().split('T')[0])
+  const needsSameDay = isToday && lead.leadStatus === 'New'
 
   const getRouting = () => {
     const vol = lead.orderVolume || ''
@@ -158,6 +160,7 @@ export default function LeadDetail() {
               {lead.fullName} · {lead.email}
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+              {needsSameDay && <span className="pill pill-warn">Same-day · today by 6pm</span>}
               {lead.leadStatus && <span className="pill pill-neutral">{lead.leadStatus}</span>}
               {lead.leadSource && <span className="pill pill-info">{lead.leadSource}</span>}
             </div>
@@ -295,6 +298,10 @@ export default function LeadDetail() {
                   { k: 'UTM Source', v: lead.utmSource || '—' },
                   { k: 'UTM Medium', v: lead.utmMedium || '—' },
                   { k: 'UTM Campaign', v: lead.utmCampaign || '—' },
+                  { k: 'Same-day contact', v: needsSameDay
+                    ? <span className="pill pill-warn">Same-day · today by 6pm</span>
+                    : <span style={{ color: 'var(--ink-3)' }}>—</span>
+                  },
                 ].map((row, i) => (
                   <div key={i} className="ws-side-row">
                     <span className="k">{row.k}</span>
