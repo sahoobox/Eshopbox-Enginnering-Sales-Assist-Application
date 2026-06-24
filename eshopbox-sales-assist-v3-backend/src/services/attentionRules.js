@@ -14,7 +14,7 @@ export default function getAttentionFlags(deal) {
   const isMidMarket = deal.pipeline === 'Mid-market'
   const isEnterprise = deal.pipeline === 'Enterprise 2.0'
 
-  const TERMINAL_STAGES = ['Active / Won', 'On Hold', 'Lost/Dropped', 'Won/Payment Received']
+  const TERMINAL_STAGES = ['Active / Won', 'Active', 'On Hold', 'Lost/Dropped', 'Won/Payment Received']
   const isTerminal = TERMINAL_STAGES.includes(deal.stage)
   const isOpen = !isTerminal
 
