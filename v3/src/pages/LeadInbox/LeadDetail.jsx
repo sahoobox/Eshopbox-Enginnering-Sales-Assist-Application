@@ -435,17 +435,20 @@ export default function LeadDetail() {
                       >
                         <div>
                           {((dedup?.brandLeadMatches?.length || 0) + (dedup?.brandDealMatches?.length || 0)) > 0 ? (
-                            <span style={{ color: '#C2410C', fontWeight: 600 }}>⚠ {(dedup?.brandLeadMatches?.length || 0) + (dedup?.brandDealMatches?.length || 0)} existing record(s) for this brand</span>
+                            <span style={{ color: '#C2410C', fontWeight: 600 }}>⚠ {(dedup?.brandLeadMatches?.length || 0) + (dedup?.brandDealMatches?.length || 0)} existing record(s) — brand name match</span>
                           ) : (
-                            <span style={{ color: '#2F9E44' }}>✓ No existing leads or deals for this brand</span>
+                            <span style={{ color: '#2F9E44' }}>✓ No existing leads or deals — brand name match</span>
                           )}
                         </div>
                         {((dedup?.brandLeadMatches?.length || 0) + (dedup?.brandDealMatches?.length || 0)) > 0 && (
                           <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{dedupOpen.brand ? '▲' : '▼'}</span>
                         )}
                       </div>
+                      <div style={{ fontSize: 11, color: 'var(--ink-3)', padding: '6px 14px', background: 'var(--surface-2)', borderTop: '1px solid var(--line)' }}>
+                        Searching for brand name: <strong>"{lead.company}"</strong> — exact company name match
+                      </div>
                       {dedupOpen.brand && (
-                        <div style={{ padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ padding: '8px 14px', borderTop: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 6 }}>
                           {(dedup?.brandLeadMatches || []).map(m => (
                             <div key={m.id} style={{ padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 6, fontSize: 11, color: 'var(--ink-2)', lineHeight: 1.7 }}>
                               <div style={{ fontWeight: 600, color: 'var(--ink-1)' }}>
@@ -454,6 +457,7 @@ export default function LeadDetail() {
                               </div>
                               <div>{m.email}</div>
                               <div>Status: <strong>{m.leadStatus}</strong></div>
+                              <div style={{ color: 'var(--ink-3)' }}>Matched on: Company name "{m.company}"</div>
                             </div>
                           ))}
                           {(dedup?.brandDealMatches || []).map(m => (
@@ -463,6 +467,7 @@ export default function LeadDetail() {
                               </div>
                               <div>Stage: {m.stage}</div>
                               <div>Rep: {m.ownerName}</div>
+                              <div style={{ color: 'var(--ink-3)' }}>Matched on: Deal name contains "{lead.company}"</div>
                             </div>
                           ))}
                         </div>
