@@ -3494,6 +3494,81 @@ app.get('/api/leads/:id/dedup-check', requireAuth, async (c) => {
   }
 })
 
+// ── LEAD MERGE ────────────────────────────────────────────
+
+app.post('/api/leads/:id/merge', requireAuth, async (c) => {
+  try {
+    const user = c.get('user')
+    const allowedRoles = ['admin', 'lead-midmarket', 'lead-enterprise', 'mde', 'ae']
+    if (!allowedRoles.includes(user.role)) {
+      return c.json({ error: 'Not authorised' }, 403)
+    }
+
+    const leadId = c.req.param('id')
+    const { duplicateLeadId } = await c.req.json()
+    if (!duplicateLeadId) return c.json({ error: 'duplicateLeadId is required' }, 400)
+
+    const token = await getAccessToken(c.env)
+
+    const LEAD_MERGE_FIELDS = 'id,Created_Time,Full_Name,Email,Phone,Company,Lead_Status,Lead_Source,Owner'
+    const [currentRes, duplicateRes] = await Promise.all([
+      zohoAPI(c.env, 'GET', `/Leads/${leadId}?fields=${LEAD_MERGE_FIELDS}`),
+      zohoAPI(c.env, 'GET', `/Leads/${duplicateLeadId}?fields=${LEAD_MERGE_FIELDS}`),
+    ])
+
+    const currentLead = currentRes?.data?.[0]
+    const duplicateLead = duplicateRes?.data?.[0]
+    if (!currentLead || !duplicateLead) return c.json({ error: 'Could not fetch leads' }, 404)
+
+    const currentDate = new Date(currentLead.Created_Time)
+    const duplicateDate = new Date(duplicateLead.Created_Time)
+    const masterLead = currentDate <= duplicateDate ? currentLead : duplicateLead
+    const childLead = currentDate <= duplicateDate ? duplicateLead : currentLead
+
+    const MERGE_FIELDS = ['Full_Name', 'Email', 'Phone', 'Company', 'Lead_Source', 'Lead_Status', 'Owner']
+    const childFieldsToKeep = MERGE_FIELDS
+      .filter(field => !masterLead[field] && childLead[field])
+      .map(field => ({ api_name: field }))
+
+    const mergePayload = {
+      merge: [{
+        master_record_fields: MERGE_FIELDS.filter(f => masterLead[f]).map(f => ({ api_name: f })),
+        data: [{
+          id: childLead.id,
+          _fields: childFieldsToKeep.length > 0 ? childFieldsToKeep : [{ api_name: 'Full_Name' }],
+        }],
+      }],
+    }
+
+    const mergeRes = await fetch(
+      `https://www.zohoapis.com/crm/v8/Leads/${masterLead.id}/actions/merge`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(mergePayload),
+      }
+    )
+    const mergeData = await mergeRes.json()
+
+    if (mergeData?.merge?.[0]?.status !== 'success') {
+      console.error('Merge failed:', JSON.stringify(mergeData))
+      return c.json({ error: 'Merge failed', details: mergeData }, 500)
+    }
+
+    try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch {}
+
+    return c.json({
+      success: true,
+      masterLeadId: masterLead.id,
+      masterLeadName: masterLead.Full_Name,
+      message: `Merged into ${masterLead.Full_Name} (older lead)`,
+    })
+  } catch (err) {
+    console.error('Merge error:', err.message)
+    return c.json({ error: err.message }, 500)
+  }
+})
+
 // ── LEAD ACTIVITIES ───────────────────────────────────────
 
 app.get('/api/leads/:id/tasks', requireAuth, async (c) => {

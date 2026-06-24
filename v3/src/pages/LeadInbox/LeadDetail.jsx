@@ -46,6 +46,9 @@ export default function LeadDetail() {
   const [showCallModal, setShowCallModal] = useState(false)
   const [dedup, setDedup] = useState(null)
   const [dedupOpen, setDedupOpen] = useState({ domain: false, phone: false, brand: false })
+  const [merging, setMerging] = useState(false)
+  const [mergeConfirm, setMergeConfirm] = useState(null)
+  const [mergeError, setMergeError] = useState(null)
   const [showReassign, setShowReassign] = useState(false)
 
   useEffect(() => {
@@ -388,6 +391,12 @@ export default function LeadDetail() {
                                   <div>{m.email}</div>
                                   <div>📞 {m.phone || '—'}</div>
                                   <div>Status: <strong>{m.leadStatus}</strong></div>
+                                  {!m.converted && (
+                                    <button onClick={() => { setMergeConfirm(m.id); setMergeError(null) }}
+                                      style={{ marginTop: 6, padding: '4px 10px', borderRadius: 6, border: '1.5px solid #C2410C', background: 'transparent', fontSize: 11, cursor: 'pointer', color: '#C2410C', fontFamily: 'inherit', fontWeight: 600 }}>
+                                      Merge with this lead →
+                                    </button>
+                                  )}
                                 </div>
                               ))}
                               {(dedup?.emailContactMatches || []).map(m => (
@@ -439,6 +448,12 @@ export default function LeadDetail() {
                                   <div>{m.email}</div>
                                   <div>🏢 {m.company || '—'}</div>
                                   <div>Status: <strong>{m.leadStatus}</strong></div>
+                                  {!m.converted && (
+                                    <button onClick={() => { setMergeConfirm(m.id); setMergeError(null) }}
+                                      style={{ marginTop: 6, padding: '4px 10px', borderRadius: 6, border: '1.5px solid #C2410C', background: 'transparent', fontSize: 11, cursor: 'pointer', color: '#C2410C', fontFamily: 'inherit', fontWeight: 600 }}>
+                                      Merge with this lead →
+                                    </button>
+                                  )}
                                 </div>
                               ))}
                               {(dedup?.phoneContactMatches || []).map(m => (
@@ -514,6 +529,57 @@ export default function LeadDetail() {
 
         </div>
       </div>
+
+      {mergeConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 12, padding: '28px 32px', maxWidth: 420, width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink-1)', marginBottom: 8 }}>Merge Duplicate Lead</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 20, lineHeight: 1.6 }}>
+              The older lead will be kept as master. The newer lead will be merged into it and disappear. Non-empty fields from the newer lead will be preserved if the older lead's field is empty.
+              <br /><br />
+              <strong>This action cannot be undone.</strong>
+            </div>
+            {mergeError && (
+              <div style={{ color: '#E5484D', fontSize: 12, marginBottom: 12, padding: '8px 12px', background: '#FEF2F2', borderRadius: 6 }}>
+                {mergeError}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => { setMergeConfirm(null); setMergeError(null) }}
+                style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid var(--line)', background: 'transparent', fontSize: 13, cursor: 'pointer', color: 'var(--ink-2)', fontFamily: 'inherit' }}>
+                Cancel
+              </button>
+              <button
+                disabled={merging}
+                onClick={async () => {
+                  setMerging(true)
+                  setMergeError(null)
+                  try {
+                    const res = await authFetch(`/api/leads/${lead.id}/merge`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ duplicateLeadId: mergeConfirm }),
+                    })
+                    const data = await res.json()
+                    if (data.success) {
+                      setMergeConfirm(null)
+                      navigate('/leads')
+                    } else {
+                      setMergeError(data.error || 'Merge failed')
+                    }
+                  } catch (e) {
+                    setMergeError(e.message || 'Merge failed')
+                  } finally {
+                    setMerging(false)
+                  }
+                }}
+                style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#E5484D', fontSize: 13, fontWeight: 700, cursor: merging ? 'not-allowed' : 'pointer', color: 'white', fontFamily: 'inherit', opacity: merging ? 0.6 : 1 }}>
+                {merging ? 'Merging…' : 'Yes, Merge →'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showTaskModal && (
         <TaskModal
