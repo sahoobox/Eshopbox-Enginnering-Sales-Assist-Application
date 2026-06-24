@@ -1,6 +1,25 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDeals } from '../../hooks/useDeals'
 import { Topbar, Loading } from '../../components/ui'
+
+const RESOLVE_INSTRUCTIONS = {
+  r1:  ['Open the deal', 'Go to Sequence tab', 'Create and send Day 1 recap email'],
+  r2:  ['Open the deal', 'Go to Sequence tab', 'Click Mark Proposal Sent'],
+  r3:  ['Open the deal', 'Go to Sequence tab', 'Create and send Day 3 ROI email'],
+  r4:  ['Open the deal', 'Go to Activities tab', 'Schedule a follow-up meeting'],
+  r5:  ['Open the deal', 'Move stage to Follow up Meeting Done'],
+  r6:  ['Open the deal', 'Review with rep', 'Move to next stage or mark Lost/On Hold'],
+  r7:  ['Open the deal', 'Log a call or schedule follow-up activity'],
+  r8:  ['Open the deal', 'Call the prospect directly'],
+  r9:  ['Open the deal', 'Go to Activities tab', 'Schedule an in-person meeting'],
+  r10: ['Open the deal', 'Click Mark Lost', 'Select lost reason'],
+  r11: ['Open the deal', 'Schedule demo date with prospect'],
+  r12: ['Open the deal', 'Click + Log Demo', 'Fill and submit demo form'],
+  r13: ['Follow up with prospect on account setup progress'],
+  r14: ['Follow up with prospect on shipment timeline'],
+  r15: ['Confirm first shipment', 'Move stage to Active/Won'],
+}
 
 export default function NeedAttention() {
   const navigate = useNavigate()
@@ -15,6 +34,49 @@ export default function NeedAttention() {
       return aMax - bMax
     })
 
+  const flatFlags = []
+  flaggedDeals.forEach(deal => {
+    ;(deal.flags || []).forEach(flag => {
+      flatFlags.push({
+        flagId: flag.id || flag.flag,
+        flagTitle: flag.title || flag.message || flag.id,
+        flagSeverity: flag.severity,
+        dealId: deal.id,
+        brandName: deal.brandName || deal.dealName,
+        repName: deal.repName,
+        stage: deal.stage,
+        pipeline: deal.pipeline,
+        daysInStage: deal.daysInStage || 0,
+      })
+    })
+  })
+
+  flatFlags.sort((a, b) => {
+    const order = { high: 0, medium: 1 }
+    return (order[a.flagSeverity] ?? 2) - (order[b.flagSeverity] ?? 2)
+  })
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterFlag, setFilterFlag] = useState('all')
+  const [filterRep, setFilterRep] = useState('all')
+  const [filterSeverity, setFilterSeverity] = useState('all')
+  const [resolveFlag, setResolveFlag] = useState(null)
+
+  const filteredFlags = flatFlags.filter(f => {
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      if (!f.brandName?.toLowerCase().includes(q) &&
+          !f.repName?.toLowerCase().includes(q)) return false
+    }
+    if (filterFlag !== 'all' && f.flagId !== filterFlag) return false
+    if (filterRep !== 'all' && f.repName !== filterRep) return false
+    if (filterSeverity !== 'all' && f.flagSeverity !== filterSeverity) return false
+    return true
+  })
+
+  const repOptions = [...new Set(flatFlags.map(f => f.repName).filter(Boolean))].sort()
+  const flagOptions = [...new Set(flatFlags.map(f => f.flagId).filter(Boolean))].sort()
+
   if (loading) return <div className="main"><Loading text="Fetching deals…" /></div>
   if (error) return (
     <div className="main">
@@ -27,88 +89,147 @@ export default function NeedAttention() {
     <div className="main" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <Topbar
         title="Need Attention"
-        subtitle={`${flaggedDeals.length} deals with active flags across all pipelines`}
-        actions={
-          <button className="btn btn-sm" onClick={refetch}>↻ Refresh</button>
-        }
+        subtitle={`${flatFlags.length} flags across ${flaggedDeals.length} deals`}
       />
 
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-        <table className="t" style={{ width: '100%' }}>
-          <thead>
-            <tr>
-              <th style={{ width: 56 }}>Grade</th>
-              <th>Brand</th>
-              <th>Rep</th>
-              <th>Pipeline</th>
-              <th>Stage</th>
-              <th>Flags</th>
-              <th style={{ width: 110 }}>Days in stage</th>
-            </tr>
-          </thead>
-          <tbody>
-            {flaggedDeals.length === 0 && (
-              <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: 40, color: 'var(--ink-3)' }}>
-                  No deals with flags — all clear.
-                </td>
-              </tr>
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '16px 20px' }}>
+        <div style={{ padding: '0 0 24px' }}>
+
+          {/* Filter bar */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              placeholder="Search brand or rep..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink-1)', minWidth: 200 }}
+            />
+            <select value={filterSeverity} onChange={e => setFilterSeverity(e.target.value)}
+              style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink-1)' }}>
+              <option value="all">All severity</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+            </select>
+            <select value={filterFlag} onChange={e => setFilterFlag(e.target.value)}
+              style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink-1)' }}>
+              <option value="all">All flags</option>
+              {flagOptions.map(f => (
+                <option key={f} value={f}>{f.toUpperCase()}</option>
+              ))}
+            </select>
+            <select value={filterRep} onChange={e => setFilterRep(e.target.value)}
+              style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink-1)' }}>
+              <option value="all">All reps</option>
+              {repOptions.map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+            {(searchQuery || filterFlag !== 'all' || filterRep !== 'all' || filterSeverity !== 'all') && (
+              <button onClick={() => { setSearchQuery(''); setFilterFlag('all'); setFilterRep('all'); setFilterSeverity('all') }}
+                style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, cursor: 'pointer', background: 'transparent', color: 'var(--ink-3)' }}>
+                Clear filters
+              </button>
             )}
-            {flaggedDeals.map(deal => {
-              const days = deal.stageChangedOn
-                ? Math.floor((Date.now() - new Date(deal.stageChangedOn)) / 86400000)
-                : null
-              const isEnterprise = deal.pipeline === 'Enterprise 2.0'
-              return (
-                <tr key={deal.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/pipeline/${deal.id}`)}>
-                  <td>
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      width: 24, height: 24, borderRadius: 6, fontWeight: 700, fontSize: 12,
-                      background: deal.grade === 'A' ? 'var(--ok-bg)' : deal.grade === 'B' ? 'var(--info-bg)' : deal.grade === 'C' ? 'var(--warn-bg)' : 'var(--danger-bg)',
-                      color: deal.grade === 'A' ? 'var(--ok)' : deal.grade === 'B' ? 'var(--info)' : deal.grade === 'C' ? 'var(--warn)' : 'var(--danger)',
-                    }}>
-                      {deal.grade || '—'}
-                    </span>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>{deal.brandName || deal.dealName}</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{deal.solutionInterest}</div>
-                  </td>
-                  <td style={{ fontSize: 13 }}>{deal.repName?.split(' ')[0] || '—'}</td>
-                  <td>
-                    <span className={`pill ${isEnterprise ? 'pill-info' : 'pill-neutral'}`} style={{ fontSize: 11 }}>
-                      {isEnterprise ? 'Enterprise' : 'Mid-Market'}
-                    </span>
-                  </td>
-                  <td>
-                    <span className="pill pill-neutral" style={{ fontSize: 11 }}>{deal.stage}</span>
-                  </td>
-                  <td style={{ maxWidth: 420 }}>
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {deal.flags.map((f, i) => (
-                        <span
-                          key={i}
-                          className={`pill ${f.severity === 'critical' ? 'pill-danger' : f.severity === 'warning' ? 'pill-warn' : 'pill-info'}`}
-                          style={{ fontSize: 10.5 }}
-                        >
-                          {f.title}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td style={{
-                    fontSize: 13, fontWeight: 600,
-                    color: days >= 14 ? 'var(--danger)' : days >= 7 ? 'var(--warn)' : 'var(--ink-2)'
-                  }}>
-                    {days != null ? `${days}d` : '—'}
-                  </td>
+            <button onClick={refetch}
+              style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, cursor: 'pointer', background: 'transparent', color: 'var(--ink-2)', marginLeft: 'auto' }}>
+              ↻ Refresh
+            </button>
+            <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+              {filteredFlags.length} of {flatFlags.length} flags
+            </span>
+          </div>
+
+          {/* Table */}
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr>
+                  {['FLAG', 'BRAND', 'REP', 'PIPELINE', 'STAGE', 'DAYS', 'RESOLVE'].map(h => (
+                    <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', borderBottom: '1px solid var(--line)', whiteSpace: 'nowrap', background: 'var(--surface)' }}>{h}</th>
+                  ))}
                 </tr>
-              )
-            })}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {filteredFlags.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ padding: 40, textAlign: 'center', color: 'var(--ink-3)' }}>
+                      No attention flags found
+                    </td>
+                  </tr>
+                ) : filteredFlags.map((f, i) => (
+                  <tr key={`${f.dealId}-${f.flagId}-${i}`} style={{ borderBottom: '0.5px solid var(--line)' }}>
+                    <td style={{ padding: '10px 12px' }}>
+                      <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: f.flagSeverity === 'high' ? '#FCEBEB' : '#FAEEDA', color: f.flagSeverity === 'high' ? '#A32D2D' : '#854F0B' }}>
+                        {(f.flagId || '').toUpperCase()}
+                      </span>
+                      <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 3, maxWidth: 160 }}>
+                        {f.flagTitle}
+                      </div>
+                    </td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <span style={{ fontWeight: 600, cursor: 'pointer', color: 'var(--ink-1)' }}
+                        onClick={() => window.open(`/pipeline/${f.dealId}`, '_blank')}>
+                        {f.brandName}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 12px', color: 'var(--ink-2)' }}>
+                      {f.repName}
+                    </td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: f.pipeline === 'Enterprise 2.0' ? '#EEEDFE' : '#EEF2FF', color: f.pipeline === 'Enterprise 2.0' ? '#3C3489' : '#3B5BDB' }}>
+                        {f.pipeline === 'Enterprise 2.0' ? 'Enterprise' : 'Mid-Market'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 12px', color: 'var(--ink-2)', fontSize: 12 }}>
+                      {f.stage}
+                    </td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <span style={{ fontWeight: 600, color: f.daysInStage > 14 ? '#E5484D' : f.daysInStage > 7 ? '#C2410C' : 'var(--ink-3)' }}>
+                        {f.daysInStage}d
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <button onClick={() => setResolveFlag(f)}
+                        style={{ padding: '5px 12px', borderRadius: 6, border: '1.5px solid var(--line)', background: 'transparent', fontSize: 12, cursor: 'pointer', color: 'var(--ink-2)', fontFamily: 'inherit', fontWeight: 600 }}>
+                        Resolve →
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
+
+      {resolveFlag && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={() => setResolveFlag(null)}>
+          <div style={{ background: 'var(--surface)', borderRadius: 12, padding: '28px 32px', maxWidth: 440, width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink-1)', marginBottom: 4 }}>
+              How to resolve: {(resolveFlag.flagId || '').toUpperCase()}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 16 }}>
+              {resolveFlag.brandName} · {resolveFlag.repName}
+            </div>
+            <ol style={{ paddingLeft: 20, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {(RESOLVE_INSTRUCTIONS[resolveFlag.flagId] || ['Open the deal and investigate']).map((step, i) => (
+                <li key={i} style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>{step}</li>
+              ))}
+            </ol>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 24 }}>
+              <button onClick={() => setResolveFlag(null)}
+                style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid var(--line)', background: 'transparent', fontSize: 13, cursor: 'pointer', color: 'var(--ink-2)', fontFamily: 'inherit' }}>
+                Close
+              </button>
+              <button onClick={() => { window.open(`/pipeline/${resolveFlag.dealId}`, '_blank'); setResolveFlag(null) }}
+                style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#3B5BDB', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: 'white', fontFamily: 'inherit' }}>
+                Open Deal →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

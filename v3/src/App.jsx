@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth, ROLES } from './context/AuthContext'
 import Sidebar from './components/layout/Sidebar'
+import { useDeals } from './hooks/useDeals'
 import Login from './pages/Auth/Login'
 import Pipeline from './pages/Pipeline'
 import LeadDetail from './pages/LeadInbox/LeadDetail'
@@ -16,14 +17,15 @@ import { Loading } from './components/ui'
 // Protected layout wrapper
 function AppLayout() {
   const { role } = useAuth()
+  const { deals } = useDeals()
+  const totalFlags = deals.reduce((sum, d) => sum + (d.flags?.length || 0), 0)
 
-  // Counts — will be fetched from API in Phase 1+
-  // For now, static zeros so sidebar renders correctly
   const counts = {
     activeDeals: 0,
     leads: 0,
     slaBreaches: 0,
     tasksToday: 0,
+    totalFlags,
   }
 
   return (
