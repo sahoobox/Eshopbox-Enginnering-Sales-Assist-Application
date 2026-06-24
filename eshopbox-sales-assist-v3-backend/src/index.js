@@ -3367,6 +3367,63 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
   }
 })
 
+// ── LEAD DEDUP CHECK ──────────────────────────────────────
+
+app.get('/api/leads/:id/dedup-check', requireAuth, async (c) => {
+  try {
+    const leadId = c.req.param('id')
+    const PERSONAL_DOMAINS = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'rediffmail.com', 'yahoo.in', 'ymail.com']
+
+    const cached = await c.env.TOKEN_CACHE.get('v3_leads_cache')
+    const allLeads = cached ? JSON.parse(cached) : []
+
+    let rawLead = allLeads.find(l => l.id === leadId)
+    if (!rawLead) {
+      const res = await zohoAPI(c.env, 'GET', `/Leads/${leadId}`)
+      rawLead = res?.data?.[0] || null
+    }
+    if (!rawLead) return c.json({ error: 'Lead not found' }, 404)
+
+    const email = rawLead.Email || ''
+    const phone = (rawLead.Phone || '').replace(/\s+/g, '')
+    const company = rawLead.Company || ''
+
+    const emailDomain = email.includes('@') ? email.split('@')[1].toLowerCase() : ''
+    const skipDomainCheck = !emailDomain || PERSONAL_DOMAINS.includes(emailDomain)
+
+    const emailDomainMatches = skipDomainCheck ? [] : allLeads
+      .filter(l => l.id !== leadId && l.Email && l.Email.toLowerCase().endsWith('@' + emailDomain))
+      .map(mapZohoLead)
+
+    const phoneMatches = !phone ? [] : allLeads
+      .filter(l => l.id !== leadId && l.Phone && l.Phone.replace(/\s+/g, '') === phone)
+      .map(mapZohoLead)
+
+    let dealMatches = []
+    if (company) {
+      const searchRes = await zohoAPI(c.env, 'GET', `/Deals/search?word=${encodeURIComponent(company)}&per_page=5`)
+      dealMatches = (searchRes?.data || []).map(d => ({
+        id: d.id,
+        name: d.Deal_Name || '',
+        stage: d.Stage || '',
+        account: d.Account_Name?.name || '',
+      }))
+    }
+
+    return c.json({
+      lead: mapZohoLead(rawLead),
+      emailDomainMatches,
+      phoneMatches,
+      dealMatches,
+      skipDomainCheck,
+      emailDomain,
+      hasDuplicates: emailDomainMatches.length > 0 || phoneMatches.length > 0 || dealMatches.length > 0,
+    })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
 // ── LEAD ACTIVITIES ───────────────────────────────────────
 
 app.get('/api/leads/:id/tasks', requireAuth, async (c) => {

@@ -54,26 +54,17 @@ export default function LeadDetail() {
         if (data.error) { setError(data.error); setLoading(false); return }
         setLead(data)
         setLoading(false)
-        if (data.email || data.company) {
-          checkDedup(data.email, data.company)
-        }
       })
       .catch(err => { setError(err.message); setLoading(false) })
   }, [leadId])
 
-  async function checkDedup(email, company) {
-    try {
-      const res = await authFetch(`/api/deals/search?q=${encodeURIComponent(company || email || '')}`)
-      const data = await res.json()
-      setDedup({
-        existingContact: false,
-        existingAccount: data.deals?.length > 0,
-        existingDeals: data.deals || []
-      })
-    } catch {
-      setDedup({ existingContact: false, existingAccount: false, existingDeals: [] })
-    }
-  }
+  useEffect(() => {
+    if (!leadId) return
+    authFetch(`/api/leads/${leadId}/dedup-check`)
+      .then(r => r.json())
+      .then(d => setDedup(d))
+      .catch(() => {})
+  }, [leadId])
 
   async function handleDisqualify() {
     if (!disqualifyReason) return alert('Please select a reason')
@@ -356,12 +347,62 @@ export default function LeadDetail() {
                 {dedup === null ? (
                   <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Checking for existing records…</div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ fontSize: 12.5, color: dedup.existingContact ? 'var(--warn)' : 'var(--ok)' }}>
-                      {dedup.existingContact ? '⚠ Existing contact with this email' : '✓ No existing contact'}
-                    </div>
-                    <div style={{ fontSize: 12.5, color: dedup.existingAccount ? 'var(--warn)' : 'var(--ok)' }}>
-                      {dedup.existingAccount ? `⚠ ${dedup.existingDeals.length} existing deal(s) for this brand` : '✓ No existing account'}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {/* Email domain */}
+                    {!dedup.skipDomainCheck && (
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          Email domain · @{dedup.emailDomain}
+                        </div>
+                        {dedup.emailDomainMatches?.length > 0 ? (
+                          <div>
+                            <div style={{ fontSize: 12, color: 'var(--warn)', marginBottom: 3 }}>⚠ {dedup.emailDomainMatches.length} other lead(s) with same domain</div>
+                            {dedup.emailDomainMatches.slice(0, 3).map(l => (
+                              <div key={l.id} style={{ fontSize: 12, color: 'var(--ink-2)', paddingLeft: 8, lineHeight: 1.8 }}>
+                                {l.fullName} · {l.company} · <span style={{ color: 'var(--ink-3)' }}>{l.leadStatus}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 12, color: 'var(--ok)' }}>✓ No other leads with this email domain</div>
+                        )}
+                      </div>
+                    )}
+                    {/* Phone */}
+                    {lead?.phone && (
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Phone</div>
+                        {dedup.phoneMatches?.length > 0 ? (
+                          <div>
+                            <div style={{ fontSize: 12, color: 'var(--warn)', marginBottom: 3 }}>⚠ {dedup.phoneMatches.length} lead(s) with same phone</div>
+                            {dedup.phoneMatches.slice(0, 3).map(l => (
+                              <div key={l.id} style={{ fontSize: 12, color: 'var(--ink-2)', paddingLeft: 8, lineHeight: 1.8 }}>
+                                {l.fullName} · {l.company}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 12, color: 'var(--ok)' }}>✓ No other leads with this phone</div>
+                        )}
+                      </div>
+                    )}
+                    {/* Existing deals */}
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Existing deals · {lead?.company}
+                      </div>
+                      {dedup.dealMatches?.length > 0 ? (
+                        <div>
+                          <div style={{ fontSize: 12, color: 'var(--warn)', marginBottom: 3 }}>⚠ {dedup.dealMatches.length} existing deal(s) for this brand</div>
+                          {dedup.dealMatches.map(d => (
+                            <div key={d.id} style={{ fontSize: 12, color: 'var(--ink-2)', paddingLeft: 8, lineHeight: 1.8 }}>
+                              {d.name} · {d.stage}{d.account ? ` · ${d.account}` : ''}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 12, color: 'var(--ok)' }}>✓ No existing deals for this brand</div>
+                      )}
                     </div>
                   </div>
                 )}
