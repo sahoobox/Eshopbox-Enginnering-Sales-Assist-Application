@@ -1011,7 +1011,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
           setDraftCreated(true)
           setGmailDraftId(data.draftId)
           if (data.draftId) {
-            window.open(`https://mail.google.com/mail/#drafts/${data.draftId}`, '_blank')
+            window.open(`https://mail.google.com/mail/#compose/${data.draftId}`, '_blank')
           }
         } else alert(data.error || 'Failed to create Gmail draft')
       } finally { setCreating(false) }
@@ -1050,7 +1050,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
                 <span className="pill pill-ok">✓ Draft in Gmail</span>
                 {gmailDraftId && (
                   <a
-                    href={`https://mail.google.com/mail/#drafts/${gmailDraftId}`}
+                    href={`https://mail.google.com/mail/#compose/${gmailDraftId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-sm"
