@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
 import { Topbar, Loading } from '../../components/ui'
 
@@ -23,10 +24,28 @@ const RESOLVE_INSTRUCTIONS = {
 
 export default function NeedAttention() {
   const navigate = useNavigate()
+  const { authFetch } = useAuth()
   const { deals, loading, error, refetch } = useDeals()
 
+  const [teamEmails, setTeamEmails] = useState([])
+
+  useEffect(() => {
+    authFetch('/api/team/assignable-users')
+      .then(r => r.json())
+      .then(d => {
+        const emails = (d.users || []).map(u => u.email)
+        emails.push('shikhar.gupta@eshopbox.com')
+        setTeamEmails(emails)
+      })
+      .catch(() => {})
+  }, [])
+
   const flaggedDeals = deals
-    .filter(d => d.flags?.length > 0)
+    .filter(d =>
+      d.flags?.length > 0 &&
+      (teamEmails.length === 0 || teamEmails.includes(d.repEmail)) &&
+      (d.pipeline === 'Mid-market' || d.pipeline === 'Enterprise 2.0')
+    )
     .sort((a, b) => {
       const sev = { critical: 0, warning: 1, info: 2 }
       const aMax = Math.min(...(a.flags.map(f => sev[f.severity] ?? 3)))
