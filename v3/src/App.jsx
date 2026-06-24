@@ -16,11 +16,28 @@ import { Loading } from './components/ui'
 
 // Protected layout wrapper
 function AppLayout() {
-  const { role } = useAuth()
+  const { role, authFetch } = useAuth()
   const { deals } = useDeals()
-  const totalFlags = deals
-    .filter(d => d.pipeline === 'Mid-market' || d.pipeline === 'Enterprise 2.0')
-    .reduce((sum, d) => sum + (d.flags?.length || 0), 0)
+  const [totalFlags, setTotalFlags] = useState(0)
+
+  useEffect(() => {
+    if (!deals.length) return
+    authFetch('/api/team/assignable-users')
+      .then(r => r.json())
+      .then(d => {
+        const teamEmails = (d.users || []).map(u => u.email)
+        teamEmails.push('shikhar.gupta@eshopbox.com')
+        const count = deals
+          .filter(deal =>
+            deal.flags?.length > 0 &&
+            teamEmails.includes(deal.repEmail) &&
+            (deal.pipeline === 'Mid-market' || deal.pipeline === 'Enterprise 2.0')
+          )
+          .reduce((sum, d) => sum + (d.flags?.length || 0), 0)
+        setTotalFlags(count)
+      })
+      .catch(() => {})
+  }, [deals])
 
   const counts = {
     activeDeals: 0,
