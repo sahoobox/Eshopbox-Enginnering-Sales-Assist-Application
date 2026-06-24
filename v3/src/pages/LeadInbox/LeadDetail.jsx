@@ -45,7 +45,7 @@ export default function LeadDetail() {
   const [showMeetingModal, setShowMeetingModal] = useState(false)
   const [showCallModal, setShowCallModal] = useState(false)
   const [dedup, setDedup] = useState(null)
-  const [dedupOpen, setDedupOpen] = useState({ domain: false, phone: false, brand: false, emailContact: false, phoneContact: false })
+  const [dedupOpen, setDedupOpen] = useState({ domain: false, phone: false, brand: false })
   const [showReassign, setShowReassign] = useState(false)
 
   useEffect(() => {
@@ -350,131 +350,111 @@ export default function LeadDetail() {
                 ) : (
                   <div style={{ border: '1px solid var(--line)', borderRadius: 8, overflow: 'hidden', fontSize: 13 }}>
                     {/* Email Domain Section */}
-                    <div>
-                      <div
-                        onClick={() => dedup?.emailDomainMatches?.length > 0 && setDedupOpen(p => ({ ...p, domain: !p.domain }))}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: dedup?.emailDomainMatches?.length > 0 ? 'pointer' : 'default', borderBottom: '1px solid var(--line)', background: 'var(--surface)' }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          {dedup?.isPersonalEmail ? (
-                            <span style={{ color: 'var(--ink-3)' }}>ℹ Email domain</span>
-                          ) : dedup?.emailDomainMatches?.length > 0 ? (
-                            <span style={{ color: '#C2410C', fontWeight: 600 }}>⚠ {dedup.emailDomainMatches.length} lead(s) with same domain (@{dedup.emailDomain})</span>
-                          ) : (
-                            <span style={{ color: '#2F9E44' }}>✓ No leads with same email domain{dedup?.emailDomain ? ` (@${dedup.emailDomain})` : ''}</span>
-                          )}
-                        </div>
-                        {!dedup?.isPersonalEmail && dedup?.emailDomainMatches?.length > 0 && (
-                          <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{dedupOpen.domain ? '▲' : '▼'}</span>
-                        )}
-                      </div>
-                      {dedup?.isPersonalEmail && (
-                        <div style={{ padding: '8px 14px', fontSize: 11, color: 'var(--ink-3)', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)' }}>
-                          {dedup.emailDomain} is a personal email domain — duplicate check skipped. Use phone or brand to verify.
-                        </div>
-                      )}
-                      {dedupOpen.domain && dedup?.emailDomainMatches?.length > 0 && (
-                        <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {dedup.emailDomainMatches.map(m => (
-                            <div key={m.id} style={{ padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 6, fontSize: 11, color: 'var(--ink-2)', lineHeight: 1.7 }}>
-                              <div style={{ fontWeight: 600, color: 'var(--ink-1)' }}>
-                                {m.fullName}
-                                {m.converted && <span style={{ marginLeft: 6, color: '#2F9E44', fontWeight: 400 }}>✓ Converted</span>}
-                              </div>
-                              <div>{m.email}</div>
-                              <div>📞 {m.phone || '—'}</div>
-                              <div>Status: <strong>{m.leadStatus}</strong></div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    {/* Phone Section */}
-                    <div>
-                      <div
-                        onClick={() => dedup?.phoneMatches?.length > 0 && setDedupOpen(p => ({ ...p, phone: !p.phone }))}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: dedup?.phoneMatches?.length > 0 ? 'pointer' : 'default', borderBottom: '1px solid var(--line)', background: 'var(--surface)' }}
-                      >
+                    {(() => {
+                      const emailTotal = (dedup?.emailDomainMatches?.length || 0) + (dedup?.emailContactMatches?.length || 0)
+                      const canExpand = !dedup?.isPersonalEmail && emailTotal > 0
+                      return (
                         <div>
-                          {!lead?.phone ? (
-                            <span style={{ color: 'var(--ink-3)' }}>ℹ No phone number on this lead</span>
-                          ) : dedup?.phoneMatches?.length > 0 ? (
-                            <span style={{ color: '#C2410C', fontWeight: 600 }}>⚠ {dedup.phoneMatches.length} lead(s) with same phone number</span>
-                          ) : (
-                            <span style={{ color: '#2F9E44' }}>✓ No leads with same phone number</span>
+                          <div
+                            onClick={() => canExpand && setDedupOpen(p => ({ ...p, domain: !p.domain }))}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: canExpand ? 'pointer' : 'default', borderBottom: '1px solid var(--line)', background: 'var(--surface)' }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              {dedup?.isPersonalEmail ? (
+                                <span style={{ color: 'var(--ink-3)' }}>ℹ Email domain</span>
+                              ) : emailTotal > 0 ? (
+                                <span style={{ color: '#C2410C', fontWeight: 600 }}>⚠ {emailTotal} record(s) with same email/domain (@{dedup.emailDomain})</span>
+                              ) : (
+                                <span style={{ color: '#2F9E44' }}>✓ No records with same email domain{dedup?.emailDomain ? ` (@${dedup.emailDomain})` : ''}</span>
+                              )}
+                            </div>
+                            {canExpand && (
+                              <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{dedupOpen.domain ? '▲' : '▼'}</span>
+                            )}
+                          </div>
+                          {dedup?.isPersonalEmail && (
+                            <div style={{ padding: '8px 14px', fontSize: 11, color: 'var(--ink-3)', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)' }}>
+                              {dedup.emailDomain} is a personal email domain — duplicate check skipped. Use phone or brand to verify.
+                            </div>
+                          )}
+                          {dedupOpen.domain && emailTotal > 0 && (
+                            <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              {(dedup?.emailDomainMatches || []).map(m => (
+                                <div key={m.id} style={{ padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 6, fontSize: 11, color: 'var(--ink-2)', lineHeight: 1.7 }}>
+                                  <div style={{ fontWeight: 600, color: 'var(--ink-1)' }}>
+                                    {m.fullName} <span style={{ marginLeft: 4, fontWeight: 400, color: 'var(--ink-3)' }}>(Lead)</span>
+                                    {m.converted && <span style={{ marginLeft: 6, color: '#2F9E44', fontWeight: 400 }}>✓ Converted</span>}
+                                  </div>
+                                  <div>{m.email}</div>
+                                  <div>📞 {m.phone || '—'}</div>
+                                  <div>Status: <strong>{m.leadStatus}</strong></div>
+                                </div>
+                              ))}
+                              {(dedup?.emailContactMatches || []).map(m => (
+                                <div key={m.id} style={{ padding: '8px 10px', background: '#EEF2FF', borderRadius: 6, fontSize: 11, color: 'var(--ink-2)', lineHeight: 1.7 }}>
+                                  <div style={{ fontWeight: 600, color: '#3B5BDB' }}>
+                                    {m.fullName} <span style={{ marginLeft: 4, fontWeight: 400, color: 'var(--ink-3)' }}>(Contact)</span>
+                                  </div>
+                                  <div>{m.email}</div>
+                                  <div>📞 {m.phone || '—'}</div>
+                                  <div>Account: {m.accountName || '—'}</div>
+                                </div>
+                              ))}
+                            </div>
                           )}
                         </div>
-                        {dedup?.phoneMatches?.length > 0 && (
-                          <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{dedupOpen.phone ? '▲' : '▼'}</span>
-                        )}
-                      </div>
-                      {dedupOpen.phone && dedup?.phoneMatches?.length > 0 && (
-                        <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {dedup.phoneMatches.map(m => (
-                            <div key={m.id} style={{ padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 6, fontSize: 11, color: 'var(--ink-2)', lineHeight: 1.7 }}>
-                              <div style={{ fontWeight: 600, color: 'var(--ink-1)' }}>
-                                {m.fullName}
-                                {m.converted && <span style={{ marginLeft: 6, color: '#2F9E44', fontWeight: 400 }}>✓ Converted</span>}
-                              </div>
-                              <div>{m.email}</div>
-                              <div>🏢 {m.company || '—'}</div>
-                              <div>Status: <strong>{m.leadStatus}</strong></div>
+                      )
+                    })()}
+                    {/* Phone Section */}
+                    {(() => {
+                      const phoneTotal = (dedup?.phoneMatches?.length || 0) + (dedup?.phoneContactMatches?.length || 0)
+                      const canExpand = lead?.phone && phoneTotal > 0
+                      return (
+                        <div>
+                          <div
+                            onClick={() => canExpand && setDedupOpen(p => ({ ...p, phone: !p.phone }))}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: canExpand ? 'pointer' : 'default', borderBottom: '1px solid var(--line)', background: 'var(--surface)' }}
+                          >
+                            <div>
+                              {!lead?.phone ? (
+                                <span style={{ color: 'var(--ink-3)' }}>ℹ No phone number on this lead</span>
+                              ) : phoneTotal > 0 ? (
+                                <span style={{ color: '#C2410C', fontWeight: 600 }}>⚠ {phoneTotal} record(s) with same phone number</span>
+                              ) : (
+                                <span style={{ color: '#2F9E44' }}>✓ No records with same phone number</span>
+                              )}
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    {/* Email in Contacts */}
-                    {dedup?.emailContactMatches?.length > 0 && (
-                      <div>
-                        <div
-                          onClick={() => setDedupOpen(p => ({ ...p, emailContact: !p.emailContact }))}
-                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--line)', background: 'var(--surface)' }}
-                        >
-                          <span style={{ color: '#C2410C', fontWeight: 600 }}>⚠ {dedup.emailContactMatches.length} existing contact(s) with same email</span>
-                          <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{dedupOpen.emailContact ? '▲' : '▼'}</span>
-                        </div>
-                        {dedupOpen.emailContact && (
-                          <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            {dedup.emailContactMatches.map(m => (
-                              <div key={m.id} style={{ padding: '8px 10px', background: '#EEF2FF', borderRadius: 6, fontSize: 11, color: 'var(--ink-2)', lineHeight: 1.7 }}>
-                                <div style={{ fontWeight: 600, color: '#3B5BDB' }}>
-                                  {m.fullName} <span style={{ marginLeft: 4, fontWeight: 400, color: 'var(--ink-3)' }}>(Contact)</span>
-                                </div>
-                                <div>{m.email}</div>
-                                <div>📞 {m.phone || '—'}</div>
-                                <div>Account: {m.accountName || '—'}</div>
-                              </div>
-                            ))}
+                            {canExpand && (
+                              <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{dedupOpen.phone ? '▲' : '▼'}</span>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    )}
-                    {/* Phone in Contacts */}
-                    {dedup?.phoneContactMatches?.length > 0 && (
-                      <div>
-                        <div
-                          onClick={() => setDedupOpen(p => ({ ...p, phoneContact: !p.phoneContact }))}
-                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--line)', background: 'var(--surface)' }}
-                        >
-                          <span style={{ color: '#C2410C', fontWeight: 600 }}>⚠ {dedup.phoneContactMatches.length} existing contact(s) with same phone</span>
-                          <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{dedupOpen.phoneContact ? '▲' : '▼'}</span>
-                        </div>
-                        {dedupOpen.phoneContact && (
-                          <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            {dedup.phoneContactMatches.map(m => (
-                              <div key={m.id} style={{ padding: '8px 10px', background: '#EEF2FF', borderRadius: 6, fontSize: 11, color: 'var(--ink-2)', lineHeight: 1.7 }}>
-                                <div style={{ fontWeight: 600, color: '#3B5BDB' }}>
-                                  {m.fullName} <span style={{ marginLeft: 4, fontWeight: 400, color: 'var(--ink-3)' }}>(Contact)</span>
+                          {dedupOpen.phone && phoneTotal > 0 && (
+                            <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              {(dedup?.phoneMatches || []).map(m => (
+                                <div key={m.id} style={{ padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 6, fontSize: 11, color: 'var(--ink-2)', lineHeight: 1.7 }}>
+                                  <div style={{ fontWeight: 600, color: 'var(--ink-1)' }}>
+                                    {m.fullName} <span style={{ marginLeft: 4, fontWeight: 400, color: 'var(--ink-3)' }}>(Lead)</span>
+                                    {m.converted && <span style={{ marginLeft: 6, color: '#2F9E44', fontWeight: 400 }}>✓ Converted</span>}
+                                  </div>
+                                  <div>{m.email}</div>
+                                  <div>🏢 {m.company || '—'}</div>
+                                  <div>Status: <strong>{m.leadStatus}</strong></div>
                                 </div>
-                                <div>{m.email}</div>
-                                <div>🏢 Account: {m.accountName || '—'}</div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                              ))}
+                              {(dedup?.phoneContactMatches || []).map(m => (
+                                <div key={m.id} style={{ padding: '8px 10px', background: '#EEF2FF', borderRadius: 6, fontSize: 11, color: 'var(--ink-2)', lineHeight: 1.7 }}>
+                                  <div style={{ fontWeight: 600, color: '#3B5BDB' }}>
+                                    {m.fullName} <span style={{ marginLeft: 4, fontWeight: 400, color: 'var(--ink-3)' }}>(Contact)</span>
+                                  </div>
+                                  <div>{m.email}</div>
+                                  <div>🏢 Account: {m.accountName || '—'}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
                     {/* Brand Section */}
                     <div>
                       <div
