@@ -18,7 +18,9 @@ import { Loading } from './components/ui'
 function AppLayout() {
   const { role } = useAuth()
   const { deals } = useDeals()
-  const totalFlags = deals.reduce((sum, d) => sum + (d.flags?.length || 0), 0)
+  const totalFlags = deals
+    .filter(d => d.pipeline === 'Mid-market' || d.pipeline === 'Enterprise 2.0')
+    .reduce((sum, d) => sum + (d.flags?.length || 0), 0)
 
   const counts = {
     activeDeals: 0,
