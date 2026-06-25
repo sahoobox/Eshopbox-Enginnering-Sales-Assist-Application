@@ -1106,7 +1106,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
                 >
                   {recreating ? 'Resetting…' : 'Recreate'}
                 </button>
-                {email.gmail_draft_id && email.status !== 'sent' && (
+                {email.gmail_draft_id && email.status !== 'sent' && !draftDeleted && (
                   <button
                     onClick={() => setShowMarkSentModal(true)}
                     style={{
