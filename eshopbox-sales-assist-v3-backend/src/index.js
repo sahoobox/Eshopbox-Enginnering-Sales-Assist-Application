@@ -1225,6 +1225,130 @@ app.post('/api/deals/:id/day2/mark-sent', requireAuth, async (c) => {
   }
 });
 
+app.post('/api/deals/:id/day1/mark-sent', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const user = c.get('user')
+    const emailType = 'day1'
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
+    ).bind(dealId, emailType).first()
+    if (existing) {
+      await c.env.DB.prepare(
+        `UPDATE deal_emails SET status = 'sent', sent_at = datetime('now'), updated_at = datetime('now') WHERE deal_id = ? AND email_type = ?`
+      ).bind(dealId, emailType).run()
+    } else {
+      await c.env.DB.prepare(
+        `INSERT INTO deal_emails (id, deal_id, email_type, subject, body, status, sent_at, created_at, updated_at) VALUES (?, ?, ?, '', '', 'sent', datetime('now'), datetime('now'), datetime('now'))`
+      ).bind(crypto.randomUUID(), dealId, emailType).run()
+    }
+    await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+    await logTimelineEvent(c.env, dealId, {
+      eventType: 'email_sent',
+      description: `${emailType} email marked as sent manually`,
+      actorName: user.name,
+      actorEmail: user.email,
+      metadata: { emailType, method: 'manual' }
+    })
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.post('/api/deals/:id/day3/mark-sent', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const user = c.get('user')
+    const emailType = 'day3'
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
+    ).bind(dealId, emailType).first()
+    if (existing) {
+      await c.env.DB.prepare(
+        `UPDATE deal_emails SET status = 'sent', sent_at = datetime('now'), updated_at = datetime('now') WHERE deal_id = ? AND email_type = ?`
+      ).bind(dealId, emailType).run()
+    } else {
+      await c.env.DB.prepare(
+        `INSERT INTO deal_emails (id, deal_id, email_type, subject, body, status, sent_at, created_at, updated_at) VALUES (?, ?, ?, '', '', 'sent', datetime('now'), datetime('now'), datetime('now'))`
+      ).bind(crypto.randomUUID(), dealId, emailType).run()
+    }
+    await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+    await logTimelineEvent(c.env, dealId, {
+      eventType: 'email_sent',
+      description: `${emailType} email marked as sent manually`,
+      actorName: user.name,
+      actorEmail: user.email,
+      metadata: { emailType, method: 'manual' }
+    })
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.post('/api/deals/:id/day4/mark-sent', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const user = c.get('user')
+    const emailType = 'day4'
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
+    ).bind(dealId, emailType).first()
+    if (existing) {
+      await c.env.DB.prepare(
+        `UPDATE deal_emails SET status = 'sent', sent_at = datetime('now'), updated_at = datetime('now') WHERE deal_id = ? AND email_type = ?`
+      ).bind(dealId, emailType).run()
+    } else {
+      await c.env.DB.prepare(
+        `INSERT INTO deal_emails (id, deal_id, email_type, subject, body, status, sent_at, created_at, updated_at) VALUES (?, ?, ?, '', '', 'sent', datetime('now'), datetime('now'), datetime('now'))`
+      ).bind(crypto.randomUUID(), dealId, emailType).run()
+    }
+    await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+    await logTimelineEvent(c.env, dealId, {
+      eventType: 'email_sent',
+      description: `${emailType} email marked as sent manually`,
+      actorName: user.name,
+      actorEmail: user.email,
+      metadata: { emailType, method: 'manual' }
+    })
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.post('/api/deals/:id/nudge/mark-sent', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const user = c.get('user')
+    const emailType = 'nudge'
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
+    ).bind(dealId, emailType).first()
+    if (existing) {
+      await c.env.DB.prepare(
+        `UPDATE deal_emails SET status = 'sent', sent_at = datetime('now'), updated_at = datetime('now') WHERE deal_id = ? AND email_type = ?`
+      ).bind(dealId, emailType).run()
+    } else {
+      await c.env.DB.prepare(
+        `INSERT INTO deal_emails (id, deal_id, email_type, subject, body, status, sent_at, created_at, updated_at) VALUES (?, ?, ?, '', '', 'sent', datetime('now'), datetime('now'), datetime('now'))`
+      ).bind(crypto.randomUUID(), dealId, emailType).run()
+    }
+    await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+    await logTimelineEvent(c.env, dealId, {
+      eventType: 'email_sent',
+      description: `${emailType} email marked as sent manually`,
+      actorName: user.name,
+      actorEmail: user.email,
+      metadata: { emailType, method: 'manual' }
+    })
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
 app.post('/api/deals/:id/generate-content', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id');
@@ -2077,6 +2201,51 @@ app.post('/api/deals/:id/emails/:emailType/mark-sent', requireAuth, async (c) =>
     return c.json({ error: 'Failed to check sent status', details: err.message }, 500);
   }
 });
+
+app.post('/api/deals/:id/emails/:type/undo-sent', requireAuth, async (c) => {
+  try {
+    const user = c.get('user')
+    if (user.email !== 'satyanarayan.sahoo@eshopbox.com') {
+      return c.json({ error: 'Unauthorized' }, 403)
+    }
+    const dealId = c.req.param('id')
+    const emailType = c.req.param('type')
+    await c.env.DB.prepare(
+      `UPDATE deal_emails SET status = 'draft', sent_at = NULL, gmail_draft_id = NULL, gmail_message_id = NULL, gmail_thread_id = NULL, thread_message_id = NULL, updated_at = datetime('now') WHERE deal_id = ? AND email_type = ?`
+    ).bind(dealId, emailType).run()
+    await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
+app.get('/api/deals/:id/emails/:type/check-draft', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const emailType = c.req.param('type')
+    const user = c.get('user')
+    const row = await c.env.DB.prepare(
+      'SELECT gmail_draft_id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
+    ).bind(dealId, emailType).first()
+    if (!row?.gmail_draft_id) return c.json({ exists: false, deleted: false })
+    let accessToken
+    try {
+      accessToken = await getGmailAccessToken(c.env, user.id)
+    } catch {
+      return c.json({ exists: false, deleted: false })
+    }
+    const draftRes = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/${user.email}/drafts/${row.gmail_draft_id}?format=minimal`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    )
+    if (draftRes.ok) return c.json({ exists: true, deleted: false })
+    if (draftRes.status === 404) return c.json({ exists: false, deleted: true })
+    return c.json({ exists: false, deleted: false })
+  } catch (err) {
+    return c.json({ exists: false, deleted: false })
+  }
+})
 
 app.delete('/api/deals/:id/emails/:emailType/draft', requireAuth, async (c) => {
   try {

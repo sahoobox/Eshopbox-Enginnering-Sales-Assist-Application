@@ -980,12 +980,16 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
   }
 
   function EmailCard({ email }) {
-    const { authFetch } = useAuth()
+    const { authFetch, user } = useAuth()
+    const isDev = user?.email === 'satyanarayan.sahoo@eshopbox.com'
     const [expanded, setExpanded] = useState(false)
     const [creating, setCreating] = useState(false)
     const [draftCreated, setDraftCreated] = useState(!!email.gmail_draft_id)
     const [gmailDraftId, setGmailDraftId] = useState(email.gmail_draft_id || null)
     const [recreating, setRecreating] = useState(false)
+    const [markingSent, setMarkingSent] = useState(false)
+    const [showMarkSentConfirm, setShowMarkSentConfirm] = useState(false)
+    const [draftDeleted, setDraftDeleted] = useState(false)
 
     useEffect(() => {
       if (!email.gmail_draft_id || email.status === 'sent') return
@@ -998,6 +1002,14 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
         }
       }, 30000)
       return () => clearInterval(interval)
+    }, [email.gmail_draft_id, email.status])
+
+    useEffect(() => {
+      if (!email.gmail_draft_id || email.status === 'sent') return
+      authFetch(`/api/deals/${deal.id}/emails/${email.email_type}/check-draft`)
+        .then(r => r.json())
+        .then(d => { if (d.deleted) setDraftDeleted(true) })
+        .catch(() => {})
     }, [email.gmail_draft_id, email.status])
 
     async function createGmailDraft() {
@@ -1026,6 +1038,27 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
       } finally { setRecreating(false) }
     }
 
+    const handleMarkSent = async () => {
+      setMarkingSent(true)
+      try {
+        const res = await authFetch(
+          `/api/deals/${deal.id}/${email.email_type}/mark-sent`,
+          { method: 'POST' }
+        )
+        const data = await res.json()
+        if (data.success) {
+          window.location.reload()
+        } else {
+          alert('Failed: ' + (data.error || 'Unknown error'))
+        }
+      } catch (e) {
+        alert('Failed: ' + e.message)
+      } finally {
+        setMarkingSent(false)
+        setShowMarkSentConfirm(false)
+      }
+    }
+
     return (
       <div className="card card-pad">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -1049,14 +1082,19 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
               <>
                 <span className="pill pill-ok">✓ Draft in Gmail</span>
                 {gmailDraftId && (
-                  <a
-                    href={`https://mail.google.com/mail/#compose/${gmailDraftId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-sm"
-                  >
-                    Open in Gmail →
-                  </a>
+                  <div>
+                    <a
+                      href={`https://mail.google.com/mail/#compose/${gmailDraftId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-sm"
+                    >
+                      Open in Gmail →
+                    </a>
+                    <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>
+                      💡 Use this button to open &amp; send. Avoid sending from Gmail Drafts folder.
+                    </div>
+                  </div>
                 )}
                 <button
                   className="btn btn-sm"
@@ -1066,6 +1104,83 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
                 >
                   {recreating ? 'Resetting…' : 'Recreate'}
                 </button>
+                {email.gmail_draft_id && email.status !== 'sent' && (
+                  !showMarkSentConfirm ? (
+                    <button
+                      onClick={() => setShowMarkSentConfirm(true)}
+                      style={{
+                        fontSize: 12, color: '#2F9E44',
+                        background: 'transparent',
+                        border: '1.5px solid #2F9E44',
+                        borderRadius: 6, padding: '5px 12px',
+                        cursor: 'pointer', fontFamily: 'inherit',
+                        fontWeight: 600, marginTop: 8
+                      }}
+                    >
+                      ✓ Mark as Sent
+                    </button>
+                  ) : (
+                    <div style={{
+                      marginTop: 8, padding: '10px 12px',
+                      background: '#F0FFF4', borderRadius: 8,
+                      border: '1px solid #2F9E44'
+                    }}>
+                      <div style={{ fontSize: 12, color: '#2F9E44', fontWeight: 600, marginBottom: 6 }}>
+                        Confirm: Did you send this email from Gmail?
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={handleMarkSent}
+                          disabled={markingSent}
+                          style={{
+                            fontSize: 12, color: 'white',
+                            background: '#2F9E44', border: 'none',
+                            borderRadius: 6, padding: '5px 12px',
+                            cursor: 'pointer', fontFamily: 'inherit',
+                            fontWeight: 600
+                          }}
+                        >
+                          {markingSent ? 'Marking...' : 'Yes, mark as sent'}
+                        </button>
+                        <button
+                          onClick={() => setShowMarkSentConfirm(false)}
+                          style={{
+                            fontSize: 12, color: 'var(--ink-2)',
+                            background: 'transparent',
+                            border: '1.5px solid var(--line)',
+                            borderRadius: 6, padding: '5px 12px',
+                            cursor: 'pointer', fontFamily: 'inherit'
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )
+                )}
+                {draftDeleted && (
+                  <div style={{
+                    marginTop: 8, padding: '10px 12px',
+                    background: '#FFF7ED', borderRadius: 8,
+                    border: '1px solid #C2410C',
+                    fontSize: 12, color: '#C2410C'
+                  }}>
+                    ⚠ Draft was deleted from Gmail.
+                    <button
+                      onClick={createGmailDraft}
+                      style={{
+                        marginLeft: 8, fontSize: 12,
+                        color: '#C2410C', background: 'transparent',
+                        border: '1px solid #C2410C',
+                        borderRadius: 6, padding: '3px 8px',
+                        cursor: 'pointer', fontFamily: 'inherit',
+                        fontWeight: 600
+                      }}
+                    >
+                      Recreate Draft →
+                    </button>
+                  </div>
+                )}
               </>
             )
           )}
@@ -1075,6 +1190,32 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
         </div>
         {email.status === 'sent' && (
           <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ok)' }}>✓ Sent {formatDate(email.sent_at)}</div>
+        )}
+        {isDev && email.status === 'sent' && (
+          <button
+            onClick={async () => {
+              if (!window.confirm(
+                `Undo sent status for ${email.email_type}? This will reset to draft state.`
+              )) return
+              const res = await authFetch(
+                `/api/deals/${deal.id}/emails/${email.email_type}/undo-sent`,
+                { method: 'POST' }
+              )
+              const data = await res.json()
+              if (data.success) window.location.reload()
+              else alert('Failed: ' + data.error)
+            }}
+            style={{
+              fontSize: 11, color: '#E5484D',
+              background: 'transparent',
+              border: '1px solid #E5484D',
+              borderRadius: 6, padding: '3px 8px',
+              cursor: 'pointer', marginTop: 6,
+              fontFamily: 'inherit'
+            }}
+          >
+            Undo sent (dev only)
+          </button>
         )}
       </div>
     )
