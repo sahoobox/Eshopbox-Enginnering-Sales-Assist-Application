@@ -1299,19 +1299,6 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
                     <div style={{ fontSize: 11, color: 'var(--ink-3)', textAlign: 'center' }}>
                       💡 Open in Gmail to send — avoid using Gmail Drafts folder directly
                     </div>
-                    <button
-                      onClick={recreateDraft}
-                      disabled={recreating}
-                      style={{
-                        padding: '6px 12px', borderRadius: 6,
-                        border: '1px solid var(--line)',
-                        background: 'transparent',
-                        fontSize: 11, color: 'var(--ink-3)',
-                        cursor: 'pointer', fontFamily: 'inherit'
-                      }}
-                    >
-                      {recreating ? 'Resetting...' : '↻ Recreate Draft'}
-                    </button>
                   </>
                 )}
               </div>
