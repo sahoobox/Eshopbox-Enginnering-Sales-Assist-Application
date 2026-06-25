@@ -997,6 +997,10 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
     useEffect(() => {
       if (!email.gmail_draft_id || email.status === 'sent') return
       const interval = setInterval(async () => {
+        if (email.status === 'sent') {
+          clearInterval(interval)
+          return
+        }
         const res = await authFetch(`/api/deals/${deal.id}/emails/${email.email_type}/mark-sent`, { method: 'POST' })
         const data = await res.json()
         if (data.sent) {

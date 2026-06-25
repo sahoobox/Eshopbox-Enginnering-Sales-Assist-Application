@@ -2154,7 +2154,7 @@ app.post('/api/deals/:id/emails/:emailType/mark-sent', requireAuth, async (c) =>
     const loggedInUser = c.get('user');
 
     const emailRow = await c.env.DB.prepare(
-      'SELECT gmail_draft_id, gmail_message_id, gmail_thread_id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
+      'SELECT gmail_draft_id, gmail_message_id, gmail_thread_id, rep_email, draft_created_at FROM deal_emails WHERE deal_id = ? AND email_type = ?'
     ).bind(dealId, emailType).first();
 
     console.log('mark-sent: emailRow =', JSON.stringify(emailRow));
@@ -2171,7 +2171,7 @@ app.post('/api/deals/:id/emails/:emailType/mark-sent', requireAuth, async (c) =>
     }
 
     const { sent } = await checkDraftSent(
-      accessToken, loggedInUser.email, emailRow.gmail_draft_id, emailRow.gmail_message_id, emailRow.gmail_thread_id || null
+      accessToken, loggedInUser.email, emailRow.gmail_draft_id, emailRow.gmail_message_id, emailRow.gmail_thread_id || null, emailRow.draft_created_at || null
     );
 
     if (sent) {
@@ -2392,7 +2392,7 @@ async function handleCreateGmailDraft(c) {
 
     const now = new Date().toISOString();
     await c.env.DB.prepare(
-      `UPDATE deal_emails SET gmail_draft_id = ?, gmail_message_id = ?, thread_message_id = ?, gmail_thread_id = ?, updated_at = ? WHERE deal_id = ? AND email_type = ?`
+      `UPDATE deal_emails SET gmail_draft_id = ?, gmail_message_id = ?, thread_message_id = ?, gmail_thread_id = ?, draft_created_at = datetime('now'), updated_at = ? WHERE deal_id = ? AND email_type = ?`
     ).bind(result.draftId, result.gmailMessageId, result.messageId, draftThreadId, now, dealId, emailType).run();
 
     await logTimelineEvent(c.env, dealId, {

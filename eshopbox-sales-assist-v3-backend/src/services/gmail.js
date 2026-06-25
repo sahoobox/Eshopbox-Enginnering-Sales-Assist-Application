@@ -164,83 +164,84 @@ export async function createGmailDraft(accessToken, { fromEmail, fromName, toEma
   }
 }
 
-export async function checkDraftSent(accessToken, fromEmail, draftId, gmailMessageId, threadId = null) {
-  if (threadId) {
+export async function checkDraftSent(
+  accessToken, fromEmail, draftId,
+  gmailMessageId, threadId = null,
+  draftCreatedAt = null
+) {
+  try {
+    // STEP 1 — Check if draft still exists
+    // If draft exists → not sent yet
+    // This is 100% reliable — no false positives
+    const draftRes = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/drafts/${draftId}?format=minimal`,
+      { headers: { 'Authorization': `Bearer ${accessToken}` } }
+    )
+
+    if (draftRes.ok) {
+      return { sent: false }
+    }
+
+    // STEP 2 — Draft is gone (404)
+    // Need threadId to check if it was sent
+    if (!threadId) {
+      // No threadId stored — can't determine
+      // Rep must use Mark as Sent button
+      console.log('checkDraftSent: draft gone but no threadId — cannot determine sent status')
+      return { sent: false }
+    }
+
+    // STEP 3 — Check thread for SENT message
+    // after draft was created
     const threadRes = await fetch(
-      `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/threads/${threadId}?format=minimal`,
+      `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/threads/${threadId}?format=metadata&metadataHeaders=Subject,Date`,
       { headers: { 'Authorization': `Bearer ${accessToken}` } }
-    );
-    if (threadRes.ok) {
-      const threadData = await threadRes.json();
-      const messages = threadData.messages || [];
-      for (const msg of messages) {
-        const labels = msg.labelIds || [];
-        if (labels.includes('SENT') && !labels.includes('TRASH')) {
-          return { sent: true };
-        }
-      }
+    )
+
+    if (!threadRes.ok) {
+      console.log('checkDraftSent: thread fetch failed', threadRes.status)
+      return { sent: false }
     }
-  }
-  // Step 1: Get the draft to find its threadId before it disappears
-  const draftRes = await fetch(
-    `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/drafts/${draftId}?format=minimal`,
-    { headers: { 'Authorization': `Bearer ${accessToken}` } }
-  );
 
-  if (draftRes.ok) {
-    const draftData = await draftRes.json();
-    const threadId = draftData.message?.threadId;
+    const threadData = await threadRes.json()
+    const messages = threadData.messages || []
 
-    // Draft still exists — check if the thread has a SENT message
-    if (threadId) {
-      const threadRes = await fetch(
-        `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/threads/${threadId}?format=minimal`,
-        { headers: { 'Authorization': `Bearer ${accessToken}` } }
-      );
-      if (threadRes.ok) {
-        const threadData = await threadRes.json();
-        const messages = threadData.messages || [];
-        for (const msg of messages) {
-          const labels = msg.labelIds || [];
-          if (labels.includes('SENT') && !labels.includes('TRASH')) {
-            return { sent: true };
-          }
-        }
+    // Convert draft creation time to ms
+    // Subtract 60s buffer for clock skew
+    const draftCreatedMs = draftCreatedAt
+      ? new Date(draftCreatedAt).getTime() - 60000
+      : 0
+
+    for (const msg of messages) {
+      const labels = msg.labelIds || []
+      const internalDate = parseInt(msg.internalDate || '0')
+
+      // Must have SENT label
+      if (!labels.includes('SENT')) continue
+      // Must not be trash
+      if (labels.includes('TRASH')) continue
+      // Must be DRAFT label free (not still a draft)
+      if (labels.includes('DRAFT')) continue
+      // Must be sent AFTER draft was created
+      if (draftCreatedAt && internalDate < draftCreatedMs) {
+        console.log('checkDraftSent: found SENT message but before draft creation — skipping (old email)')
+        continue
       }
+
+      // Found valid sent message
+      console.log('checkDraftSent: confirmed sent via thread message', msg.id)
+      return { sent: true }
     }
-    return { sent: false };
+
+    // Draft gone but no sent message found
+    // → draft was deleted without sending
+    console.log('checkDraftSent: draft gone, no sent message found — likely deleted')
+    return { sent: false, draftDeleted: true }
+
+  } catch (err) {
+    console.error('checkDraftSent error:', err.message)
+    return { sent: false }
   }
-
-  // Draft is gone (404) — check the thread via gmailMessageId
-  if (gmailMessageId) {
-    const msgRes = await fetch(
-      `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/messages/${gmailMessageId}?format=minimal`,
-      { headers: { 'Authorization': `Bearer ${accessToken}` } }
-    );
-
-    if (msgRes.ok) {
-      const msgData = await msgRes.json();
-      const threadId = msgData.threadId;
-      if (threadId) {
-        const threadRes = await fetch(
-          `https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/threads/${threadId}?format=minimal`,
-          { headers: { 'Authorization': `Bearer ${accessToken}` } }
-        );
-        if (threadRes.ok) {
-          const threadData = await threadRes.json();
-          const messages = threadData.messages || [];
-          for (const msg of messages) {
-            const labels = msg.labelIds || [];
-            if (labels.includes('SENT') && !labels.includes('TRASH')) {
-              return { sent: true };
-            }
-          }
-        }
-      }
-    }
-  }
-
-  return { sent: false };
 }
 
 export async function getRealMessageId(accessToken, fromEmail, draftId, gmailMessageId) {
