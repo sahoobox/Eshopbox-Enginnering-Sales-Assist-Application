@@ -819,6 +819,7 @@ app.get('/api/deals/:id', requireAuth, async (c) => {
       getDealMeetings(c.env, dealId),
       getDealCalls(c.env, dealId),
     ]);
+    console.log('Deal calls sample:', JSON.stringify(callsRes?.data?.[0]))
     const tasks = tasksRes?.data || [];
     const activities = activitiesRes?.data || [];
     if (!dealRes?.data?.[0]) return c.json({ error: 'Deal not found' }, 404);
