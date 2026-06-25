@@ -1062,112 +1062,232 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
     }
 
     return (
-      <div className="card card-pad">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <b style={{ fontSize: 13.5 }}>{typeLabel[email.email_type] || email.email_type}</b>
-          <span className={`pill ${statusPill[email.status] || 'pill-neutral'}`}>{email.status}</span>
-          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--ink-3)' }}>{formatDate(email.scheduled_for)}</span>
+      <div style={{
+        border: '1.5px solid var(--line)',
+        borderRadius: 12,
+        overflow: 'hidden',
+        marginBottom: 12,
+        background: email.status === 'sent' ? '#F0FFF4' : 'var(--surface)'
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '14px 16px',
+          borderBottom: '1px solid var(--line)',
+          background: email.status === 'sent' ? '#E6F9ED' : 'var(--surface-2)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: '50%',
+              background: email.status === 'sent' ? '#2F9E44' : '#EEF2FF',
+              color: email.status === 'sent' ? 'white' : '#3B5BDB',
+              display: 'flex', alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 11, fontWeight: 700, flexShrink: 0
+            }}>
+              {email.email_type === 'nudge' ? '★' : email.email_type.replace('day', 'D')}
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-1)' }}>
+                {typeLabel[email.email_type] || email.email_type}
+              </div>
+              {email.scheduled_for && (
+                <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
+                  Scheduled: {formatDate(email.scheduled_for)}
+                </div>
+              )}
+            </div>
+          </div>
+          <div>
+            {email.status === 'sent' ? (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '4px 10px', borderRadius: 20,
+                fontSize: 11, fontWeight: 700,
+                background: '#2F9E44', color: 'white'
+              }}>✓ Sent</span>
+            ) : draftCreated ? (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '4px 10px', borderRadius: 20,
+                fontSize: 11, fontWeight: 600,
+                background: '#EEF2FF', color: '#3B5BDB'
+              }}>Draft ready</span>
+            ) : (
+              <span style={{
+                padding: '4px 10px', borderRadius: 20,
+                fontSize: 11, fontWeight: 600,
+                background: 'var(--surface-2)', color: 'var(--ink-3)'
+              }}>Not started</span>
+            )}
+          </div>
         </div>
-        {email.subject && <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>{email.subject}</div>}
-        {email.body && (
-          <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.5, maxHeight: expanded ? 'none' : 60, overflow: expanded ? 'visible' : 'hidden' }}>
-            {email.body?.replace(/<[^>]+>/g, '')}
+
+        {/* Subject + Body */}
+        {(email.subject || email.body) && (
+          <div style={{ padding: '12px 16px' }}>
+            {email.subject && (
+              <div style={{
+                fontSize: 12, fontWeight: 600,
+                color: 'var(--ink-2)', marginBottom: 6
+              }}>
+                {email.subject}
+              </div>
+            )}
+            {email.body && (
+              <div style={{
+                fontSize: 12, color: 'var(--ink-3)',
+                lineHeight: 1.6,
+                maxHeight: expanded ? 'none' : 72,
+                overflow: 'hidden'
+              }}
+                dangerouslySetInnerHTML={{ __html: email.body }}
+              />
+            )}
+            {email.body && (
+              <button
+                onClick={() => setExpanded(e => !e)}
+                style={{
+                  marginTop: 6, fontSize: 11,
+                  color: 'var(--ink-3)', background: 'none',
+                  border: 'none', cursor: 'pointer',
+                  padding: 0, fontFamily: 'inherit'
+                }}
+              >
+                {expanded ? '▲ Collapse' : '▼ Expand'}
+              </button>
+            )}
           </div>
         )}
-        <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {email.status !== 'sent' && (
-            !draftCreated ? (
-              <button className="btn btn-sm btn-primary" onClick={createGmailDraft} disabled={creating}>
-                {creating ? 'Creating…' : 'Create Gmail Draft'}
+
+        {/* Action area */}
+        {email.status !== 'sent' && (
+          <div style={{
+            padding: '12px 16px',
+            borderTop: '1px solid var(--line)',
+            background: 'var(--surface)',
+            display: 'flex', flexDirection: 'column', gap: 10
+          }}>
+            {!draftCreated ? (
+              <button
+                onClick={createGmailDraft}
+                disabled={creating}
+                style={{
+                  padding: '10px 16px', borderRadius: 8,
+                  border: 'none', background: '#3B5BDB',
+                  color: 'white', fontSize: 13, fontWeight: 600,
+                  cursor: creating ? 'not-allowed' : 'pointer',
+                  fontFamily: 'inherit', opacity: creating ? 0.7 : 1
+                }}
+              >
+                {creating ? 'Creating draft...' : '✉ Create Gmail Draft'}
               </button>
-            ) : (
-              <>
-                <span className="pill pill-ok">✓ Draft in Gmail</span>
-                {gmailDraftId && (
-                  <div>
-                    <a
-                      href={`https://mail.google.com/mail/#compose/${gmailDraftId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-sm"
-                    >
-                      Open in Gmail →
-                    </a>
-                    <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>
-                      💡 Use this button to open &amp; send. Avoid sending from Gmail Drafts folder.
-                    </div>
-                  </div>
-                )}
+            ) : draftDeleted ? (
+              <div style={{
+                padding: '10px 12px', background: '#FFF7ED',
+                borderRadius: 8, border: '1px solid #C2410C',
+                display: 'flex', alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <span style={{ fontSize: 12, color: '#C2410C' }}>
+                  ⚠ Draft was deleted from Gmail
+                </span>
                 <button
-                  className="btn btn-sm"
-                  style={{ color: 'var(--ink-3)' }}
-                  disabled={recreating}
-                  onClick={recreateDraft}
+                  onClick={createGmailDraft}
+                  style={{
+                    padding: '6px 12px', borderRadius: 6,
+                    border: '1.5px solid #C2410C',
+                    background: 'transparent',
+                    fontSize: 12, color: '#C2410C',
+                    cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600
+                  }}
                 >
-                  {recreating ? 'Resetting…' : 'Recreate'}
+                  Recreate Draft →
                 </button>
-                {email.gmail_draft_id && email.status !== 'sent' && !draftDeleted && (
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <a
+                    href={`https://mail.google.com/mail/#compose/${gmailDraftId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      flex: 1, padding: '10px 16px',
+                      borderRadius: 8, textAlign: 'center',
+                      border: '1.5px solid #3B5BDB',
+                      background: '#EEF2FF',
+                      fontSize: 13, fontWeight: 600,
+                      color: '#3B5BDB', textDecoration: 'none',
+                      display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', gap: 6
+                    }}
+                  >
+                    ↗ Open in Gmail
+                  </a>
                   <button
                     onClick={() => setShowMarkSentModal(true)}
                     style={{
-                      fontSize: 12, color: '#2F9E44',
-                      background: 'transparent',
+                      flex: 1, padding: '10px 16px',
+                      borderRadius: 8,
                       border: '1.5px solid #2F9E44',
-                      borderRadius: 6, padding: '5px 12px',
-                      cursor: 'pointer', fontFamily: 'inherit',
-                      fontWeight: 600, marginTop: 8
+                      background: '#F0FFF4',
+                      fontSize: 13, fontWeight: 600,
+                      color: '#2F9E44', cursor: 'pointer',
+                      fontFamily: 'inherit'
                     }}
                   >
                     ✓ Mark as Sent
                   </button>
-                )}
-                {draftDeleted && (
-                  <div style={{
-                    marginTop: 8, padding: '10px 12px',
-                    background: '#FFF7ED', borderRadius: 8,
-                    border: '1px solid #C2410C',
-                    fontSize: 12, color: '#C2410C'
-                  }}>
-                    ⚠ Draft was deleted from Gmail.
-                    <button
-                      onClick={createGmailDraft}
-                      style={{
-                        marginLeft: 8, fontSize: 12,
-                        color: '#C2410C', background: 'transparent',
-                        border: '1px solid #C2410C',
-                        borderRadius: 6, padding: '3px 8px',
-                        cursor: 'pointer', fontFamily: 'inherit',
-                        fontWeight: 600
-                      }}
-                    >
-                      Recreate Draft →
-                    </button>
-                  </div>
-                )}
-              </>
-            )
-          )}
-          <button className="btn btn-sm" onClick={() => setExpanded(e => !e)}>
-            {expanded ? 'Collapse' : 'Expand'}
-          </button>
-        </div>
-        {email.status === 'sent' && (
-          <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ok)' }}>✓ Sent {formatDate(email.sent_at)}</div>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ink-3)', textAlign: 'center' }}>
+                  💡 Open in Gmail to send — avoid using Gmail Drafts folder directly
+                </div>
+                <button
+                  onClick={recreateDraft}
+                  disabled={recreating}
+                  style={{
+                    padding: '6px 12px', borderRadius: 6,
+                    border: '1px solid var(--line)',
+                    background: 'transparent',
+                    fontSize: 11, color: 'var(--ink-3)',
+                    cursor: 'pointer', fontFamily: 'inherit'
+                  }}
+                >
+                  {recreating ? 'Resetting...' : '↻ Recreate Draft'}
+                </button>
+              </div>
+            )}
+          </div>
         )}
-        {isDev && email.status === 'sent' && (
-          <button
-            onClick={() => setShowUndoConfirm(true)}
-            style={{
-              fontSize: 11, color: '#E5484D',
-              background: 'transparent',
-              border: '1px solid #E5484D',
-              borderRadius: 6, padding: '3px 8px',
-              cursor: 'pointer', marginTop: 6,
-              fontFamily: 'inherit'
-            }}
-          >
-            Undo sent (dev only)
-          </button>
+
+        {/* Sent footer */}
+        {email.status === 'sent' && (
+          <div style={{
+            padding: '10px 16px',
+            borderTop: '1px solid #C3E6CB',
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <span style={{ fontSize: 12, color: '#2F9E44', fontWeight: 500 }}>
+              ✓ Sent on {formatDate(email.sent_at)}
+            </span>
+            {isDev && (
+              <button
+                onClick={() => setShowUndoConfirm(true)}
+                style={{
+                  fontSize: 11, color: '#E5484D',
+                  background: 'transparent',
+                  border: '1px solid #E5484D',
+                  borderRadius: 6, padding: '3px 8px',
+                  cursor: 'pointer', fontFamily: 'inherit'
+                }}
+              >
+                Undo (dev)
+              </button>
+            )}
+          </div>
         )}
         {showMarkSentModal && (
           <div style={{
