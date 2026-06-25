@@ -1193,19 +1193,35 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
                 ℹ Deal owner's Gmail is not connected to Sales Assist
               </div>
             ) : !draftCreated ? (
-              <button
-                onClick={createGmailDraft}
-                disabled={creating}
-                style={{
-                  padding: '10px 16px', borderRadius: 8,
-                  border: 'none', background: '#3B5BDB',
-                  color: 'white', fontSize: 13, fontWeight: 600,
-                  cursor: creating ? 'not-allowed' : 'pointer',
-                  fontFamily: 'inherit', opacity: creating ? 0.7 : 1
-                }}
-              >
-                {creating ? 'Creating draft...' : '✉ Create Gmail Draft'}
-              </button>
+              email.email_type === 'day2' ? (
+                <button
+                  onClick={handleMarkSent}
+                  disabled={markingSent}
+                  style={{
+                    padding: '10px 16px', borderRadius: 8,
+                    border: 'none', background: '#3B5BDB',
+                    color: 'white', fontSize: 13, fontWeight: 600,
+                    cursor: markingSent ? 'not-allowed' : 'pointer',
+                    fontFamily: 'inherit', opacity: markingSent ? 0.7 : 1
+                  }}
+                >
+                  {markingSent ? 'Marking...' : '✓ Mark Proposal Sent'}
+                </button>
+              ) : (
+                <button
+                  onClick={createGmailDraft}
+                  disabled={creating}
+                  style={{
+                    padding: '10px 16px', borderRadius: 8,
+                    border: 'none', background: '#3B5BDB',
+                    color: 'white', fontSize: 13, fontWeight: 600,
+                    cursor: creating ? 'not-allowed' : 'pointer',
+                    fontFamily: 'inherit', opacity: creating ? 0.7 : 1
+                  }}
+                >
+                  {creating ? 'Creating draft...' : '✉ Create Gmail Draft'}
+                </button>
+              )
             ) : draftDeleted ? (
               <div style={{
                 padding: '10px 12px', background: '#FFF7ED',
@@ -1231,55 +1247,73 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <a
-                    href={`https://mail.google.com/mail/#drafts/${gmailDraftId}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      flex: 1, padding: '10px 16px',
-                      borderRadius: 8, textAlign: 'center',
-                      border: '1.5px solid #3B5BDB',
-                      background: '#EEF2FF',
-                      fontSize: 13, fontWeight: 600,
-                      color: '#3B5BDB', textDecoration: 'none',
-                      display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', gap: 6
-                    }}
-                  >
-                    ↗ Open in Gmail
-                  </a>
+                {email.email_type === 'day2' ? (
                   <button
-                    onClick={() => setShowMarkSentModal(true)}
+                    onClick={handleMarkSent}
+                    disabled={markingSent}
                     style={{
-                      flex: 1, padding: '10px 16px',
-                      borderRadius: 8,
-                      border: '1.5px solid #2F9E44',
-                      background: '#F0FFF4',
-                      fontSize: 13, fontWeight: 600,
-                      color: '#2F9E44', cursor: 'pointer',
-                      fontFamily: 'inherit'
+                      padding: '10px 16px', borderRadius: 8,
+                      border: 'none', background: '#3B5BDB',
+                      color: 'white', fontSize: 13, fontWeight: 600,
+                      cursor: markingSent ? 'not-allowed' : 'pointer',
+                      fontFamily: 'inherit', opacity: markingSent ? 0.7 : 1
                     }}
                   >
-                    ✓ Mark as Sent
+                    {markingSent ? 'Marking...' : '✓ Mark Proposal Sent'}
                   </button>
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--ink-3)', textAlign: 'center' }}>
-                  💡 Open in Gmail to send — avoid using Gmail Drafts folder directly
-                </div>
-                <button
-                  onClick={recreateDraft}
-                  disabled={recreating}
-                  style={{
-                    padding: '6px 12px', borderRadius: 6,
-                    border: '1px solid var(--line)',
-                    background: 'transparent',
-                    fontSize: 11, color: 'var(--ink-3)',
-                    cursor: 'pointer', fontFamily: 'inherit'
-                  }}
-                >
-                  {recreating ? 'Resetting...' : '↻ Recreate Draft'}
-                </button>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <a
+                        href={`https://mail.google.com/mail/#drafts/${gmailDraftId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          flex: 1, padding: '10px 16px',
+                          borderRadius: 8, textAlign: 'center',
+                          border: '1.5px solid #3B5BDB',
+                          background: '#EEF2FF',
+                          fontSize: 13, fontWeight: 600,
+                          color: '#3B5BDB', textDecoration: 'none',
+                          display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', gap: 6
+                        }}
+                      >
+                        ↗ Open in Gmail
+                      </a>
+                      <button
+                        onClick={() => setShowMarkSentModal(true)}
+                        style={{
+                          flex: 1, padding: '10px 16px',
+                          borderRadius: 8,
+                          border: '1.5px solid #2F9E44',
+                          background: '#F0FFF4',
+                          fontSize: 13, fontWeight: 600,
+                          color: '#2F9E44', cursor: 'pointer',
+                          fontFamily: 'inherit'
+                        }}
+                      >
+                        ✓ Mark as Sent
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--ink-3)', textAlign: 'center' }}>
+                      💡 Open in Gmail to send — avoid using Gmail Drafts folder directly
+                    </div>
+                    <button
+                      onClick={recreateDraft}
+                      disabled={recreating}
+                      style={{
+                        padding: '6px 12px', borderRadius: 6,
+                        border: '1px solid var(--line)',
+                        background: 'transparent',
+                        fontSize: 11, color: 'var(--ink-3)',
+                        cursor: 'pointer', fontFamily: 'inherit'
+                      }}
+                    >
+                      {recreating ? 'Resetting...' : '↻ Recreate Draft'}
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
