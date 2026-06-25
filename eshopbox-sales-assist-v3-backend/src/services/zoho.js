@@ -368,7 +368,7 @@ export async function getAllLeads(env) {
   if (cached) return JSON.parse(cached)
 
   const criteria = encodeURIComponent(
-    '((Lead_Status:equals:Connected)OR(Lead_Status:equals:Connecting)OR(Lead_Status:equals:Bad Timing))'
+    '((Lead_Status:equals:Connected)OR(Lead_Status:equals:Connecting)OR(Lead_Status:equals:Bad Timing)OR(Lead_Status:equals:Converted))'
   )
 
   let allLeads = []
@@ -388,12 +388,23 @@ export async function getAllLeads(env) {
   }
 
   const filtered = allLeads.filter(l =>
-    !l.$converted &&
     l.Lead_Type === 'Inbound'
   )
 
-  await env.TOKEN_CACHE.put(LEADS_CACHE_KEY, JSON.stringify(filtered), { expirationTtl: 7200 })
-  return filtered
+  const teamUsers = await env.DB.prepare(
+    `SELECT email FROM users WHERE role IN ('ae', 'mde', 'lead-midmarket', 'lead-enterprise') AND is_active = 1`
+  ).all()
+
+  const ESHOPBOX_CORE = 'shikhar.gupta@eshopbox.com'
+  const validEmails = new Set([
+    ...(teamUsers.results || []).map(u => u.email),
+    ESHOPBOX_CORE
+  ])
+
+  const result = filtered.filter(l => validEmails.has(l.Owner?.email))
+
+  await env.TOKEN_CACHE.put(LEADS_CACHE_KEY, JSON.stringify(result), { expirationTtl: 7200 })
+  return result
 }
 
 export async function getLead(env, leadId) {
