@@ -988,7 +988,9 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
     const [gmailDraftId, setGmailDraftId] = useState(email.gmail_draft_id || null)
     const [recreating, setRecreating] = useState(false)
     const [markingSent, setMarkingSent] = useState(false)
-    const [showMarkSentConfirm, setShowMarkSentConfirm] = useState(false)
+    const [showMarkSentModal, setShowMarkSentModal] = useState(false)
+    const [showUndoConfirm, setShowUndoConfirm] = useState(false)
+    const [undoing, setUndoing] = useState(false)
     const [draftDeleted, setDraftDeleted] = useState(false)
 
     useEffect(() => {
@@ -1055,7 +1057,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
         alert('Failed: ' + e.message)
       } finally {
         setMarkingSent(false)
-        setShowMarkSentConfirm(false)
+        setShowMarkSentModal(false)
       }
     }
 
@@ -1105,58 +1107,19 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
                   {recreating ? 'Resetting…' : 'Recreate'}
                 </button>
                 {email.gmail_draft_id && email.status !== 'sent' && (
-                  !showMarkSentConfirm ? (
-                    <button
-                      onClick={() => setShowMarkSentConfirm(true)}
-                      style={{
-                        fontSize: 12, color: '#2F9E44',
-                        background: 'transparent',
-                        border: '1.5px solid #2F9E44',
-                        borderRadius: 6, padding: '5px 12px',
-                        cursor: 'pointer', fontFamily: 'inherit',
-                        fontWeight: 600, marginTop: 8
-                      }}
-                    >
-                      ✓ Mark as Sent
-                    </button>
-                  ) : (
-                    <div style={{
-                      marginTop: 8, padding: '10px 12px',
-                      background: '#F0FFF4', borderRadius: 8,
-                      border: '1px solid #2F9E44'
-                    }}>
-                      <div style={{ fontSize: 12, color: '#2F9E44', fontWeight: 600, marginBottom: 6 }}>
-                        Confirm: Did you send this email from Gmail?
-                      </div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button
-                          onClick={handleMarkSent}
-                          disabled={markingSent}
-                          style={{
-                            fontSize: 12, color: 'white',
-                            background: '#2F9E44', border: 'none',
-                            borderRadius: 6, padding: '5px 12px',
-                            cursor: 'pointer', fontFamily: 'inherit',
-                            fontWeight: 600
-                          }}
-                        >
-                          {markingSent ? 'Marking...' : 'Yes, mark as sent'}
-                        </button>
-                        <button
-                          onClick={() => setShowMarkSentConfirm(false)}
-                          style={{
-                            fontSize: 12, color: 'var(--ink-2)',
-                            background: 'transparent',
-                            border: '1.5px solid var(--line)',
-                            borderRadius: 6, padding: '5px 12px',
-                            cursor: 'pointer', fontFamily: 'inherit'
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )
+                  <button
+                    onClick={() => setShowMarkSentModal(true)}
+                    style={{
+                      fontSize: 12, color: '#2F9E44',
+                      background: 'transparent',
+                      border: '1.5px solid #2F9E44',
+                      borderRadius: 6, padding: '5px 12px',
+                      cursor: 'pointer', fontFamily: 'inherit',
+                      fontWeight: 600, marginTop: 8
+                    }}
+                  >
+                    ✓ Mark as Sent
+                  </button>
                 )}
                 {draftDeleted && (
                   <div style={{
@@ -1193,18 +1156,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
         )}
         {isDev && email.status === 'sent' && (
           <button
-            onClick={async () => {
-              if (!window.confirm(
-                `Undo sent status for ${email.email_type}? This will reset to draft state.`
-              )) return
-              const res = await authFetch(
-                `/api/deals/${deal.id}/emails/${email.email_type}/undo-sent`,
-                { method: 'POST' }
-              )
-              const data = await res.json()
-              if (data.success) window.location.reload()
-              else alert('Failed: ' + data.error)
-            }}
+            onClick={() => setShowUndoConfirm(true)}
             style={{
               fontSize: 11, color: '#E5484D',
               background: 'transparent',
@@ -1216,6 +1168,139 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
           >
             Undo sent (dev only)
           </button>
+        )}
+        {showMarkSentModal && (
+          <div style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'center', zIndex: 2000
+          }} onClick={() => setShowMarkSentModal(false)}>
+            <div style={{
+              background: 'var(--surface)',
+              borderRadius: 12, padding: '28px 32px',
+              maxWidth: 400, width: '100%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.18)'
+            }} onClick={e => e.stopPropagation()}>
+              <div style={{
+                fontSize: 15, fontWeight: 700,
+                color: 'var(--ink-1)', marginBottom: 8
+              }}>
+                Mark as Sent
+              </div>
+              <div style={{
+                fontSize: 13, color: 'var(--ink-3)',
+                marginBottom: 24, lineHeight: 1.6
+              }}>
+                Confirm that you have sent the{' '}
+                <strong>{email.email_type}</strong> email
+                to the prospect from Gmail.
+                <br/><br/>
+                Only mark as sent if you have actually
+                sent the email.
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setShowMarkSentModal(false)}
+                  style={{
+                    padding: '8px 16px', borderRadius: 8,
+                    border: '1.5px solid var(--line)',
+                    background: 'transparent', fontSize: 13,
+                    cursor: 'pointer', color: 'var(--ink-2)',
+                    fontFamily: 'inherit'
+                  }}>Cancel</button>
+                <button
+                  disabled={markingSent}
+                  onClick={handleMarkSent}
+                  style={{
+                    padding: '8px 16px', borderRadius: 8,
+                    border: 'none', background: '#2F9E44',
+                    fontSize: 13, fontWeight: 700,
+                    cursor: markingSent ? 'not-allowed' : 'pointer',
+                    color: 'white', fontFamily: 'inherit',
+                    opacity: markingSent ? 0.6 : 1
+                  }}>
+                  {markingSent ? 'Marking...' : '✓ Yes, I sent this email'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {showUndoConfirm && (
+          <div style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'center', zIndex: 2000
+          }} onClick={() => setShowUndoConfirm(false)}>
+            <div style={{
+              background: 'var(--surface)',
+              borderRadius: 12, padding: '28px 32px',
+              maxWidth: 400, width: '100%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.18)'
+            }} onClick={e => e.stopPropagation()}>
+              <div style={{
+                fontSize: 15, fontWeight: 700,
+                color: 'var(--ink-1)', marginBottom: 8
+              }}>
+                Undo Sent — Are you sure?
+              </div>
+              <div style={{
+                fontSize: 13, color: 'var(--ink-3)',
+                marginBottom: 24, lineHeight: 1.6
+              }}>
+                This will reset the {email.email_type} email
+                back to draft state and clear all Gmail
+                draft data. The prospect may have already
+                received this email.
+                <br/><br/>
+                <strong>This action cannot be undone.</strong>
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setShowUndoConfirm(false)}
+                  style={{
+                    padding: '8px 16px', borderRadius: 8,
+                    border: '1.5px solid var(--line)',
+                    background: 'transparent', fontSize: 13,
+                    cursor: 'pointer', color: 'var(--ink-2)',
+                    fontFamily: 'inherit'
+                  }}>Cancel</button>
+                <button
+                  disabled={undoing}
+                  onClick={async () => {
+                    setUndoing(true)
+                    try {
+                      const res = await authFetch(
+                        `/api/deals/${deal.id}/emails/${email.email_type}/undo-sent`,
+                        { method: 'POST' }
+                      )
+                      const data = await res.json()
+                      if (data.success) {
+                        setShowUndoConfirm(false)
+                        window.location.reload()
+                      } else {
+                        alert('Failed: ' + data.error)
+                      }
+                    } catch (e) {
+                      alert('Failed: ' + e.message)
+                    } finally {
+                      setUndoing(false)
+                    }
+                  }}
+                  style={{
+                    padding: '8px 16px', borderRadius: 8,
+                    border: 'none', background: '#E5484D',
+                    fontSize: 13, fontWeight: 700,
+                    cursor: undoing ? 'not-allowed' : 'pointer',
+                    color: 'white', fontFamily: 'inherit',
+                    opacity: undoing ? 0.6 : 1
+                  }}>
+                  {undoing ? 'Undoing...' : 'Yes, Undo Sent'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     )
