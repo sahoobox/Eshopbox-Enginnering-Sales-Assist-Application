@@ -2224,21 +2224,47 @@ app.get('/api/deals/:id/emails/:type/check-draft', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id')
     const emailType = c.req.param('type')
-    const user = c.get('user')
-    const row = await c.env.DB.prepare(
-      'SELECT gmail_draft_id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
+
+    const emailRow = await c.env.DB.prepare(
+      `SELECT gmail_draft_id, rep_email FROM deal_emails WHERE deal_id = ? AND email_type = ?`
     ).bind(dealId, emailType).first()
-    if (!row?.gmail_draft_id) return c.json({ exists: false, deleted: false })
-    let accessToken
-    try {
-      accessToken = await getGmailAccessToken(c.env, user.id)
-    } catch {
+
+    if (!emailRow?.gmail_draft_id) {
       return c.json({ exists: false, deleted: false })
     }
+
+    const repUser = await c.env.DB.prepare(
+      `SELECT id FROM users WHERE email = ?`
+    ).bind(emailRow.rep_email).first()
+
+    let accessToken
+    let repGmailConnected = true
+
+    if (repUser?.id) {
+      try {
+        accessToken = await getGmailAccessToken(c.env, repUser.id)
+      } catch (e) {
+        repGmailConnected = false
+      }
+    } else {
+      repGmailConnected = false
+    }
+
+    if (!repGmailConnected || !accessToken) {
+      return c.json({
+        exists: false,
+        deleted: false,
+        repGmailNotConnected: true,
+        repEmail: emailRow.rep_email
+      })
+    }
+
+    const repEmail = emailRow.rep_email
     const draftRes = await fetch(
-      `https://gmail.googleapis.com/gmail/v1/users/${user.email}/drafts/${row.gmail_draft_id}?format=minimal`,
+      `https://gmail.googleapis.com/gmail/v1/users/${repEmail}/drafts/${emailRow.gmail_draft_id}?format=minimal`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     )
+
     if (draftRes.ok) return c.json({ exists: true, deleted: false })
     if (draftRes.status === 404) return c.json({ exists: false, deleted: true })
     return c.json({ exists: false, deleted: false })

@@ -992,6 +992,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
     const [showUndoConfirm, setShowUndoConfirm] = useState(false)
     const [undoing, setUndoing] = useState(false)
     const [draftDeleted, setDraftDeleted] = useState(false)
+    const [repGmailNotConnected, setRepGmailNotConnected] = useState(false)
 
     useEffect(() => {
       if (!email.gmail_draft_id || email.status === 'sent') return
@@ -1010,7 +1011,10 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
       if (!email.gmail_draft_id || email.status === 'sent') return
       authFetch(`/api/deals/${deal.id}/emails/${email.email_type}/check-draft`)
         .then(r => r.json())
-        .then(d => { if (d.deleted) setDraftDeleted(true) })
+        .then(d => {
+          if (d.repGmailNotConnected) { setRepGmailNotConnected(true); return }
+          if (d.deleted) setDraftDeleted(true)
+        })
         .catch(() => {})
     }, [email.gmail_draft_id, email.status])
 
@@ -1169,7 +1173,18 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
             background: 'var(--surface)',
             display: 'flex', flexDirection: 'column', gap: 10
           }}>
-            {!draftCreated ? (
+            {repGmailNotConnected ? (
+              <div style={{
+                padding: '10px 12px',
+                background: 'var(--surface-2)',
+                borderRadius: 8,
+                border: '1px solid var(--line)',
+                fontSize: 12, color: 'var(--ink-3)',
+                textAlign: 'center'
+              }}>
+                ℹ Deal owner's Gmail is not connected to Sales Assist
+              </div>
+            ) : !draftCreated ? (
               <button
                 onClick={createGmailDraft}
                 disabled={creating}
