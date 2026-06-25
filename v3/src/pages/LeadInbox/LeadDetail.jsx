@@ -178,68 +178,83 @@ export default function LeadDetail() {
               {needsSameDay && <span className="pill pill-warn">Same-day · today by 6pm</span>}
               {lead.leadStatus && <span className="pill pill-neutral">{lead.leadStatus}</span>}
               {lead.leadSource && <span className="pill pill-info">{lead.leadSource}</span>}
+              {lead.converted && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center',
+                  gap: 4, padding: '3px 10px',
+                  borderRadius: 20, fontSize: 11,
+                  fontWeight: 700, background: '#2F9E44',
+                  color: 'white'
+                }}>
+                  ✓ Converted
+                </span>
+              )}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setShowActivityDropdown(s => !s)}
-                style={{
-                  padding: '7px 14px', borderRadius: 8,
-                  border: '1.5px solid var(--line)',
-                  background: 'var(--surface)',
-                  fontSize: 13, fontWeight: 600,
-                  cursor: 'pointer', color: 'var(--ink-2)'
-                }}
-              >
-                + Log Activity ▾
-              </button>
-              {showActivityDropdown && (
-                <>
-                  <div
-                    style={{ position: 'fixed', inset: 0, zIndex: 99 }}
-                    onClick={() => setShowActivityDropdown(false)}
-                  />
-                  <div style={{
-                    position: 'absolute', top: '100%', left: 0,
-                    marginTop: 4, background: 'var(--surface)',
-                    border: '1.5px solid var(--line)',
-                    borderRadius: 8, zIndex: 100,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    minWidth: 140, overflow: 'hidden'
-                  }}>
-                    {['Task', 'Meeting', 'Call'].map(type => (
-                      <div key={type}
-                        onClick={() => {
-                          setShowActivityDropdown(false)
-                          if (type === 'Task') setShowTaskModal(true)
-                          if (type === 'Meeting') setShowMeetingModal(true)
-                          if (type === 'Call') setShowCallModal(true)
-                        }}
-                        style={{
-                          padding: '10px 16px', fontSize: 13,
-                          cursor: 'pointer', color: 'var(--ink-1)',
-                          borderBottom: '0.5px solid var(--line)'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        {type}
+            {!lead.converted && (
+              <>
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => setShowActivityDropdown(s => !s)}
+                    style={{
+                      padding: '7px 14px', borderRadius: 8,
+                      border: '1.5px solid var(--line)',
+                      background: 'var(--surface)',
+                      fontSize: 13, fontWeight: 600,
+                      cursor: 'pointer', color: 'var(--ink-2)'
+                    }}
+                  >
+                    + Log Activity ▾
+                  </button>
+                  {showActivityDropdown && (
+                    <>
+                      <div
+                        style={{ position: 'fixed', inset: 0, zIndex: 99 }}
+                        onClick={() => setShowActivityDropdown(false)}
+                      />
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0,
+                        marginTop: 4, background: 'var(--surface)',
+                        border: '1.5px solid var(--line)',
+                        borderRadius: 8, zIndex: 100,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        minWidth: 140, overflow: 'hidden'
+                      }}>
+                        {['Task', 'Meeting', 'Call'].map(type => (
+                          <div key={type}
+                            onClick={() => {
+                              setShowActivityDropdown(false)
+                              if (type === 'Task') setShowTaskModal(true)
+                              if (type === 'Meeting') setShowMeetingModal(true)
+                              if (type === 'Call') setShowCallModal(true)
+                            }}
+                            style={{
+                              padding: '10px 16px', fontSize: 13,
+                              cursor: 'pointer', color: 'var(--ink-1)',
+                              borderBottom: '0.5px solid var(--line)'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                          >
+                            {type}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-            {(isAdmin || isSalesLead) && (
-              <button className="btn btn-sm" onClick={() => setShowReassign(true)}>Reassign</button>
+                    </>
+                  )}
+                </div>
+                {(isAdmin || isSalesLead) && (
+                  <button className="btn btn-sm" onClick={() => setShowReassign(true)}>Reassign</button>
+                )}
+                <button className="btn btn-sm btn-danger" onClick={() => setShowDisqualify(true)} disabled={disqualifying}>
+                  {disqualifying ? 'Disqualifying…' : 'Disqualify'}
+                </button>
+                <button className="btn btn-sm btn-primary" onClick={handleConvert} disabled={converting}>
+                  {converting ? 'Converting…' : 'Convert to deal →'}
+                </button>
+              </>
             )}
-            <button className="btn btn-sm btn-danger" onClick={() => setShowDisqualify(true)} disabled={disqualifying}>
-              {disqualifying ? 'Disqualifying…' : 'Disqualify'}
-            </button>
-            <button className="btn btn-sm btn-primary" onClick={handleConvert} disabled={converting}>
-              {converting ? 'Converting…' : 'Convert to deal →'}
-            </button>
           </div>
         </div>
       </div>

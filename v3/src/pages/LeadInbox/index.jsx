@@ -579,14 +579,18 @@ export default function LeadInbox() {
                   </td>
                   <td style={{ fontSize: 13, padding: '14px 16px' }}>{lead.ownerName || '—'}</td>
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap', padding: '14px 12px' }}>
-                    <button
-                      className="btn btn-sm btn-danger"
-                      disabled={!canConvert}
-                      style={!canConvert ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
-                      onClick={e => e.stopPropagation()}
-                    >
-                      Convert →
-                    </button>
+                    {lead.converted ? (
+                      <span style={{ fontSize: 11, color: '#2F9E44', fontWeight: 600 }}>✓ Converted</span>
+                    ) : (
+                      <button
+                        className="btn btn-sm btn-danger"
+                        disabled={!canConvert}
+                        style={!canConvert ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        Convert →
+                      </button>
+                    )}
                   </td>
                 </tr>
               )
