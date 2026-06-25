@@ -1486,7 +1486,8 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
   }
 
   const isLocked = (type) => {
-    if (type === 'day1' || type === 'day2') return false
+    if (type === 'day1') return false
+    if (type === 'day2') return !isEmailSent('day1')
     if (type === 'day3') return !isEmailSent('day1')
     if (type === 'day4') return !isEmailSent('day3')
     if (type === 'nudge') return !isEmailSent('day4')
@@ -1575,6 +1576,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
                   🔒 Send {
+                    type === 'day2' ? 'Day 1' :
                     type === 'day3' ? 'Day 1' :
                     type === 'day4' ? 'Day 3' :
                     type === 'nudge' ? 'Day 4' : 'previous'
