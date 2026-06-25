@@ -86,6 +86,7 @@ function buildEmailMessage({ from, fromName, to, subject,
   let message = [
     `From: ${fromName} <${from}>`,
     `To: ${to}`,
+    `Cc: sales@eshopbox.com`,
     `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`,
     `Content-Type: text/html; charset=utf-8`,
     `MIME-Version: 1.0`,

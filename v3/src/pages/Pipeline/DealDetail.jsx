@@ -1023,6 +1023,10 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
     }, [email.gmail_draft_id, email.status])
 
     async function createGmailDraft() {
+      if (draftCreated && !draftDeleted && gmailDraftId) {
+        window.open(`https://mail.google.com/mail/#drafts/${gmailDraftId}`, '_blank')
+        return
+      }
       setCreating(true)
       try {
         const res = await authFetch(`/api/deals/${deal.id}/emails/${email.email_type}/gmail-draft`, {
@@ -1447,6 +1451,27 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
 
   const ORDER = ['day1', 'day2', 'day3', 'day4', 'nudge']
 
+  const EMAIL_LABELS = {
+    day1: 'Day 1 · Personalised Recap',
+    day2: 'Day 2 · Pricing Proposal',
+    day3: 'Day 3 · ROI Value',
+    day4: 'Day 4 · Objection Handling',
+    nudge: 'Mtg +7 · Nudge',
+  }
+
+  const isEmailSent = (type) => {
+    const email = emails.find(e => e.email_type === type)
+    return email?.status === 'sent'
+  }
+
+  const isLocked = (type) => {
+    if (type === 'day1' || type === 'day2') return false
+    if (type === 'day3') return !isEmailSent('day1')
+    if (type === 'day4') return !isEmailSent('day3')
+    if (type === 'nudge') return !isEmailSent('day4')
+    return false
+  }
+
   function Day2Placeholder() {
     const { authFetch } = useAuth()
     const [marking, setMarking] = useState(false)
@@ -1498,6 +1523,45 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
             )
           }
           return <EmailCard key={emailData.id} email={emailData} />
+        }
+        if (isLocked(type)) {
+          return (
+            <div key={type} style={{
+              border: '1.5px solid var(--line)',
+              borderRadius: 12,
+              padding: '16px',
+              marginBottom: 0,
+              background: 'var(--surface-2)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              opacity: 0.6
+            }}>
+              <div style={{
+                width: 32, height: 32,
+                borderRadius: '50%',
+                background: 'var(--line)',
+                display: 'flex', alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 11, fontWeight: 700,
+                color: 'var(--ink-3)', flexShrink: 0
+              }}>
+                {type === 'nudge' ? '★' : type.replace('day', 'D')}
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-3)' }}>
+                  {EMAIL_LABELS[type] || type}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
+                  🔒 Send {
+                    type === 'day3' ? 'Day 1' :
+                    type === 'day4' ? 'Day 3' :
+                    type === 'nudge' ? 'Day 4' : 'previous'
+                  } email first to unlock
+                </div>
+              </div>
+            </div>
+          )
         }
         if (!emailData) return null
         return <EmailCard key={emailData.id} email={emailData} />
