@@ -819,7 +819,6 @@ app.get('/api/deals/:id', requireAuth, async (c) => {
       getDealMeetings(c.env, dealId),
       getDealCalls(c.env, dealId),
     ]);
-    console.log('Deal calls sample:', JSON.stringify(callsRes?.data?.[0]))
     const tasks = tasksRes?.data || [];
     const activities = activitiesRes?.data || [];
     if (!dealRes?.data?.[0]) return c.json({ error: 'Deal not found' }, 404);
@@ -3885,7 +3884,6 @@ app.get('/api/leads/:id/calls', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
     const res = await zohoAPI(c.env, 'GET', `/Calls/search?criteria=(What_Id:equals:${leadId})&fields=id,Subject,Call_Purpose,Call_Agenda,Call_Result,Call_Start_Time,Call_Status,Outbound_Call_Status,Description,Created_By`)
-    console.log('Lead calls sample:', JSON.stringify(res?.data?.[0]))
     return c.json({ calls: (res?.data || []).map(cl => ({
       id: cl.id, subject: cl.Subject || '', purpose: cl.Call_Purpose || '',
       agenda: cl.Call_Agenda || '', result: cl.Call_Result || '',
