@@ -3582,6 +3582,35 @@ app.get('/api/leads/:id/tasks', requireAuth, async (c) => {
   }
 })
 
+app.get('/api/leads/:id/cadences', requireAuth, async (c) => {
+  try {
+    const leadId = c.req.param('id')
+
+    const res = await zohoAPI(c.env, 'GET',
+      `/Leads/${leadId}/Entity_Cadences_leads?fields=Cadence_Name,Start_Date,Completed_Date,Enrolled_By,Unenrolled_Date,Cadence_Status,Member_Status,Last_Follow_Up_Response,Last_Follow_Up_Date,Next_Follow_Up,Last_Follow_Up_Type&per_page=10`)
+
+    const cadences = (res?.data || []).map(c => ({
+      id: c.id,
+      cadenceName: c.Cadence_Name,
+      startDate: c.Start_Date,
+      completedDate: c.Completed_Date,
+      enrolledBy: c.Enrolled_By?.name || c.Enrolled_By,
+      unenrolledDate: c.Unenrolled_Date,
+      cadenceStatus: c.Cadence_Status,
+      memberStatus: c.Member_Status,
+      lastFollowUpResponse: c.Last_Follow_Up_Response,
+      lastFollowUpDate: c.Last_Follow_Up_Date,
+      nextFollowUp: c.Next_Follow_Up,
+      lastFollowUpType: c.Last_Follow_Up_Type
+    }))
+
+    return c.json({ cadences })
+  } catch (err) {
+    console.error('Cadences fetch error:', err.message)
+    return c.json({ cadences: [] })
+  }
+})
+
 app.post('/api/leads/:id/tasks', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
