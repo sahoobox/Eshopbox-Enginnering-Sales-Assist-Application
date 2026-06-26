@@ -3620,7 +3620,7 @@ app.get('/api/leads/:id/dedup-check', requireAuth, async (c) => {
 
       company
         ? fetch(
-            `https://www.zohoapis.com/crm/v2/Deals/search?word=${encodeURIComponent(company)}&fields=id,Deal_Name,Stage,Owner,Pipeline,Account_Name&per_page=5`,
+            `https://www.zohoapis.com/crm/v2/Deals/search?criteria=(Deal_Name:contains:${encodeURIComponent(company)})&fields=id,Deal_Name,Stage,Owner,Pipeline,Account_Name&per_page=5`,
             { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
           ).then(r => r.status === 204 ? { data: [] } : r.json()).catch(() => ({ data: [] }))
         : Promise.resolve({ data: [] }),
