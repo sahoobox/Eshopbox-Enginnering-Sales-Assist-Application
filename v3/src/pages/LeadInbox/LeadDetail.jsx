@@ -52,6 +52,10 @@ export default function LeadDetail() {
   const [showReassign, setShowReassign] = useState(false)
   const [cadences, setCadences] = useState([])
   const [cadencesLoading, setCadencesLoading] = useState(false)
+  const [leadEmails, setLeadEmails] = useState({ mails: [], drafts: [], scheduled: [] })
+  const [leadEmailsLoading, setLeadEmailsLoading] = useState(false)
+  const [emailSubTab, setEmailSubTab] = useState('mails')
+  const [selectedEmail, setSelectedEmail] = useState(null)
   const [editingFields, setEditingFields] = useState(false)
   const [fieldsForm, setFieldsForm] = useState({ phone: '', email: '', company: '', city: '', website: '' })
   const [savingFields, setSavingFields] = useState(false)
@@ -109,6 +113,16 @@ export default function LeadDetail() {
       .then(d => setCadences(d.cadences || []))
       .catch(() => setCadences([]))
       .finally(() => setCadencesLoading(false))
+  }, [tab, lead?.id])
+
+  useEffect(() => {
+    if (tab !== 'emails' || !lead?.id) return
+    setLeadEmailsLoading(true)
+    authFetch(`/api/leads/${lead.id}/emails`)
+      .then(r => r.json())
+      .then(d => setLeadEmails(d))
+      .catch(() => setLeadEmails({ mails: [], drafts: [], scheduled: [] }))
+      .finally(() => setLeadEmailsLoading(false))
   }, [tab, lead?.id])
 
   async function handleDisqualify() {
@@ -299,6 +313,7 @@ export default function LeadDetail() {
               { id: 'timeline', label: 'Timeline' },
               { id: 'activities', label: 'Activities' },
               { id: 'cadence', label: 'Cadence' },
+              { id: 'emails', label: 'Emails' },
               { id: 'notes', label: 'Notes' },
               { id: 'utm', label: 'UTM & Tracking' },
             ].map(t => (
@@ -417,6 +432,147 @@ export default function LeadDetail() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'emails' && (
+            <div>
+              {/* Sub-tab bar */}
+              <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #e5e7eb', marginBottom: 16 }}>
+                {['mails', 'drafts', 'scheduled'].map(st => (
+                  <button
+                    key={st}
+                    onClick={() => setEmailSubTab(st)}
+                    style={{
+                      padding: '8px 20px',
+                      background: 'none',
+                      border: 'none',
+                      borderBottom: emailSubTab === st ? '2px solid #F95253' : '2px solid transparent',
+                      color: emailSubTab === st ? '#F95253' : '#6b7280',
+                      fontWeight: emailSubTab === st ? 600 : 400,
+                      cursor: 'pointer',
+                      textTransform: 'capitalize',
+                      fontSize: 14,
+                    }}
+                  >
+                    {st.charAt(0).toUpperCase() + st.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              {leadEmailsLoading ? (
+                <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>Loading emails...</div>
+              ) : (() => {
+                const rows = leadEmails[emailSubTab] || []
+                if (rows.length === 0) return (
+                  <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
+                    No {emailSubTab} found for this lead
+                  </div>
+                )
+                return (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                          {['Subject', 'Date', 'Source', 'Sent By', 'Status'].map(h => (
+                            <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#6b7280', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map(email => (
+                          <tr
+                            key={email.id}
+                            onClick={() => setSelectedEmail(email)}
+                            style={{ borderBottom: '1px solid #f3f4f6', cursor: 'pointer' }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+                            onMouseLeave={e => e.currentTarget.style.background = ''}
+                          >
+                            <td style={{ padding: '10px 14px', color: '#1f2937', maxWidth: 280 }}>
+                              <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {email.subject}
+                              </div>
+                              {email.to && (
+                                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{email.to}</div>
+                              )}
+                            </td>
+                            <td style={{ padding: '10px 14px', color: '#6b7280', whiteSpace: 'nowrap' }}>
+                              {email.date ? new Date(email.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                            </td>
+                            <td style={{ padding: '10px 14px', color: '#6b7280' }}>{email.source}</td>
+                            <td style={{ padding: '10px 14px', color: '#6b7280' }}>{email.sentBy}</td>
+                            <td style={{ padding: '10px 14px' }}>
+                              <span style={{
+                                padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 600,
+                                background: email.status === 'sent' ? '#d1fae5' : email.status === 'draft' ? '#fef3c7' : '#dbeafe',
+                                color: email.status === 'sent' ? '#065f46' : email.status === 'draft' ? '#92400e' : '#1e40af',
+                              }}>
+                                {email.status ? email.status.charAt(0).toUpperCase() + email.status.slice(1) : '—'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              })()}
+
+              {/* Email Detail Modal */}
+              {selectedEmail && (
+                <div
+                  onClick={() => setSelectedEmail(null)}
+                  style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+                    zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end',
+                  }}
+                >
+                  <div
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                      width: 560, height: '100vh', background: '#fff',
+                      display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 24px rgba(0,0,0,0.15)',
+                    }}
+                  >
+                    {/* Modal header */}
+                    <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1, paddingRight: 12 }}>
+                        <div style={{ fontWeight: 700, fontSize: 15, color: '#111827', marginBottom: 6 }}>
+                          {selectedEmail.subject}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#6b7280' }}>
+                          <span style={{ fontWeight: 600 }}>From:</span> {selectedEmail.from || '—'}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#6b7280' }}>
+                          <span style={{ fontWeight: 600 }}>To:</span> {selectedEmail.to || '—'}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#6b7280' }}>
+                          <span style={{ fontWeight: 600 }}>Date:</span>{' '}
+                          {selectedEmail.date ? new Date(selectedEmail.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setSelectedEmail(null)}
+                        style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#6b7280', lineHeight: 1 }}
+                      >✕</button>
+                    </div>
+                    {/* Email body */}
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+                      {selectedEmail.content ? (
+                        <div dangerouslySetInnerHTML={{ __html: selectedEmail.content }} style={{ fontSize: 14, lineHeight: 1.7, color: '#374151' }} />
+                      ) : (
+                        <div style={{ color: '#9ca3af', textAlign: 'center', paddingTop: 40 }}>No content available</div>
+                      )}
+                    </div>
+                    {/* Footer actions */}
+                    <div style={{ padding: '12px 20px', borderTop: '1px solid #e5e7eb', display: 'flex', gap: 8 }}>
+                      <button style={{ padding: '7px 16px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}>Reply</button>
+                      <button style={{ padding: '7px 16px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}>Reply All</button>
+                      <button style={{ padding: '7px 16px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}>Forward</button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
