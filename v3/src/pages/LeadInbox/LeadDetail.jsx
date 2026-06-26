@@ -577,12 +577,6 @@ export default function LeadDetail() {
                         <div style={{ color: '#9ca3af', textAlign: 'center', paddingTop: 40 }}>No content available</div>
                       )}
                     </div>
-                    {/* Footer actions */}
-                    <div style={{ padding: '12px 20px', borderTop: '1px solid #e5e7eb', display: 'flex', gap: 8 }}>
-                      <button style={{ padding: '7px 16px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}>Reply</button>
-                      <button style={{ padding: '7px 16px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}>Reply All</button>
-                      <button style={{ padding: '7px 16px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}>Forward</button>
-                    </div>
                   </div>
                 </div>
               )}

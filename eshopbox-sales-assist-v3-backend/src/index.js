@@ -3823,7 +3823,7 @@ app.get('/api/leads/:id/emails', requireAuth, async (c) => {
     const mapEmail = e => ({
       id: e.message_id,
       subject: e.subject || '(No Subject)',
-      date: e.time,
+      date: e.sent_time || e.time,
       from: e.from?.email || e.from?.user_name || '—',
       fromName: e.from?.user_name || '',
       to: (e.to || []).map(t => t.email).join(', '),
@@ -3845,7 +3845,8 @@ app.get('/api/leads/:id/emails/:messageId', requireAuth, async (c) => {
   const messageId = c.req.param('messageId')
   try {
     const res = await zohoAPI(c.env, 'GET', `/Leads/${leadId}/Emails/${messageId}`)
-    const email = res?.Emails?.[0]
+    console.log('Single email raw:', JSON.stringify(res).slice(0, 2000))
+    const email = res?.email_related_list?.[0] || res?.Emails?.[0]
     return c.json({ content: email?.content || '', subject: email?.subject || '' })
   } catch (err) {
     console.error('Lead email body fetch error:', err.message)
