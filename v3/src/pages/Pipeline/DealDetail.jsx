@@ -863,6 +863,9 @@ function DemoInfoTab({ deal }) {
         { k: 'Brand Type', v: d.brandType },
         { k: 'Demo Format', v: d.demoFormat },
         { k: 'Meeting Location', v: d.meetingLocation },
+        { k: 'City', v: deal.city },
+        { k: 'Support Needed', v: deal.supportNeeded },
+        { k: 'Product Type', v: deal.productType },
       ]
     },
     {
