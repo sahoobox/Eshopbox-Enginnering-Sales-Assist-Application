@@ -1913,22 +1913,120 @@ function NotesTab({ dealId, deal }) {
 }
 
 function ContactTab({ deal }) {
+  const { authFetch } = useAuth()
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState({
+    name: deal.contactName || '',
+    email: deal.contactEmail || '',
+    phone: deal.contactPhone || '',
+  })
+  const [saving, setSaving] = useState(false)
+
+  const inputStyle = {
+    width: '100%', padding: '6px 10px',
+    border: '1.5px solid var(--line)',
+    borderRadius: 6, fontSize: 13,
+    fontFamily: 'inherit', color: 'var(--ink-1)',
+    background: 'var(--surface)',
+  }
+
   return (
     <div className="card">
-      <div className="ws-side-head"><h4>Contact Details</h4></div>
+      <div className="ws-side-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h4>Contact Details</h4>
+        {!editing && (
+          <button onClick={() => setEditing(true)} style={{
+            padding: '5px 12px', borderRadius: 6,
+            border: '1.5px solid var(--line)',
+            background: 'transparent', fontSize: 12,
+            cursor: 'pointer', color: 'var(--ink-2)',
+            fontFamily: 'inherit',
+          }}>
+            ✏ Edit
+          </button>
+        )}
+      </div>
       <div className="ws-side-body">
-        {[
-          { k: 'Name', v: deal.demoInfo?.prospectName || deal.contactName || '—' },
-          { k: 'Email', v: deal.contactEmail || deal.demoInfo?.prospectEmail || '—' },
-          { k: 'Phone', v: deal.contactPhone || '—' },
-          { k: 'Company', v: deal.accountName || deal.brandName || '—' },
-          { k: 'Rep Owner', v: deal.repName || '—' },
-        ].map(row => (
-          <div key={row.k} className="ws-side-row">
-            <span className="k">{row.k}</span>
-            <span className="v">{row.v}</span>
+        <div className="ws-side-row">
+          <span className="k">Name</span>
+          {editing ? (
+            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inputStyle} />
+          ) : (
+            <span className="v">{deal.demoInfo?.prospectName || deal.contactName || '—'}</span>
+          )}
+        </div>
+        <div className="ws-side-row">
+          <span className="k">Email</span>
+          {editing ? (
+            <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inputStyle} />
+          ) : (
+            <span className="v">{deal.contactEmail || deal.demoInfo?.prospectEmail || '—'}</span>
+          )}
+        </div>
+        <div className="ws-side-row">
+          <span className="k">Phone</span>
+          {editing ? (
+            <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={inputStyle} />
+          ) : (
+            <span className="v">{deal.contactPhone || '—'}</span>
+          )}
+        </div>
+        <div className="ws-side-row">
+          <span className="k">Company</span>
+          <span className="v">{deal.accountName || deal.brandName || '—'}</span>
+        </div>
+        <div className="ws-side-row">
+          <span className="k">Rep Owner</span>
+          <span className="v">{deal.repName || '—'}</span>
+        </div>
+        {editing && (
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <button
+              onClick={async () => {
+                setSaving(true)
+                try {
+                  const res = await authFetch(`/api/deals/${deal.id}/contact`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(form),
+                  })
+                  const data = await res.json()
+                  if (data.success) { setEditing(false); window.location.reload() }
+                  else alert('Save failed: ' + (data.error || 'Unknown error'))
+                } catch (e) {
+                  alert('Failed to save: ' + e.message)
+                } finally {
+                  setSaving(false)
+                }
+              }}
+              disabled={saving}
+              style={{
+                padding: '8px 16px', borderRadius: 8,
+                border: 'none', background: '#3B5BDB',
+                color: 'white', fontSize: 13, fontWeight: 600,
+                cursor: saving ? 'not-allowed' : 'pointer',
+                fontFamily: 'inherit', opacity: saving ? 0.6 : 1,
+              }}
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+            <button
+              onClick={() => {
+                setEditing(false)
+                setForm({ name: deal.contactName || '', email: deal.contactEmail || '', phone: deal.contactPhone || '' })
+              }}
+              style={{
+                padding: '8px 16px', borderRadius: 8,
+                border: '1.5px solid var(--line)',
+                background: 'transparent', fontSize: 13,
+                cursor: 'pointer', color: 'var(--ink-2)',
+                fontFamily: 'inherit',
+              }}
+            >
+              Cancel
+            </button>
           </div>
-        ))}
+        )}
       </div>
     </div>
   )

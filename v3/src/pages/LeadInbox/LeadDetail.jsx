@@ -52,6 +52,9 @@ export default function LeadDetail() {
   const [showReassign, setShowReassign] = useState(false)
   const [cadences, setCadences] = useState([])
   const [cadencesLoading, setCadencesLoading] = useState(false)
+  const [editingFields, setEditingFields] = useState(false)
+  const [fieldsForm, setFieldsForm] = useState({ phone: '', email: '', company: '', city: '', website: '' })
+  const [savingFields, setSavingFields] = useState(false)
 
   useEffect(() => {
     authFetch(`/api/leads/${leadId}`)
@@ -63,6 +66,16 @@ export default function LeadDetail() {
       })
       .catch(err => { setError(err.message); setLoading(false) })
   }, [leadId])
+
+  useEffect(() => {
+    if (lead) setFieldsForm({
+      phone: lead.phone || '',
+      email: lead.email || '',
+      company: lead.company || '',
+      city: lead.city || '',
+      website: lead.website || '',
+    })
+  }, [lead])
 
   useEffect(() => {
     if (!leadId) return
@@ -399,19 +412,62 @@ export default function LeadDetail() {
 
           {tab === 'leadfields' && (
             <div className="card">
+              <div className="ws-side-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h4>Lead Fields</h4>
+                {!editingFields && (
+                  <button onClick={() => setEditingFields(true)} style={{
+                    padding: '5px 12px', borderRadius: 6,
+                    border: '1.5px solid var(--line)',
+                    background: 'transparent', fontSize: 12,
+                    cursor: 'pointer', color: 'var(--ink-2)',
+                    fontFamily: 'inherit',
+                  }}>
+                    ✏ Edit
+                  </button>
+                )}
+              </div>
               <div className="ws-side-body">
+                {/* Read-only fields */}
                 {[
                   { k: 'Lead Name', v: lead.fullName || '—' },
                   { k: 'Lead Owner', v: lead.ownerName || '—' },
-                  { k: 'Lead Status', v: lead.leadStatus
-                    ? <span className="pill pill-neutral">{lead.leadStatus}</span>
-                    : '—'
-                  },
-                  { k: 'Phone', v: lead.phone || '—' },
-                  { k: 'Company', v: lead.company || '—' },
+                  { k: 'Lead Status', v: lead.leadStatus ? <span className="pill pill-neutral">{lead.leadStatus}</span> : '—' },
                   { k: 'Lead Source', v: lead.leadSource || '—' },
-                  { k: 'City', v: lead.city || '—' },
-                  { k: 'Website', v: lead.website || '—' },
+                ].map((row, i) => (
+                  <div key={i} className="ws-side-row">
+                    <span className="k">{row.k}</span>
+                    <span className="v">{row.v}</span>
+                  </div>
+                ))}
+                {/* Editable fields */}
+                {[
+                  { k: 'Phone', field: 'phone' },
+                  { k: 'Email', field: 'email' },
+                  { k: 'Company', field: 'company' },
+                  { k: 'City', field: 'city' },
+                  { k: 'Website', field: 'website' },
+                ].map(({ k, field }) => (
+                  <div key={field} className="ws-side-row">
+                    <span className="k">{k}</span>
+                    {editingFields ? (
+                      <input
+                        value={fieldsForm[field]}
+                        onChange={e => setFieldsForm(f => ({ ...f, [field]: e.target.value }))}
+                        style={{
+                          width: '100%', padding: '6px 10px',
+                          border: '1.5px solid var(--line)',
+                          borderRadius: 6, fontSize: 13,
+                          fontFamily: 'inherit', color: 'var(--ink-1)',
+                          background: 'var(--surface)',
+                        }}
+                      />
+                    ) : (
+                      <span className="v">{lead[field] || '—'}</span>
+                    )}
+                  </div>
+                ))}
+                {/* Read-only picklist fields */}
+                {[
                   { k: 'How many orders do you ship in a month?', v: lead.orderVolume || '—' },
                   { k: 'How can Eshopbox support your business?', v: lead.supportNeeded || '—' },
                   { k: 'What type of products do you sell?', v: lead.productType || '—' },
@@ -424,6 +480,60 @@ export default function LeadDetail() {
                     <span className="v">{row.v}</span>
                   </div>
                 ))}
+                {editingFields && (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                    <button
+                      onClick={async () => {
+                        setSavingFields(true)
+                        try {
+                          const res = await authFetch(`/api/leads/${leadId}/fields`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(fieldsForm),
+                          })
+                          const data = await res.json()
+                          if (data.success) { setEditingFields(false); window.location.reload() }
+                          else alert('Save failed: ' + (data.error || 'Unknown error'))
+                        } catch (e) {
+                          alert('Failed to save: ' + e.message)
+                        } finally {
+                          setSavingFields(false)
+                        }
+                      }}
+                      disabled={savingFields}
+                      style={{
+                        padding: '8px 16px', borderRadius: 8,
+                        border: 'none', background: '#3B5BDB',
+                        color: 'white', fontSize: 13, fontWeight: 600,
+                        cursor: savingFields ? 'not-allowed' : 'pointer',
+                        fontFamily: 'inherit', opacity: savingFields ? 0.6 : 1,
+                      }}
+                    >
+                      {savingFields ? 'Saving...' : 'Save Changes'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingFields(false)
+                        setFieldsForm({
+                          phone: lead.phone || '',
+                          email: lead.email || '',
+                          company: lead.company || '',
+                          city: lead.city || '',
+                          website: lead.website || '',
+                        })
+                      }}
+                      style={{
+                        padding: '8px 16px', borderRadius: 8,
+                        border: '1.5px solid var(--line)',
+                        background: 'transparent', fontSize: 13,
+                        cursor: 'pointer', color: 'var(--ink-2)',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
