@@ -1928,8 +1928,9 @@ function ContactTab({ deal }) {
       setError('Please enter a valid email address')
       return false
     }
-    if (!form.phone || form.phone.replace(/[\s\-\+\(\)]/g, '').length < 10) {
-      setError('Please enter a valid phone number (minimum 10 digits)')
+    const digits = form.phone.replace(/\D/g, '')
+    if (!form.phone || digits.length !== 10) {
+      setError('Phone number must be exactly 10 digits')
       return false
     }
     return true

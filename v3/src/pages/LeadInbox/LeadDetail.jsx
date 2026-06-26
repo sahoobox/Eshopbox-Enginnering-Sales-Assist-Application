@@ -62,9 +62,12 @@ export default function LeadDetail() {
       setFieldsError('Please enter a valid email address')
       return false
     }
-    if (fieldsForm.phone && fieldsForm.phone.replace(/[\s\-\+\(\)]/g, '').length < 10) {
-      setFieldsError('Phone number must be at least 10 digits')
-      return false
+    if (fieldsForm.phone) {
+      const digits = fieldsForm.phone.replace(/\D/g, '')
+      if (digits.length !== 10) {
+        setFieldsError('Phone number must be exactly 10 digits')
+        return false
+      }
     }
     return true
   }
