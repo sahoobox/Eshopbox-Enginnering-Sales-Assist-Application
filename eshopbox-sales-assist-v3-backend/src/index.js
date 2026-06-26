@@ -3814,28 +3814,26 @@ app.get('/api/leads/:id/cadences', requireAuth, async (c) => {
 app.get('/api/leads/:id/emails', requireAuth, async (c) => {
   const leadId = c.req.param('id')
   try {
-    const [mailsRes, draftsRes, scheduledRes] = await Promise.allSettled([
-      zohoAPI(c.env, 'GET', `/Leads/${leadId}/Emails?type=sent_from_crm`),
-      zohoAPI(c.env, 'GET', `/Leads/${leadId}/Emails?type=drafts`),
-      zohoAPI(c.env, 'GET', `/Leads/${leadId}/Emails?type=scheduled_in_crm`),
-    ])
+    const res = await zohoAPI(c.env, 'GET', `/Leads/${leadId}/Emails`)
+    console.log('Lead emails raw:', JSON.stringify(res).slice(0, 3000))
+    const all = res?.Emails || []
+    const mails = all.filter(e => e.sent === true)
+    const drafts = all.filter(e => e.sent === false && e.status?.[0]?.type === 'draft')
+    const scheduled = all.filter(e => e.status?.[0]?.type === 'scheduled')
     const mapEmail = e => ({
-      id: e.message_id || e.id,
+      id: e.message_id,
       subject: e.subject || '(No Subject)',
       date: e.time,
       from: e.from?.email || e.from?.user_name || '—',
       fromName: e.from?.user_name || '',
       to: (e.to || []).map(t => t.email).join(', '),
-      status: (e.status?.[0]?.type) || '—',
+      status: e.status?.[0]?.type || '—',
       source: e.source || '—',
       sentiment: e.sentiment_info || '—',
       hasAttachment: e.has_attachment || false,
     })
-    const mails = (mailsRes.status === 'fulfilled' ? mailsRes.value?.Emails || [] : []).map(mapEmail)
-    const drafts = (draftsRes.status === 'fulfilled' ? draftsRes.value?.Emails || [] : []).map(mapEmail)
-    const scheduled = (scheduledRes.status === 'fulfilled' ? scheduledRes.value?.Emails || [] : []).map(mapEmail)
-    console.log('Lead emails - mails:', mails.length, 'drafts:', drafts.length, 'scheduled:', scheduled.length)
-    return c.json({ mails, drafts, scheduled })
+    console.log('Lead emails - total:', all.length, 'mails:', mails.length, 'drafts:', drafts.length, 'scheduled:', scheduled.length)
+    return c.json({ mails: mails.map(mapEmail), drafts: drafts.map(mapEmail), scheduled: scheduled.map(mapEmail) })
   } catch (err) {
     console.error('Lead emails fetch error:', err.message)
     return c.json({ mails: [], drafts: [], scheduled: [] })
