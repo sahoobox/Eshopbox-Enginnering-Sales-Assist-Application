@@ -56,6 +56,7 @@ export default function LeadDetail() {
   const [leadEmailsLoading, setLeadEmailsLoading] = useState(false)
   const [emailSubTab, setEmailSubTab] = useState('mails')
   const [selectedEmail, setSelectedEmail] = useState(null)
+  const [emailBodyLoading, setEmailBodyLoading] = useState(false)
   const [editingFields, setEditingFields] = useState(false)
   const [fieldsForm, setFieldsForm] = useState({ phone: '', email: '', company: '', city: '', website: '' })
   const [savingFields, setSavingFields] = useState(false)
@@ -476,7 +477,7 @@ export default function LeadDetail() {
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                       <thead>
                         <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                          {['Subject', 'Date', 'Source', 'Sent By', 'Status'].map(h => (
+                          {['Subject', 'Date', 'Source', 'From', 'Status'].map(h => (
                             <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#6b7280', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                           ))}
                         </tr>
@@ -485,7 +486,15 @@ export default function LeadDetail() {
                         {rows.map(email => (
                           <tr
                             key={email.id}
-                            onClick={() => setSelectedEmail(email)}
+                            onClick={() => {
+                              setSelectedEmail(email)
+                              setEmailBodyLoading(true)
+                              authFetch(`/api/leads/${lead.id}/emails/${email.id}`)
+                                .then(r => r.json())
+                                .then(d => setSelectedEmail(prev => ({ ...prev, content: d.content })))
+                                .catch(() => {})
+                                .finally(() => setEmailBodyLoading(false))
+                            }}
                             style={{ borderBottom: '1px solid #f3f4f6', cursor: 'pointer' }}
                             onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
                             onMouseLeave={e => e.currentTarget.style.background = ''}
@@ -502,7 +511,7 @@ export default function LeadDetail() {
                               {email.date ? new Date(email.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
                             </td>
                             <td style={{ padding: '10px 14px', color: '#6b7280' }}>{email.source}</td>
-                            <td style={{ padding: '10px 14px', color: '#6b7280' }}>{email.sentBy}</td>
+                            <td style={{ padding: '10px 14px', color: '#6b7280' }}>{email.from}</td>
                             <td style={{ padding: '10px 14px' }}>
                               <span style={{
                                 padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 600,
@@ -560,7 +569,9 @@ export default function LeadDetail() {
                     </div>
                     {/* Email body */}
                     <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
-                      {selectedEmail.content ? (
+                      {emailBodyLoading ? (
+                        <div style={{ textAlign: 'center', paddingTop: 40, color: '#9ca3af' }}>Loading email...</div>
+                      ) : selectedEmail?.content ? (
                         <div dangerouslySetInnerHTML={{ __html: selectedEmail.content }} style={{ fontSize: 14, lineHeight: 1.7, color: '#374151' }} />
                       ) : (
                         <div style={{ color: '#9ca3af', textAlign: 'center', paddingTop: 40 }}>No content available</div>

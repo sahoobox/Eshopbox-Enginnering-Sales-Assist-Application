@@ -3814,28 +3814,44 @@ app.get('/api/leads/:id/cadences', requireAuth, async (c) => {
 app.get('/api/leads/:id/emails', requireAuth, async (c) => {
   const leadId = c.req.param('id')
   try {
-    const res = await zohoAPI(c.env, 'GET',
-      `/Leads/${leadId}/Emails?fields=subject,date,from,to,content,status,source,sentiment,sent_by&per_page=50&type=MailMagnet`)
-    const all = res?.data || []
-    const mails = all.filter(e => e.status?.toLowerCase() === 'sent')
-    const drafts = all.filter(e => e.status?.toLowerCase() === 'draft')
-    const scheduled = all.filter(e => e.status?.toLowerCase() === 'scheduled')
+    const [mailsRes, draftsRes, scheduledRes] = await Promise.allSettled([
+      zohoAPI(c.env, 'GET', `/Leads/${leadId}/Emails?type=sent_from_crm`),
+      zohoAPI(c.env, 'GET', `/Leads/${leadId}/Emails?type=drafts`),
+      zohoAPI(c.env, 'GET', `/Leads/${leadId}/Emails?type=scheduled_in_crm`),
+    ])
     const mapEmail = e => ({
-      id: e.id,
+      id: e.message_id || e.id,
       subject: e.subject || '(No Subject)',
-      date: e.date,
-      from: e.from,
-      to: e.to,
-      content: e.content || '',
-      status: e.status,
+      date: e.time,
+      from: e.from?.email || e.from?.user_name || '—',
+      fromName: e.from?.user_name || '',
+      to: (e.to || []).map(t => t.email).join(', '),
+      status: (e.status?.[0]?.type) || '—',
       source: e.source || '—',
-      sentBy: e.sent_by || '—',
-      sentiment: e.sentiment || '—',
+      sentiment: e.sentiment_info || '—',
+      hasAttachment: e.has_attachment || false,
     })
-    return c.json({ mails: mails.map(mapEmail), drafts: drafts.map(mapEmail), scheduled: scheduled.map(mapEmail) })
+    const mails = (mailsRes.status === 'fulfilled' ? mailsRes.value?.Emails || [] : []).map(mapEmail)
+    const drafts = (draftsRes.status === 'fulfilled' ? draftsRes.value?.Emails || [] : []).map(mapEmail)
+    const scheduled = (scheduledRes.status === 'fulfilled' ? scheduledRes.value?.Emails || [] : []).map(mapEmail)
+    console.log('Lead emails - mails:', mails.length, 'drafts:', drafts.length, 'scheduled:', scheduled.length)
+    return c.json({ mails, drafts, scheduled })
   } catch (err) {
     console.error('Lead emails fetch error:', err.message)
     return c.json({ mails: [], drafts: [], scheduled: [] })
+  }
+})
+
+app.get('/api/leads/:id/emails/:messageId', requireAuth, async (c) => {
+  const leadId = c.req.param('id')
+  const messageId = c.req.param('messageId')
+  try {
+    const res = await zohoAPI(c.env, 'GET', `/Leads/${leadId}/Emails/${messageId}`)
+    const email = res?.Emails?.[0]
+    return c.json({ content: email?.content || '', subject: email?.subject || '' })
+  } catch (err) {
+    console.error('Lead email body fetch error:', err.message)
+    return c.json({ content: '', subject: '' })
   }
 })
 
