@@ -50,8 +50,6 @@ export default function LeadDetail() {
   const [mergeConfirm, setMergeConfirm] = useState(null)
   const [mergeError, setMergeError] = useState(null)
   const [showReassign, setShowReassign] = useState(false)
-  const [cadences, setCadences] = useState([])
-  const [cadencesLoading, setCadencesLoading] = useState(false)
   const [leadEmails, setLeadEmails] = useState({ mails: [], drafts: [], scheduled: [] })
   const [leadEmailsLoading, setLeadEmailsLoading] = useState(false)
   const [emailSubTab, setEmailSubTab] = useState('mails')
@@ -105,16 +103,6 @@ export default function LeadDetail() {
       .then(d => setDedup(d))
       .catch(() => {})
   }, [leadId])
-
-  useEffect(() => {
-    if (tab !== 'cadence' || !lead?.id) return
-    setCadencesLoading(true)
-    authFetch(`/api/leads/${lead.id}/cadences`)
-      .then(r => r.json())
-      .then(d => setCadences(d.cadences || []))
-      .catch(() => setCadences([]))
-      .finally(() => setCadencesLoading(false))
-  }, [tab, lead?.id])
 
   useEffect(() => {
     if (tab !== 'emails' || !lead?.id) return
@@ -313,8 +301,7 @@ export default function LeadDetail() {
               { id: 'leadfields', label: 'Lead Fields' },
               { id: 'timeline', label: 'Timeline' },
               { id: 'activities', label: 'Activities' },
-              { id: 'cadence', label: 'Cadence' },
-              { id: 'emails', label: 'Emails' },
+              { id: 'emails', label: 'Sequence' },
               { id: 'notes', label: 'Notes' },
               { id: 'utm', label: 'UTM & Tracking' },
             ].map(t => (
@@ -330,112 +317,6 @@ export default function LeadDetail() {
 
           {tab === 'activities' && (
             <LeadActivitiesTab leadId={leadId} />
-          )}
-
-          {tab === 'cadence' && (
-            <div style={{ padding: '16px 0' }}>
-              {cadencesLoading ? (
-                <div style={{
-                  textAlign: 'center', padding: 40,
-                  color: 'var(--ink-3)', fontSize: 13
-                }}>Loading cadences...</div>
-              ) : cadences.length === 0 ? (
-                <div style={{
-                  textAlign: 'center', padding: 40,
-                  color: 'var(--ink-3)', fontSize: 13
-                }}>No cadences enrolled for this lead</div>
-              ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{
-                    width: '100%', borderCollapse: 'collapse',
-                    fontSize: 12
-                  }}>
-                    <thead>
-                      <tr>
-                        {['Cadence Name', 'Start Date',
-                          'Enrolled By', 'Status',
-                          'Member Status', 'Last Follow-up',
-                          'Last Follow-up Date', 'Next Follow-up',
-                          'Last Type', 'Completed Date'
-                        ].map(h => (
-                          <th key={h} style={{
-                            padding: '8px 12px',
-                            textAlign: 'left',
-                            fontSize: 11, fontWeight: 600,
-                            color: 'var(--ink-3)',
-                            borderBottom: '1px solid var(--line)',
-                            whiteSpace: 'nowrap',
-                            background: 'var(--surface)'
-                          }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {cadences.map(cad => (
-                        <tr key={cad.id} style={{
-                          borderBottom: '0.5px solid var(--line)'
-                        }}>
-                          <td style={{
-                            padding: '10px 12px',
-                            fontWeight: 600,
-                            color: 'var(--ink-1)'
-                          }}>{cad.cadenceName || '—'}</td>
-                          <td style={{ padding: '10px 12px', color: 'var(--ink-2)' }}>
-                            {cad.startDate
-                              ? new Date(cad.startDate).toLocaleDateString('en-IN')
-                              : '—'}
-                          </td>
-                          <td style={{ padding: '10px 12px', color: 'var(--ink-2)' }}>
-                            {cad.enrolledBy || '—'}
-                          </td>
-                          <td style={{ padding: '10px 12px' }}>
-                            <span style={{
-                              padding: '2px 8px',
-                              borderRadius: 20, fontSize: 11,
-                              fontWeight: 600,
-                              background: cad.cadenceStatus === 'Ongoing' ? '#EEF2FF' : '#F0FFF4',
-                              color: cad.cadenceStatus === 'Ongoing' ? '#3B5BDB' : '#2F9E44'
-                            }}>
-                              {cad.cadenceStatus || '—'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '10px 12px', color: 'var(--ink-2)' }}>
-                            <span style={{
-                              padding: '2px 8px',
-                              borderRadius: 20, fontSize: 11,
-                              fontWeight: 500,
-                              background: '#F5F5F5',
-                              color: 'var(--ink-2)'
-                            }}>
-                              {cad.memberStatus || '—'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '10px 12px', color: 'var(--ink-2)' }}>
-                            {cad.lastFollowUpResponse || '—'}
-                          </td>
-                          <td style={{ padding: '10px 12px', color: 'var(--ink-2)' }}>
-                            {cad.lastFollowUpDate
-                              ? new Date(cad.lastFollowUpDate).toLocaleDateString('en-IN')
-                              : '—'}
-                          </td>
-                          <td style={{ padding: '10px 12px', color: 'var(--ink-2)' }}>
-                            {cad.nextFollowUp || '—'}
-                          </td>
-                          <td style={{ padding: '10px 12px', color: 'var(--ink-2)' }}>
-                            {cad.lastFollowUpType || '—'}
-                          </td>
-                          <td style={{ padding: '10px 12px', color: 'var(--ink-2)' }}>
-                            {cad.completedDate
-                              ? new Date(cad.completedDate).toLocaleDateString('en-IN')
-                              : '—'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
           )}
 
           {tab === 'emails' && (
