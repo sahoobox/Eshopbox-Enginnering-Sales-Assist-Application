@@ -3816,7 +3816,7 @@ app.get('/api/leads/:id/emails', requireAuth, async (c) => {
   try {
     const res = await zohoAPI(c.env, 'GET', `/Leads/${leadId}/Emails`)
     console.log('Lead emails raw:', JSON.stringify(res).slice(0, 3000))
-    const all = res?.Emails || []
+    const all = res?.email_related_list || res?.Emails || []
     const mails = all.filter(e => e.sent === true)
     const drafts = all.filter(e => e.sent === false && e.status?.[0]?.type === 'draft')
     const scheduled = all.filter(e => e.status?.[0]?.type === 'scheduled')
