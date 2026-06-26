@@ -1921,6 +1921,19 @@ function ContactTab({ deal }) {
     phone: deal.contactPhone || '',
   })
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const validateContact = () => {
+    if (!form.email || !form.email.includes('@')) {
+      setError('Please enter a valid email address')
+      return false
+    }
+    if (!form.phone || form.phone.replace(/[\s\-\+\(\)]/g, '').length < 10) {
+      setError('Please enter a valid phone number (minimum 10 digits)')
+      return false
+    }
+    return true
+  }
 
   const inputStyle = {
     width: '100%', padding: '6px 10px',
@@ -1950,7 +1963,7 @@ function ContactTab({ deal }) {
         <div className="ws-side-row">
           <span className="k">Name</span>
           {editing ? (
-            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inputStyle} />
+            <input value={form.name} onChange={e => { setError(''); setForm(f => ({ ...f, name: e.target.value })) }} style={inputStyle} />
           ) : (
             <span className="v">{deal.demoInfo?.prospectName || deal.contactName || '—'}</span>
           )}
@@ -1958,7 +1971,7 @@ function ContactTab({ deal }) {
         <div className="ws-side-row">
           <span className="k">Email</span>
           {editing ? (
-            <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inputStyle} />
+            <input value={form.email} onChange={e => { setError(''); setForm(f => ({ ...f, email: e.target.value })) }} style={inputStyle} />
           ) : (
             <span className="v">{deal.contactEmail || deal.demoInfo?.prospectEmail || '—'}</span>
           )}
@@ -1966,7 +1979,7 @@ function ContactTab({ deal }) {
         <div className="ws-side-row">
           <span className="k">Phone</span>
           {editing ? (
-            <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={inputStyle} />
+            <input value={form.phone} onChange={e => { setError(''); setForm(f => ({ ...f, phone: e.target.value })) }} style={inputStyle} />
           ) : (
             <span className="v">{deal.contactPhone || '—'}</span>
           )}
@@ -1980,9 +1993,21 @@ function ContactTab({ deal }) {
           <span className="v">{deal.repName || '—'}</span>
         </div>
         {editing && (
-          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+          <div style={{ marginTop: 16 }}>
+            {error && (
+              <div style={{
+                fontSize: 12, color: '#E5484D',
+                marginBottom: 8, padding: '6px 10px',
+                background: '#FFF0F0', borderRadius: 6,
+                border: '1px solid #E5484D',
+              }}>
+                {error}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
             <button
               onClick={async () => {
+                if (!validateContact()) return
                 setSaving(true)
                 try {
                   const res = await authFetch(`/api/deals/${deal.id}/contact`, {
@@ -2025,6 +2050,7 @@ function ContactTab({ deal }) {
             >
               Cancel
             </button>
+            </div>
           </div>
         )}
       </div>

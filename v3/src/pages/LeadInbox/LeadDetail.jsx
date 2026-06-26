@@ -55,6 +55,19 @@ export default function LeadDetail() {
   const [editingFields, setEditingFields] = useState(false)
   const [fieldsForm, setFieldsForm] = useState({ phone: '', email: '', company: '', city: '', website: '' })
   const [savingFields, setSavingFields] = useState(false)
+  const [fieldsError, setFieldsError] = useState('')
+
+  const validateFields = () => {
+    if (fieldsForm.email && !fieldsForm.email.includes('@')) {
+      setFieldsError('Please enter a valid email address')
+      return false
+    }
+    if (fieldsForm.phone && fieldsForm.phone.replace(/[\s\-\+\(\)]/g, '').length < 10) {
+      setFieldsError('Phone number must be at least 10 digits')
+      return false
+    }
+    return true
+  }
 
   useEffect(() => {
     authFetch(`/api/leads/${leadId}`)
@@ -452,7 +465,7 @@ export default function LeadDetail() {
                     {editingFields ? (
                       <input
                         value={fieldsForm[field]}
-                        onChange={e => setFieldsForm(f => ({ ...f, [field]: e.target.value }))}
+                        onChange={e => { setFieldsError(''); setFieldsForm(f => ({ ...f, [field]: e.target.value })) }}
                         style={{
                           width: '100%', padding: '6px 10px',
                           border: '1.5px solid var(--line)',
@@ -481,9 +494,21 @@ export default function LeadDetail() {
                   </div>
                 ))}
                 {editingFields && (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                  <div style={{ marginTop: 16 }}>
+                    {fieldsError && (
+                      <div style={{
+                        fontSize: 12, color: '#E5484D',
+                        marginBottom: 8, padding: '6px 10px',
+                        background: '#FFF0F0', borderRadius: 6,
+                        border: '1px solid #E5484D',
+                      }}>
+                        {fieldsError}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       onClick={async () => {
+                        if (!validateFields()) return
                         setSavingFields(true)
                         try {
                           const res = await authFetch(`/api/leads/${leadId}/fields`, {
@@ -532,6 +557,7 @@ export default function LeadDetail() {
                     >
                       Cancel
                     </button>
+                    </div>
                   </div>
                 )}
               </div>
