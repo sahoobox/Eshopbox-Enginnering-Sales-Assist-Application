@@ -1041,9 +1041,6 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
           setDraftCreated(true)
           setGmailDraftId(data.draftId)
           setGmailMessageId(data.gmailMessageId)
-          if (data.gmailMessageId) {
-            window.open(`https://mail.google.com/mail/u/0/#drafts/${data.gmailMessageId}`, '_blank')
-          }
         } else alert(data.error || 'Failed to create Gmail draft')
       } finally { setCreating(false) }
     }
@@ -1271,9 +1268,10 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
                   <>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <a
-                        href={`https://mail.google.com/mail/u/0/#drafts/${gmailMessageId}`}
+                        href={`https://mail.google.com/mail/u/0/#drafts/${gmailMessageId || gmailDraftId}`}
                         target="_blank"
                         rel="noreferrer"
+                        onClick={() => console.log('Opening draft URL:', `https://mail.google.com/mail/u/0/#drafts/${gmailMessageId}`, 'gmailMessageId:', gmailMessageId, 'gmailDraftId:', gmailDraftId)}
                         style={{
                           flex: 1, padding: '10px 16px',
                           borderRadius: 8, textAlign: 'center',
