@@ -2283,6 +2283,24 @@ app.delete('/api/deals/:id/emails/:emailType/draft', requireAuth, async (c) => {
     const dealId = c.req.param('id')
     const emailType = c.req.param('emailType')
     const loggedInUser = c.get('user')
+
+    const existing = await c.env.DB.prepare(
+      'SELECT gmail_draft_id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
+    ).bind(dealId, emailType).first()
+
+    if (existing?.gmail_draft_id) {
+      try {
+        const accessToken = await getGmailAccessToken(c.env, loggedInUser.id)
+        const delRes = await fetch(
+          `https://gmail.googleapis.com/gmail/v1/users/me/drafts/${existing.gmail_draft_id}`,
+          { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } }
+        )
+        console.log('Deleted Gmail draft:', existing.gmail_draft_id, 'status:', delRes.status)
+      } catch (e) {
+        console.log('Failed to delete Gmail draft (continuing):', e.message)
+      }
+    }
+
     await c.env.DB.prepare(
       `UPDATE deal_emails SET gmail_draft_id = NULL, gmail_message_id = NULL, gmail_thread_id = NULL, status = 'draft', updated_at = ? WHERE deal_id = ? AND email_type = ?`
     ).bind(new Date().toISOString(), dealId, emailType).run()
@@ -2368,6 +2386,18 @@ async function handleCreateGmailDraft(c) {
       return c.json({ error: 'Gmail not connected. Please connect your Gmail account in Account settings first.', code: 'GMAIL_NOT_CONNECTED' }, 400);
     }
 
+    if (emailRow.gmail_draft_id) {
+      try {
+        const delRes = await fetch(
+          `https://gmail.googleapis.com/gmail/v1/users/me/drafts/${emailRow.gmail_draft_id}`,
+          { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } }
+        )
+        console.log('Pre-create: deleted existing draft', emailRow.gmail_draft_id, 'status:', delRes.status)
+      } catch (e) {
+        console.log('Pre-create: failed to delete existing draft (continuing):', e.message)
+      }
+    }
+
     console.log('Calling createGmailDraft for:', loggedInUser.email, 'to:', prospectEmail)
     const result = await createGmailDraft(accessToken, {
       fromEmail: loggedInUser.email,
@@ -2408,7 +2438,7 @@ async function handleCreateGmailDraft(c) {
       metadata: { emailType }
     })
 
-    return c.json({ success: true, draftId: result.draftId, messageId: result.messageId });
+    return c.json({ success: true, draftId: result.draftId, messageId: result.messageId, gmailMessageId: result.gmailMessageId });
   } catch (err) {
     return c.json({ error: 'Failed to send email', details: err.message }, 500);
   }

@@ -989,6 +989,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
     const [creating, setCreating] = useState(false)
     const [draftCreated, setDraftCreated] = useState(!!email.gmail_draft_id)
     const [gmailDraftId, setGmailDraftId] = useState(email.gmail_draft_id || null)
+    const [gmailMessageId, setGmailMessageId] = useState(email.gmail_message_id || null)
     const [recreating, setRecreating] = useState(false)
     const [markingSent, setMarkingSent] = useState(false)
     const [showMarkSentModal, setShowMarkSentModal] = useState(false)
@@ -1026,8 +1027,8 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
     }, [email.gmail_draft_id, email.status])
 
     async function createGmailDraft() {
-      if (draftCreated && !draftDeleted && gmailDraftId) {
-        window.open(`https://mail.google.com/mail/#drafts/${gmailDraftId}`, '_blank')
+      if (draftCreated && !draftDeleted && gmailMessageId) {
+        window.open(`https://mail.google.com/mail/u/0/#drafts/${gmailMessageId}`, '_blank')
         return
       }
       setCreating(true)
@@ -1039,8 +1040,9 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
         if (data.success) {
           setDraftCreated(true)
           setGmailDraftId(data.draftId)
-          if (data.draftId) {
-            window.open(`https://mail.google.com/mail/#drafts/${data.draftId}`, '_blank')
+          setGmailMessageId(data.gmailMessageId)
+          if (data.gmailMessageId) {
+            window.open(`https://mail.google.com/mail/u/0/#drafts/${data.gmailMessageId}`, '_blank')
           }
         } else alert(data.error || 'Failed to create Gmail draft')
       } finally { setCreating(false) }
@@ -1052,6 +1054,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
         await authFetch(`/api/deals/${deal.id}/emails/${email.email_type}/draft`, { method: 'DELETE' })
         setDraftCreated(false)
         setGmailDraftId(null)
+        setGmailMessageId(null)
       } finally { setRecreating(false) }
     }
 
@@ -1268,7 +1271,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
                   <>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <a
-                        href={`https://mail.google.com/mail/#drafts/${gmailDraftId}`}
+                        href={`https://mail.google.com/mail/u/0/#drafts/${gmailMessageId}`}
                         target="_blank"
                         rel="noreferrer"
                         style={{
