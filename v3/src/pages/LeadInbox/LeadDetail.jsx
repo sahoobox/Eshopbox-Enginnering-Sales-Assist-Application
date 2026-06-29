@@ -56,7 +56,7 @@ export default function LeadDetail() {
   const [selectedEmail, setSelectedEmail] = useState(null)
   const [emailBodyLoading, setEmailBodyLoading] = useState(false)
   const [editingFields, setEditingFields] = useState(false)
-  const [fieldsForm, setFieldsForm] = useState({ phone: '', email: '', company: '', city: '', website: '' })
+  const [fieldsForm, setFieldsForm] = useState({ name: '', phone: '', email: '', company: '', city: '', website: '' })
   const [savingFields, setSavingFields] = useState(false)
   const [fieldsError, setFieldsError] = useState('')
 
@@ -88,6 +88,7 @@ export default function LeadDetail() {
 
   useEffect(() => {
     if (lead) setFieldsForm({
+      name: lead.fullName || '',
       phone: lead.phone || '',
       email: lead.email || '',
       company: lead.company || '',
@@ -487,7 +488,6 @@ export default function LeadDetail() {
               <div className="ws-side-body">
                 {/* Read-only fields */}
                 {[
-                  { k: 'Lead Name', v: lead.fullName || '—' },
                   { k: 'Lead Owner', v: lead.ownerName || '—' },
                   { k: 'Lead Status', v: lead.leadStatus ? <span className="pill pill-neutral">{lead.leadStatus}</span> : '—' },
                   { k: 'Lead Source', v: lead.leadSource || '—' },
@@ -499,6 +499,7 @@ export default function LeadDetail() {
                 ))}
                 {/* Editable fields */}
                 {[
+                  { k: 'Lead Name', field: 'name' },
                   { k: 'Phone', field: 'phone' },
                   { k: 'Email', field: 'email' },
                   { k: 'Company', field: 'company' },
@@ -520,7 +521,7 @@ export default function LeadDetail() {
                         }}
                       />
                     ) : (
-                      <span className="v">{lead[field] || '—'}</span>
+                      <span className="v">{field === 'name' ? (lead.fullName || '—') : (lead[field] || '—')}</span>
                     )}
                   </div>
                 ))}
@@ -585,6 +586,7 @@ export default function LeadDetail() {
                       onClick={() => {
                         setEditingFields(false)
                         setFieldsForm({
+                          name: lead.fullName || '',
                           phone: lead.phone || '',
                           email: lead.email || '',
                           company: lead.company || '',

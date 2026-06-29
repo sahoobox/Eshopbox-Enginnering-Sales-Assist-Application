@@ -4435,8 +4435,11 @@ app.patch('/api/deals/:id/contact', requireAuth, async (c) => {
     const dealRes = await zohoAPI(c.env, 'GET', `/Deals/${dealId}?fields=Contact_Name`)
     const contactId = dealRes?.data?.[0]?.Contact_Name?.id
     if (!contactId) return c.json({ error: 'No contact linked to this deal' }, 400)
+    const nameParts = (name || '').trim().split(' ')
+    const firstName = nameParts[0] || ''
+    const lastName = nameParts.slice(1).join(' ') || ''
     await zohoAPI(c.env, 'PUT', `/Contacts/${contactId}`, {
-      data: [{ id: contactId, Full_Name: name, Email: email, Phone: phone }]
+      data: [{ id: contactId, First_Name: firstName, Last_Name: lastName, Email: email, Phone: phone }]
     })
     try { await c.env.TOKEN_CACHE.delete('v3_deals_cache') } catch (_) {}
     return c.json({ success: true })
@@ -4448,9 +4451,12 @@ app.patch('/api/deals/:id/contact', requireAuth, async (c) => {
 app.patch('/api/leads/:id/fields', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
-    const { phone, email, company, city, website } = await c.req.json()
+    const { name, phone, email, company, city, website } = await c.req.json()
+    const nameParts = (name || '').trim().split(' ')
+    const firstName = nameParts[0] || ''
+    const lastName = nameParts.slice(1).join(' ') || ''
     await zohoAPI(c.env, 'PUT', `/Leads/${leadId}`, {
-      data: [{ id: leadId, Phone: phone, Email: email, Company: company, City: city, Website: website }]
+      data: [{ id: leadId, ...(name ? { First_Name: firstName, Last_Name: lastName } : {}), Phone: phone, Email: email, Company: company, City: city, Website: website }]
     })
     try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch (_) {}
     return c.json({ success: true })
