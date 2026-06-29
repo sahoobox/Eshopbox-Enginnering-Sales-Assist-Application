@@ -1268,7 +1268,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
                   <>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <a
-                        href={`https://mail.google.com/mail/u/0/#drafts/${gmailMessageId || gmailDraftId}`}
+                        href={`https://mail.google.com/mail/u/0/#drafts/${gmailDraftId}`}
                         target="_blank"
                         rel="noreferrer"
                         onClick={() => console.log('Opening draft URL:', `https://mail.google.com/mail/u/0/#drafts/${gmailMessageId}`, 'gmailMessageId:', gmailMessageId, 'gmailDraftId:', gmailDraftId)}
