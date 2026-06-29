@@ -2356,21 +2356,16 @@ async function handleCreateGmailDraft(c) {
     // Build subject: use stored subject or fall back to helper
     let subject = emailRow.subject || (EMAIL_SUBJECTS[emailType] ? EMAIL_SUBJECTS[emailType](brandName) : `Follow-up — ${brandName}`);
 
-    // For non-day1 emails, thread onto day1 if its message ID is available
+    // Threading removed — Gmail UI bug prevents threaded API drafts
+    // from showing as compose window inside thread view.
+    // Subject already has "Re:" prefix so it reads as a reply to prospect.
     let inReplyTo = null;
     let references = null;
     let day1ThreadId = null;
     if (emailType !== 'day1') {
-      const day1Row = await c.env.DB.prepare(
-        'SELECT thread_message_id, gmail_message_id, gmail_thread_id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
-      ).bind(dealId, 'day1').first();
-      if (day1Row?.thread_message_id) {
-        inReplyTo = day1Row.thread_message_id;
-        references = day1Row.thread_message_id;
-        if (!subject.startsWith('Re: ')) subject = `Re: ${subject}`;
-      }
-      console.log('create-draft: day1Row =', JSON.stringify(day1Row));
-      day1ThreadId = day1Row?.gmail_thread_id || null;
+      inReplyTo = null;
+      references = null;
+      day1ThreadId = null;
     }
 
     console.log('create-draft threading:', emailType, '| inReplyTo:', inReplyTo, '| references:', references);
