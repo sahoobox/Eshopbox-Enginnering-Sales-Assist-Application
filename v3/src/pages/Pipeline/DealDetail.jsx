@@ -56,7 +56,7 @@ export default function DealDetail({ dealId }) {
     ? ['On Hold', 'Won/Payment Received', 'Lost/Dropped']
     : ['On Hold', 'Lost/Dropped']
   const moveableStages = deal.pipeline === 'Enterprise 2.0'
-    ? ['Follow up Meeting Done', 'Demo Approved', 'Active', 'Won/Payment Received']
+    ? ['Follow up Meeting Done', 'Deal Approved', 'Active', 'Won/Payment Received']
     : ['Account Setup in Progress', 'Awaiting First Shipment',
        'First Shipment Done', 'Active']
   const availableStages = moveableStages.filter(s => s !== deal.stage)
