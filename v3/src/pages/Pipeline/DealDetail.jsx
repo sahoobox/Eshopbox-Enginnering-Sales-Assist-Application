@@ -1993,7 +1993,9 @@ function ContactTab({ deal }) {
             background: 'transparent', fontSize: 12,
             cursor: 'pointer', color: 'var(--ink-2)',
             fontFamily: 'inherit',
-          }}>
+          }}
+          title="Edit contact email and phone"
+          >
             ✏ Edit
           </button>
         )}
@@ -2092,6 +2094,7 @@ function ContactTab({ deal }) {
     </div>
     <button
       onClick={() => setShowAddContact(true)}
+      title="Add a new contact or replace existing. Duplicate emails are automatically merged in Zoho."
       style={{
         width: '100%', padding: '10px 16px', borderRadius: 8,
         border: '1.5px dashed var(--line)',
@@ -2100,7 +2103,7 @@ function ContactTab({ deal }) {
         fontFamily: 'inherit', marginTop: 8,
       }}
     >
-      + Add / Replace Contact
+      + Replace Contact
     </button>
     {showAddContact && (
       <div className="modal-overlay" onClick={() => setShowAddContact(false)}>
