@@ -4428,18 +4428,48 @@ app.get('/api/bulk-assign/history', requireAuth, async (c) => {
   }
 })
 
+app.post('/api/deals/:id/contact', requireAuth, async (c) => {
+  const dealId = c.req.param('id')
+  const { firstName, lastName, email, phone } = await c.req.json()
+  if (!email) return c.json({ error: 'Email is required' }, 400)
+  try {
+    const upsertRes = await zohoAPI(c.env, 'POST', '/Contacts/upsert', {
+      data: [{
+        First_Name: firstName || '',
+        Last_Name: lastName || '',
+        Email: email,
+        Phone: phone || '',
+      }],
+      duplicate_check_fields: ['Email']
+    })
+    const contact = upsertRes?.data?.[0]
+    if (!contact || contact.status === 'error') {
+      return c.json({ error: 'Failed to upsert contact in Zoho' }, 500)
+    }
+    const contactId = contact.details?.id
+    if (!contactId) return c.json({ error: 'No contact ID returned' }, 500)
+    console.log('Contact upserted:', contactId, contact.code)
+    const linkRes = await zohoAPI(c.env, 'PUT', `/Deals/${dealId}`, {
+      data: [{ id: dealId, Contact_Name: { id: contactId } }]
+    })
+    console.log('Contact linked to deal:', linkRes?.data?.[0]?.code)
+    try { await c.env.TOKEN_CACHE.delete('v3_deals_cache') } catch (_) {}
+    return c.json({ success: true, contactId, action: contact.action || contact.code })
+  } catch (err) {
+    console.error('Add contact error:', err.message)
+    return c.json({ error: err.message }, 500)
+  }
+})
+
 app.patch('/api/deals/:id/contact', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id')
-    const { name, email, phone } = await c.req.json()
+    const { email, phone } = await c.req.json()
     const dealRes = await zohoAPI(c.env, 'GET', `/Deals/${dealId}?fields=Contact_Name`)
     const contactId = dealRes?.data?.[0]?.Contact_Name?.id
     if (!contactId) return c.json({ error: 'No contact linked to this deal' }, 400)
-    const nameParts = (name || '').trim().split(' ')
-    const firstName = nameParts[0] || ''
-    const lastName = nameParts.slice(1).join(' ') || ''
     await zohoAPI(c.env, 'PUT', `/Contacts/${contactId}`, {
-      data: [{ id: contactId, First_Name: firstName, Last_Name: lastName, Email: email, Phone: phone }]
+      data: [{ id: contactId, Email: email, Phone: phone }]
     })
     try { await c.env.TOKEN_CACHE.delete('v3_deals_cache') } catch (_) {}
     return c.json({ success: true })
@@ -4451,12 +4481,9 @@ app.patch('/api/deals/:id/contact', requireAuth, async (c) => {
 app.patch('/api/leads/:id/fields', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
-    const { name, phone, email, company, city, website } = await c.req.json()
-    const nameParts = (name || '').trim().split(' ')
-    const firstName = nameParts[0] || ''
-    const lastName = nameParts.slice(1).join(' ') || ''
+    const { phone, email, company, city, website } = await c.req.json()
     await zohoAPI(c.env, 'PUT', `/Leads/${leadId}`, {
-      data: [{ id: leadId, ...(name ? { First_Name: firstName, Last_Name: lastName } : {}), Phone: phone, Email: email, Company: company, City: city, Website: website }]
+      data: [{ id: leadId, Phone: phone, Email: email, Company: company, City: city, Website: website }]
     })
     try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch (_) {}
     return c.json({ success: true })

@@ -1917,12 +1917,40 @@ function ContactTab({ deal }) {
   const { authFetch } = useAuth()
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({
-    name: deal.contactName || '',
     email: deal.contactEmail || '',
     phone: deal.contactPhone || '',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showAddContact, setShowAddContact] = useState(false)
+  const [addContactForm, setAddContactForm] = useState({ firstName: '', lastName: '', email: '', phone: '' })
+  const [addContactLoading, setAddContactLoading] = useState(false)
+  const [addContactError, setAddContactError] = useState('')
+
+  async function handleAddContact() {
+    if (!addContactForm.email) { setAddContactError('Email is required'); return }
+    setAddContactLoading(true)
+    setAddContactError('')
+    try {
+      const res = await authFetch(`/api/deals/${deal.id}/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(addContactForm),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setShowAddContact(false)
+        setAddContactForm({ firstName: '', lastName: '', email: '', phone: '' })
+        window.location.reload()
+      } else {
+        setAddContactError(data.error || 'Failed to add contact')
+      }
+    } catch (e) {
+      setAddContactError(e.message)
+    } finally {
+      setAddContactLoading(false)
+    }
+  }
 
   const validateContact = () => {
     if (!form.email || !form.email.includes('@')) {
@@ -1945,7 +1973,16 @@ function ContactTab({ deal }) {
     background: 'var(--surface)',
   }
 
+  const inputStyle2 = {
+    width: '100%', padding: '6px 10px',
+    border: '1.5px solid var(--line)',
+    borderRadius: 6, fontSize: 13,
+    fontFamily: 'inherit', color: 'var(--ink-1)',
+    background: 'var(--surface)',
+  }
+
   return (
+    <>
     <div className="card">
       <div className="ws-side-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h4>Contact Details</h4>
@@ -1964,11 +2001,7 @@ function ContactTab({ deal }) {
       <div className="ws-side-body">
         <div className="ws-side-row">
           <span className="k">Name</span>
-          {editing ? (
-            <input value={form.name} onChange={e => { setError(''); setForm(f => ({ ...f, name: e.target.value })) }} style={inputStyle} />
-          ) : (
-            <span className="v">{deal.demoInfo?.prospectName || deal.contactName || '—'}</span>
-          )}
+          <span className="v">{deal.demoInfo?.prospectName || deal.contactName || '—'}</span>
         </div>
         <div className="ws-side-row">
           <span className="k">Email</span>
@@ -2040,7 +2073,7 @@ function ContactTab({ deal }) {
             <button
               onClick={() => {
                 setEditing(false)
-                setForm({ name: deal.contactName || '', email: deal.contactEmail || '', phone: deal.contactPhone || '' })
+                setForm({ email: deal.contactEmail || '', phone: deal.contactPhone || '' })
               }}
               style={{
                 padding: '8px 16px', borderRadius: 8,
@@ -2057,6 +2090,60 @@ function ContactTab({ deal }) {
         )}
       </div>
     </div>
+    <button
+      onClick={() => setShowAddContact(true)}
+      style={{
+        width: '100%', padding: '10px 16px', borderRadius: 8,
+        border: '1.5px dashed var(--line)',
+        background: 'transparent', fontSize: 13,
+        cursor: 'pointer', color: 'var(--ink-2)',
+        fontFamily: 'inherit', marginTop: 8,
+      }}
+    >
+      + Add / Replace Contact
+    </button>
+    {showAddContact && (
+      <div className="modal-overlay" onClick={() => setShowAddContact(false)}>
+        <div className="modal-box" onClick={e => e.stopPropagation()}>
+          <div className="modal-head">
+            <h3>Add Contact</h3>
+            <button className="btn-close" onClick={() => setShowAddContact(false)}>✕</button>
+          </div>
+          <div className="modal-body">
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>First Name</label>
+                <input value={addContactForm.firstName} onChange={e => setAddContactForm(f => ({ ...f, firstName: e.target.value }))} style={inputStyle2} placeholder="First name" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Last Name</label>
+                <input value={addContactForm.lastName} onChange={e => setAddContactForm(f => ({ ...f, lastName: e.target.value }))} style={inputStyle2} placeholder="Last name" />
+              </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Email *</label>
+              <input value={addContactForm.email} onChange={e => { setAddContactError(''); setAddContactForm(f => ({ ...f, email: e.target.value })) }} style={inputStyle2} placeholder="contact@example.com" type="email" />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Phone</label>
+              <input value={addContactForm.phone} onChange={e => setAddContactForm(f => ({ ...f, phone: e.target.value }))} style={inputStyle2} placeholder="10-digit phone" type="tel" />
+            </div>
+            {addContactError && (
+              <div style={{ fontSize: 12, color: '#E5484D', padding: '6px 10px', background: '#FFF0F0', borderRadius: 6, border: '1px solid #E5484D' }}>
+                {addContactError}
+              </div>
+            )}
+          </div>
+          <div className="modal-foot">
+            <button className="btn" onClick={() => { setShowAddContact(false); setAddContactError('') }}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleAddContact} disabled={addContactLoading}>
+              {addContactLoading ? 'Saving...' : 'Save Contact'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 
