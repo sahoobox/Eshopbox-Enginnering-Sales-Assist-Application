@@ -33,9 +33,11 @@ export default function NeedAttention() {
     authFetch('/api/team/assignable-users')
       .then(r => r.json())
       .then(d => {
-        const emails = (d.users || []).map(u => u.email)
-        emails.push('shikhar.gupta@eshopbox.com')
-        setTeamEmails(emails)
+        if (d.users && d.users.length > 0) {
+          const emails = d.users.map(u => u.email)
+          emails.push('shikhar.gupta@eshopbox.com')
+          setTeamEmails(emails)
+        }
       })
       .catch(() => {})
   }, [])
