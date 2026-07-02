@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ArrowRight, Mail, FileText, Send, ClipboardList, StickyNote, Phone, Calendar, CheckSquare, XCircle, PauseCircle, RefreshCw, Star, UserCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import DOMPurify from 'dompurify'
 import { useDeal } from '../../hooks/useDeals'
 import { useAuth } from '../../context/AuthContext'
 import { Loading, Empty, Pill } from '../../components/ui'
@@ -1891,7 +1892,17 @@ function NotesTab({ dealId, deal }) {
       ) : (
         allNotes.map((note, i) => (
           <div key={note.id || i} className="card card-pad">
-            <div style={{ fontSize: 13, lineHeight: 1.6 }}>{note.content}</div>
+            {(() => {
+              const isHTML = (text) => /<[a-z][\s\S]*>/i.test(text || '')
+              return isHTML(note.content)
+                ? <div
+                    style={{ fontSize: 13, lineHeight: 1.6 }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(note.content) }}
+                  />
+                : <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                    {note.content}
+                  </div>
+            })()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>
                 {note.authorName && `${note.authorName} · `}{formatDate(note.date)}
