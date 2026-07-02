@@ -1644,16 +1644,20 @@ app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
       source: 'zoho'
     }))
 
-    const notesEvents = (notesRes?.data || []).map(n => ({
-      id: 'note_' + n.id,
-      event_type: 'note_added',
-      description: `Note: ${(n.Note_Content || n.Note_Title || '').slice(0, 80)}${(n.Note_Content || '').length > 80 ? '...' : ''}`,
-      actor_name: n.Created_By?.name || 'Zoho CRM',
-      actor_email: '',
-      metadata: JSON.stringify({}),
-      created_at: n.Created_Time,
-      source: 'zoho'
-    }))
+    const notesEvents = (notesRes?.data || []).map(n => {
+      const rawNote = n.Note_Content || n.Note_Title || ''
+      const strippedNote = rawNote.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+      return {
+        id: 'note_' + n.id,
+        event_type: 'note_added',
+        description: `Note: ${strippedNote.slice(0, 80)}${strippedNote.length > 80 ? '...' : ''}`,
+        actor_name: n.Created_By?.name || 'Zoho CRM',
+        actor_email: '',
+        metadata: JSON.stringify({}),
+        created_at: n.Created_Time,
+        source: 'zoho'
+      }
+    })
 
     const callEvents = (callsRes?.data || []).map(cl => ({
       id: 'call_' + cl.id,

@@ -1029,7 +1029,11 @@ function LeadTimelineTab({ leadId, lead }) {
       const noteEvents = (lead?.notes || []).map((n, i) => ({
         id: `note-${n.id || i}`,
         event_type: 'note_added',
-        description: (n.Note_Content || n.content || '').slice(0, 120) || 'Note added',
+        description: (() => {
+          const raw = n.Note_Content || n.content || ''
+          const stripped = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+          return stripped.slice(0, 120) || 'Note added'
+        })(),
         actor_name: n.Created_By?.name || n.createdBy || '',
         created_at: n.Created_Time || n.date || '',
         source: 'zoho',
