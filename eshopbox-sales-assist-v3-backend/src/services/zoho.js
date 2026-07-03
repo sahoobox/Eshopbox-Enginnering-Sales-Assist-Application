@@ -471,7 +471,7 @@ export async function getTasks(env, filters = {}) {
   if (filters.deal_id) {
     return zohoAPI(env, 'GET', `/Deals/${filters.deal_id}/Tasks?fields=id,Subject,Status,Priority,Due_Date,Description,Who_Id,What_Id,Owner,Created_Time,Modified_Time&per_page=100`)
   }
-  return zohoAPI(env, 'GET', '/Tasks?fields=id,Subject,Status,Priority,Due_Date,Description,Who_Id,What_Id,Owner,Created_Time,Modified_Time&per_page=100&sort_by=Due_Date&sort_order=asc')
+  return zohoAPI(env, 'GET', '/Tasks?fields=id,Subject,Status,Priority,Due_Date,Description,Who_Id,What_Id,Owner,Created_Time,Modified_Time&per_page=100&sort_by=Due_Date&sort_order=desc')
 }
 
 export async function createGenericTask(env, taskData) {

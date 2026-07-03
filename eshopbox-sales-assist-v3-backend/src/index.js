@@ -4129,7 +4129,7 @@ app.get('/api/tasks', requireAuth, async (c) => {
     ])
     const res = await getTasks(c.env)
     if (!res?.data) return c.json({ tasks: [] })
-    let tasks = res.data.map(mapZohoTask)
+    let tasks = res.data.map(mapZohoTask).filter(t => t.status !== 'Completed')
     if (user.role === 'mde' || user.role === 'ae') {
       tasks = tasks.filter(t => t.ownerEmail === user.email)
     } else if (user.role === 'lead-midmarket') {
