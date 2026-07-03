@@ -158,19 +158,25 @@ function TaskRow({ task, todayStr, completeTask, reopenTask, showOwner, showDeal
         />
       </td>
       <td><b style={{ textDecoration: task.isComplete ? 'line-through' : 'none' }}>{task.subject}</b></td>
-      {showDeal && <td style={{ color: 'var(--ink-3)', fontSize: 12 }}>{task.dealName || '—'}</td>}
+      {showDeal && (
+        <td style={{ color: 'var(--ink-3)', fontSize: 12 }}>
+          {task.linkedType === 'deal' ? (
+            <>{task.dealName || '—'} <span className="pill pill-info" style={{ fontSize: 10 }}>Deal</span></>
+          ) : task.linkedType === 'lead' ? (
+            <>{task.leadName || '—'} <span className="pill pill-purple" style={{ fontSize: 10 }}>Lead</span></>
+          ) : '—'}
+        </td>
+      )}
       <td><span className={`pill ${typePill[type]}`} style={{ fontSize: 11 }}>{type}</span></td>
       <td style={{ color: isOverdue ? 'var(--danger)' : 'var(--ink-2)', fontWeight: isOverdue ? 600 : 400, fontSize: 13 }}>
         {task.dueDate ? formatDate(task.dueDate) : '—'}
       </td>
       {showOwner && <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{task.ownerName || '—'}</td>}
       <td style={{ textAlign: 'right' }}>
-        {task.leadModule === 'Deals' ? (
-          <button className="btn btn-sm" onClick={() => window.open(`/pipeline/${task.leadId}`, '_blank')}>Open Deal</button>
-        ) : task.leadModule === 'Leads' ? (
-          <button className="btn btn-sm" onClick={() => window.open(`/leads/${task.leadId}`, '_blank')}>Open Lead</button>
-        ) : task.dealId ? (
+        {task.linkedType === 'deal' ? (
           <button className="btn btn-sm" onClick={() => window.open(`/pipeline/${task.dealId}`, '_blank')}>Open Deal</button>
+        ) : task.linkedType === 'lead' ? (
+          <button className="btn btn-sm" onClick={() => window.open(`/leads/${task.leadId}`, '_blank')}>Open Lead</button>
         ) : null}
       </td>
     </tr>
