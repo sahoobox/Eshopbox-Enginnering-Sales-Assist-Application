@@ -165,9 +165,11 @@ function TaskRow({ task, todayStr, completeTask, reopenTask, showOwner, showDeal
       </td>
       {showOwner && <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{task.ownerName || '—'}</td>}
       <td style={{ textAlign: 'right' }}>
-        {!task.isComplete && (
-          <button className="btn btn-sm" disabled={busy} onClick={toggle}>Mark done</button>
-        )}
+        {task.dealId ? (
+          <button className="btn btn-sm" onClick={() => window.open(`/pipeline/${task.dealId}`, '_blank')}>Open Deal</button>
+        ) : task.leadId ? (
+          <button className="btn btn-sm" onClick={() => window.open(`/leads/${task.leadId}`, '_blank')}>Open Lead</button>
+        ) : null}
       </td>
     </tr>
   )

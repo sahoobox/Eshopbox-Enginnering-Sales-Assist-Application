@@ -4111,6 +4111,8 @@ function mapZohoTask(t) {
     ownerEmail: t.Owner?.email || '',
     dealId: t.What_Id?.id || '',
     dealName: t.What_Id?.name || '',
+    leadId: t.Who_Id?.id || '',
+    leadModule: t.Who_Id?.module || '',
     createdAt: t.Created_Time || '',
     modifiedAt: t.Modified_Time || '',
     isComplete: t.Status === 'Completed',
