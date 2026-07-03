@@ -108,7 +108,6 @@ function TaskSection({ title, tasks, todayStr, completeTask, reopenTask, showOwn
               <th>Type</th>
               <th>Due</th>
               {showOwner && <th>Owner</th>}
-              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -172,13 +171,6 @@ function TaskRow({ task, todayStr, completeTask, reopenTask, showOwner, showDeal
         {task.dueDate ? formatDate(task.dueDate) : '—'}
       </td>
       {showOwner && <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{task.ownerName || '—'}</td>}
-      <td style={{ textAlign: 'right' }}>
-        {task.linkedType === 'deal' ? (
-          <button className="btn btn-sm" onClick={() => window.open(`/pipeline/${task.dealId}`, '_blank')}>Open Deal</button>
-        ) : task.linkedType === 'lead' ? (
-          <button className="btn btn-sm" onClick={() => window.open(`/leads/${task.leadId}`, '_blank')}>Open Lead</button>
-        ) : null}
-      </td>
     </tr>
   )
 }
