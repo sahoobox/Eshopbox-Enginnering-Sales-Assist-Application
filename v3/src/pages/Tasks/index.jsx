@@ -15,7 +15,7 @@ function taskType(subject = '') {
 const typePill = { Email: 'pill-info', Call: 'pill-warn', Meeting: 'pill-ok', 'Follow-up': 'pill-neutral' }
 
 export default function Tasks() {
-  const { role, isMDE, isAE } = useAuth()
+  const { role, isMDE, isAE, user } = useAuth()
   const { tasks, loading, error, refetch, completeTask, reopenTask, createTask } = useTasks()
   const [showModal, setShowModal] = useState(false)
 
@@ -51,13 +51,13 @@ export default function Tasks() {
       </div>
 
       {overdue.length > 0 && (
-        <TaskSection title="Overdue" tasks={overdue} todayStr={todayStr} completeTask={completeTask} reopenTask={reopenTask} showOwner showDeal danger />
+        <TaskSection title="Overdue" tasks={overdue} todayStr={todayStr} completeTask={completeTask} reopenTask={reopenTask} showOwner showDeal danger currentUserEmail={user?.email} />
       )}
       {dueToday.length > 0 && (
-        <TaskSection title="Today" tasks={dueToday} todayStr={todayStr} completeTask={completeTask} reopenTask={reopenTask} showOwner showDeal />
+        <TaskSection title="Today" tasks={dueToday} todayStr={todayStr} completeTask={completeTask} reopenTask={reopenTask} showOwner showDeal currentUserEmail={user?.email} />
       )}
       {upcoming.length > 0 && (
-        <TaskSection title="Upcoming" tasks={upcoming} todayStr={todayStr} completeTask={completeTask} reopenTask={reopenTask} showOwner showDeal />
+        <TaskSection title="Upcoming" tasks={upcoming} todayStr={todayStr} completeTask={completeTask} reopenTask={reopenTask} showOwner showDeal currentUserEmail={user?.email} />
       )}
       {open.length === 0 && (
         <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>
@@ -91,7 +91,7 @@ function KpiTile({ label, value, sub, warn }) {
 }
 
 // ── Task Section ──────────────────────────────────────────
-function TaskSection({ title, tasks, todayStr, completeTask, reopenTask, showOwner, showDeal, danger }) {
+function TaskSection({ title, tasks, todayStr, completeTask, reopenTask, showOwner, showDeal, danger, currentUserEmail }) {
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -120,6 +120,7 @@ function TaskSection({ title, tasks, todayStr, completeTask, reopenTask, showOwn
                 reopenTask={reopenTask}
                 showOwner={showOwner}
                 showDeal={showDeal}
+                currentUserEmail={currentUserEmail}
               />
             ))}
           </tbody>
@@ -130,10 +131,12 @@ function TaskSection({ title, tasks, todayStr, completeTask, reopenTask, showOwn
 }
 
 // ── Task Row ──────────────────────────────────────────────
-function TaskRow({ task, todayStr, completeTask, reopenTask, showOwner, showDeal }) {
+function TaskRow({ task, todayStr, completeTask, reopenTask, showOwner, showDeal, currentUserEmail }) {
   const [busy, setBusy] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const isOverdue = task.dueDate && task.dueDate < todayStr && !task.isComplete
   const type = taskType(task.subject)
+  const isOwner = !!currentUserEmail && task.ownerEmail === currentUserEmail
 
   async function toggle() {
     setBusy(true)
@@ -145,16 +148,55 @@ function TaskRow({ task, todayStr, completeTask, reopenTask, showOwner, showDeal
     }
   }
 
+  function handleCheckboxChange() {
+    if (!isOwner) return
+    if (task.isComplete) {
+      toggle()
+    } else {
+      setShowConfirm(true)
+    }
+  }
+
+  async function confirmComplete() {
+    setShowConfirm(false)
+    await toggle()
+  }
+
   return (
     <tr style={{ opacity: task.isComplete ? 0.5 : 1 }}>
       <td>
         <input
           type="checkbox"
           checked={task.isComplete}
-          disabled={busy}
-          onChange={toggle}
-          style={{ cursor: 'pointer', width: 16, height: 16 }}
+          disabled={busy || !isOwner}
+          onChange={handleCheckboxChange}
+          style={{
+            cursor: isOwner ? 'pointer' : 'not-allowed',
+            width: 16,
+            height: 16,
+            opacity: isOwner ? 1 : 0.4,
+          }}
         />
+        {showConfirm && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="card" style={{ width: 400, padding: 24 }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>Mark task as complete?</h3>
+              <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--ink-3)' }}>
+                Are you sure you want to mark this task as complete? This action cannot be undone.
+              </p>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button className="btn btn-ghost" onClick={() => setShowConfirm(false)}>Cancel</button>
+                <button
+                  className="btn"
+                  style={{ background: '#F95253', color: '#fff', border: 'none' }}
+                  onClick={confirmComplete}
+                >
+                  Mark Complete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </td>
       <td><b style={{ textDecoration: task.isComplete ? 'line-through' : 'none' }}>{task.subject}</b></td>
       {showDeal && (
