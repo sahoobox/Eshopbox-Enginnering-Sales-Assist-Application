@@ -4109,7 +4109,7 @@ function mapZohoTask(t) {
     description: t.Description || '',
     ownerName: t.Owner?.name || '',
     ownerEmail: t.Owner?.email || '',
-    dealId: t.What_Id?.id || '',
+    dealId: t.What_Id?.id || t.What_Id || '',
     dealName: t.What_Id?.name || '',
     leadId: t.Who_Id?.id || '',
     leadModule: t.Who_Id?.module || '',
