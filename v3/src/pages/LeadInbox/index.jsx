@@ -106,7 +106,7 @@ const LeadFilterBar = forwardRef(function LeadFilterBar({ filters, onChange, lea
 
   useImperativeHandle(ref, () => ({ openAdd }))
 
-  const FIELDS = [
+  const FIELDS = useMemo(() => [
     { key: 'createdAt', label: 'Date Created', type: 'date' },
     { key: 'status', label: 'Status', type: 'multi',
       opts: [...new Set(leads.map(l => l.leadStatus).filter(Boolean))].sort() },
@@ -116,7 +116,7 @@ const LeadFilterBar = forwardRef(function LeadFilterBar({ filters, onChange, lea
       opts: [...new Set(leads.map(l => l.leadSource).filter(Boolean))].sort() },
     ...(showOwnerFilter ? [{ key: 'owner', label: 'Assigned To', type: 'multi',
       opts: [...new Set(leads.map(l => l.ownerName).filter(Boolean))].sort() }] : []),
-  ]
+  ], [leads, showOwnerFilter])
 
   const fieldDef = key => FIELDS.find(f => f.key === key)
 
@@ -375,25 +375,31 @@ export default function LeadInbox() {
     const mainEl = document.querySelector('.main')
     if (!mainEl || !theadEl) return
 
+    let ticking = false
     const handleScroll = () => {
-      const theadRect = theadEl.getBoundingClientRect()
-      const mainRect = mainEl.getBoundingClientRect()
-      if (theadRect.top < mainRect.top) {
-        setShowStickyHeader(true)
-        const tableRect = tableRef.current?.getBoundingClientRect()
-        setStickyLeft(tableRect.left)
-        setStickyWidth(tableRect.width)
-        const firstRow = tableRef.current?.querySelector('tbody tr:first-child')
-        if (firstRow) {
-          const tds = firstRow.querySelectorAll('td')
-          setColWidths(Array.from(tds).map(td => td.offsetWidth))
+      if (ticking) return
+      ticking = true
+      requestAnimationFrame(() => {
+        const theadRect = theadEl.getBoundingClientRect()
+        const mainRect = mainEl.getBoundingClientRect()
+        if (theadRect.top < mainRect.top) {
+          setShowStickyHeader(true)
+          const tableRect = tableRef.current?.getBoundingClientRect()
+          setStickyLeft(tableRect.left)
+          setStickyWidth(tableRect.width)
+          const firstRow = tableRef.current?.querySelector('tbody tr:first-child')
+          if (firstRow) {
+            const tds = firstRow.querySelectorAll('td')
+            setColWidths(Array.from(tds).map(td => td.offsetWidth))
+          } else {
+            const ths = theadEl.querySelectorAll('th')
+            setColWidths(Array.from(ths).map(th => th.offsetWidth))
+          }
         } else {
-          const ths = theadEl.querySelectorAll('th')
-          setColWidths(Array.from(ths).map(th => th.offsetWidth))
+          setShowStickyHeader(false)
         }
-      } else {
-        setShowStickyHeader(false)
-      }
+        ticking = false
+      })
     }
 
     mainEl.addEventListener('scroll', handleScroll)
