@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
 import { Topbar, Loading } from '../../components/ui'
 
@@ -65,8 +65,24 @@ const DAYS_TOOLTIPS = {
 
 export default function NeedAttention() {
   const navigate = useNavigate()
-  const { authFetch } = useAuth()
+  const { authFetch, role, isAdmin } = useAuth()
   const { deals, loading, error, refetch } = useDeals()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const defaultPipeline =
+    role === ROLES.MDE || role === ROLES.SALES_LEAD_MIDMARKET ? 'Mid-Market' :
+    role === ROLES.AE || role === ROLES.SALES_LEAD_ENTERPRISE ? 'Enterprise' :
+    'all'
+  const activePipeline = searchParams.get('pipeline') || defaultPipeline
+
+  const updateParams = (updates) => {
+    const next = new URLSearchParams(searchParams)
+    Object.entries(updates).forEach(([k, v]) => {
+      if (v == null) next.delete(k)
+      else next.set(k, v)
+    })
+    setSearchParams(next, { replace: true })
+  }
 
   const [teamEmails, setTeamEmails] = useState([])
 
@@ -89,6 +105,12 @@ export default function NeedAttention() {
       (teamEmails.length === 0 || teamEmails.includes(d.repEmail)) &&
       (d.pipeline === 'Mid-market' || d.pipeline === 'Enterprise 2.0')
     )
+    .filter(d => {
+      if (activePipeline === 'all') return true
+      if (activePipeline === 'Mid-Market') return d.pipeline === 'Mid-market'
+      if (activePipeline === 'Enterprise') return d.pipeline === 'Enterprise 2.0'
+      return true
+    })
     .sort((a, b) => {
       const sev = { critical: 0, warning: 1, info: 2 }
       const aMax = Math.min(...(a.flags.map(f => sev[f.severity] ?? 3)))
@@ -187,6 +209,19 @@ export default function NeedAttention() {
                 <option key={r} value={r}>{r}</option>
               ))}
             </select>
+            {isAdmin && (
+              <div className="seg" style={{ flexShrink: 0 }}>
+                {['all', 'Mid-Market', 'Enterprise'].map(p => (
+                  <button
+                    key={p}
+                    className={activePipeline === p ? 'is-on' : ''}
+                    onClick={() => updateParams({ pipeline: p === 'all' ? null : p })}
+                  >
+                    {p === 'all' ? 'All' : p}
+                  </button>
+                ))}
+              </div>
+            )}
             {(searchQuery || filterFlag !== 'all' || filterRep !== 'all' || filterSeverity !== 'all') && (
               <button onClick={() => { setSearchQuery(''); setFilterFlag('all'); setFilterRep('all'); setFilterSeverity('all') }}
                 style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, cursor: 'pointer', background: 'transparent', color: 'var(--ink-3)' }}>
