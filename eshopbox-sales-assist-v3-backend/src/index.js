@@ -139,6 +139,7 @@ const DEAL_FIELDS = [
   'SA_Followup_Meeting_Date', 'SA_Pricing_Raised', 'SA_Demo_Format',
   'SA_F2F_Count', 'SA_Logged', 'Lost_Reason', 'Demo_Date', 'Contact_Name',
   'Account_Name', 'Description', 'How_many_orders_do_you_ship_in_a_month',
+  'Demo_Scheduled', 'Demo_Scheduled_Date_Time',
 ].join(',');
 
 const SHIPPING_PAINS_MAP = {
@@ -244,6 +245,8 @@ score: (() => {
       ? d.What_type_of_products_do_you_sell.join(', ')
       : d.What_type_of_products_do_you_sell || '',
     demoDate: d.Demo_Date || d.Created_Time?.split('T')[0] || '',
+    demoScheduled: d.Demo_Scheduled || null,
+    demoScheduledDateTime: d.Demo_Scheduled_Date_Time || null,
     stageChangedOn: d.Modified_Time?.split('T')[0] || '',
     createdAt: d.Created_Time || '',
     tasks: [],
@@ -1614,6 +1617,23 @@ app.post('/api/deals/:id/stage', requireAuth, async (c) => {
     return c.json({ error: err.message }, 500)
   }
 })
+
+app.post('/api/deals/:id/demo-scheduled', requireAuth, async (c) => {
+  const dealId = c.req.param('id');
+  const { scheduled, dateTime } = await c.req.json();
+
+  const updatePayload = {
+    Demo_Scheduled: scheduled ? 'Yes' : 'No'
+  };
+
+  if (scheduled && dateTime) {
+    updatePayload.Demo_Scheduled_Date_Time = dateTime;
+  }
+
+  await updateDeal(c.env, dealId, updatePayload);
+  await c.env.TOKEN_CACHE.delete('v3_deals_cache');
+  return c.json({ success: true });
+});
 
 app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
   const dealId = c.req.param('id')

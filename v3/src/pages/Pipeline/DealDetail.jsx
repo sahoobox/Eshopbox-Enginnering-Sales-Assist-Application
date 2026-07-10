@@ -24,6 +24,7 @@ export default function DealDetail({ dealId }) {
   const [showMarkLost, setShowMarkLost] = useState(false)
   const [showMarkOnHold, setShowMarkOnHold] = useState(false)
   const [showReassign, setShowReassign] = useState(false)
+  const [showDemoScheduled, setShowDemoScheduled] = useState(false)
   const [movingStage, setMovingStage] = useState(null)
   const [stageDropdown, setStageDropdown] = useState(false)
 
@@ -352,6 +353,37 @@ export default function DealDetail({ dealId }) {
                 { k: 'Volume', v: deal.orderVolume },
                 { k: 'Grade', v: deal.grade ? <span className={`kc-grade kc-grade-${deal.grade.toLowerCase()}`}>{deal.grade}</span> : '—' },
                 { k: 'Demo date', v: formatDate(deal.demoDate) },
+              ].map(row => (
+                <div key={row.k} className="ws-side-row">
+                  <span className="k">{row.k}</span>
+                  <span className="v">{row.v || '—'}</span>
+                </div>
+              ))}
+              {/* Demo Scheduled row */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '6px 0',
+                borderBottom: '1px solid var(--line)',
+                cursor: 'pointer'
+              }}
+                onClick={() => setShowDemoScheduled(true)}
+              >
+                <span style={{ color: 'var(--ink-3)', fontSize: 13 }}>
+                  Demo scheduled
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 500 }}>
+                  {deal.demoScheduled === 'Yes'
+                    ? deal.demoScheduledDateTime
+                      ? formatDate(deal.demoScheduledDateTime)
+                      : '✓ Yes'
+                    : deal.demoScheduled === 'No'
+                    ? 'Not yet'
+                    : '— Set date'}
+                </span>
+              </div>
+              {[
                 { k: 'Follow-up mtg', v: formatDate(deal.followupMeetingDate) },
                 { k: 'Days in stage', v: daysAgo(deal.stageChangedOn) != null ? `${daysAgo(deal.stageChangedOn)}d` : '—' },
                 { k: 'Demo logged', v: deal.saLogged ? <span className="pill pill-ok">✓ Yes</span> : <span className="pill pill-neutral">No</span> },
@@ -370,6 +402,16 @@ export default function DealDetail({ dealId }) {
       {showMarkLost && <MarkLostModal deal={deal} onClose={() => setShowMarkLost(false)} onSuccess={() => { setShowMarkLost(false); window.location.reload() }} />}
       {showMarkOnHold && <MarkOnHoldModal deal={deal} onClose={() => setShowMarkOnHold(false)} onSuccess={() => { setShowMarkOnHold(false); window.location.reload() }} />}
       {showReassign && <ReassignDealModal deal={deal} onClose={() => setShowReassign(false)} onSuccess={() => { setShowReassign(false); refetchDeal() }} />}
+      {showDemoScheduled && (
+        <DemoScheduledModal
+          deal={deal}
+          onClose={() => setShowDemoScheduled(false)}
+          onSuccess={() => {
+            setShowDemoScheduled(false)
+            refetchDeal()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -2178,6 +2220,132 @@ function ContactTab({ deal }) {
 }
 
 // ── Modal components ────────────────────────────────────────
+
+function DemoScheduledModal({ deal, onClose, onSuccess }) {
+  const { authFetch } = useAuth();
+  const [isScheduled, setIsScheduled] = useState(null);
+  const [dateTime, setDateTime] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    setSaving(true);
+    try {
+      const res = await authFetch(
+        `/api/deals/${deal.id}/demo-scheduled`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            scheduled: isScheduled,
+            dateTime: isScheduled ? dateTime : null
+          })
+        }
+      );
+      const data = await res.json();
+      if (data.success) onSuccess();
+      else alert(data.error || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3>Demo Scheduled?</h3>
+          <button className="btn-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <p style={{
+            marginBottom: 16,
+            color: 'var(--ink-2)',
+            fontSize: 14
+          }}>
+            Has the demo been scheduled with this prospect?
+          </p>
+
+          {/* Yes / No toggle */}
+          <div style={{
+            display: 'flex',
+            gap: 12,
+            marginBottom: 20
+          }}>
+            <button
+              className={`btn ${isScheduled === true ? 'btn-primary' : ''}`}
+              onClick={() => setIsScheduled(true)}
+              style={{ flex: 1 }}
+            >
+              ✓ Yes, scheduled
+            </button>
+            <button
+              className={`btn ${isScheduled === false ? 'btn-danger' : ''}`}
+              onClick={() => setIsScheduled(false)}
+              style={{ flex: 1 }}
+            >
+              ✗ Not yet
+            </button>
+          </div>
+
+          {/* Date time picker — only show if Yes */}
+          {isScheduled === true && (
+            <div>
+              <label style={{
+                fontSize: 13,
+                color: 'var(--ink-3)',
+                display: 'block',
+                marginBottom: 6
+              }}>
+                Select date and time
+              </label>
+              <input
+                type="datetime-local"
+                value={dateTime}
+                onChange={e => setDateTime(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid var(--line)',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  color: 'var(--ink-1)'
+                }}
+              />
+            </div>
+          )}
+
+          {/* Not yet message */}
+          {isScheduled === false && (
+            <p style={{
+              color: 'var(--ink-3)',
+              fontSize: 13,
+              background: 'var(--surface-2)',
+              padding: '10px 14px',
+              borderRadius: 8
+            }}>
+              We'll mark this demo as not yet scheduled.
+            </p>
+          )}
+        </div>
+        <div className="modal-foot">
+          <button className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={submit}
+            disabled={
+              saving ||
+              isScheduled === null ||
+              (isScheduled === true && !dateTime)
+            }
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function MarkLostModal({ deal, onClose, onSuccess }) {
   const { authFetch } = useAuth()
