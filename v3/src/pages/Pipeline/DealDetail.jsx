@@ -330,8 +330,24 @@ export default function DealDetail({ dealId }) {
           <div className="card">
             <div className="ws-side-head"><h4>Deal fields</h4></div>
             <div className="ws-side-body">
+              <div className="ws-side-row">
+                <span className="k">Owner</span>
+                <span className="v">{deal.repName || '—'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+                <span style={{ color: 'var(--ink-3)', fontSize: 13 }}>Pipeline</span>
+                <span style={{
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: deal.pipeline === 'Enterprise 2.0' ? '#3B5BDB' : '#2F9E44',
+                  background: deal.pipeline === 'Enterprise 2.0' ? '#EEF2FF' : '#F0FFF4',
+                  padding: '2px 10px',
+                  borderRadius: 20
+                }}>
+                  {deal.pipeline === 'Enterprise 2.0' ? 'Enterprise' : 'Mid-market'}
+                </span>
+              </div>
               {[
-                { k: 'Owner', v: deal.repName },
                 { k: 'Solution', v: deal.solutionInterest },
                 { k: 'Volume', v: deal.orderVolume },
                 { k: 'Grade', v: deal.grade ? <span className={`kc-grade kc-grade-${deal.grade.toLowerCase()}`}>{deal.grade}</span> : '—' },
