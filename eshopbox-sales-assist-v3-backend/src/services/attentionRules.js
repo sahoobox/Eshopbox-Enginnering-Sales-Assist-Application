@@ -44,7 +44,7 @@ export default function getAttentionFlags(deal) {
     deal.stage === 'Demo Done'
   ) {
     if (daysAgoDemo >= 1 && deal.emailStatuses?.day1?.status === 'draft') {
-      flags.push({ id: 'r1', title: 'Recap email not sent', severity: 'high', daysCount: daysSinceActivity })
+      flags.push({ id: 'r1', title: 'Recap email not sent', severity: 'high', daysCount: daysAgoDemo })
     }
   }
 
@@ -99,7 +99,7 @@ export default function getAttentionFlags(deal) {
       deal.stage === 'Follow up Meeting Done' &&
       daysSinceActivity >= 5 && daysSinceActivity < 500
     ) {
-      flags.push({ id: 'r7', title: 'Follow-up meeting done — deal going quiet', severity: 'medium', daysCount: daysSinceActivity })
+      flags.push({ id: 'r7', title: 'Follow-up meeting done — deal going quiet', severity: 'medium', daysCount: daysSinceActivity < 999 ? daysSinceActivity : daysAgoStage })
     }
   }
 
