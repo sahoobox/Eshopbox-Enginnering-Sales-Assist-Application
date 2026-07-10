@@ -20,6 +20,47 @@ const RESOLVE_INSTRUCTIONS = {
   r13: "Account setup has been in progress for 14+ days. Follow up with the prospect on setup blockers and push to get them to first shipment.",
   r14: "Awaiting first shipment for 21+ days. Check in with the prospect — find out what is blocking the first shipment and help unblock it.",
   r15: "First shipment done but deal not activated after 14 days. Confirm the shipment went well and move this deal to Active/Won.",
+  r16: "Deal owner is an MDE/AE rep but the deal is sitting in the wrong pipeline. Move the deal to the pipeline that matches the rep's role (MDE → Mid-market, AE → Enterprise 2.0).",
+}
+
+const FLAG_LABELS = {
+  r1: 'No Activity',
+  r2: 'Proposal Delayed',
+  r3: 'ROI Email Overdue',
+  r4: 'No Follow-up',
+  r5: 'No Nudge Sent',
+  r6: 'Stage Stuck',
+  r7: 'Gone Quiet',
+  r8: 'No Response',
+  r9: 'No F2F Meeting',
+  r10: 'Bad Timing',
+  r11: 'Demo Not Scheduled',
+  r12: 'Demo Overdue',
+  r13: 'Setup Delayed',
+  r14: 'Shipment Delayed',
+  r15: 'Not Activated',
+  r16: 'Wrong Pipeline',
+}
+
+const FLAG_ORDER = Object.keys(FLAG_LABELS)
+
+const DAYS_TOOLTIPS = {
+  r1:  'Days since last activity was logged',
+  r2:  'Days since demo was conducted',
+  r3:  'Days since Day 3 ROI email was scheduled',
+  r4:  'Days since demo was conducted',
+  r5:  'Days since deal entered current stage',
+  r6:  'Days since deal entered current stage',
+  r7:  'Days since last activity was logged',
+  r8:  'Days since nudge email was sent',
+  r9:  'Days since demo was conducted',
+  r10: 'Days since deal entered current stage',
+  r11: 'Days since deal entered current stage',
+  r12: 'Days since demo was scheduled',
+  r13: 'Days since deal entered current stage',
+  r14: 'Days since deal entered current stage',
+  r15: 'Days since deal entered current stage',
+  r16: 'Days since deal was assigned to wrong pipeline',
 }
 
 export default function NeedAttention() {
@@ -57,12 +98,10 @@ export default function NeedAttention() {
 
   const flatFlags = []
   flaggedDeals.forEach(deal => {
-    const today = new Date()
-    const stageChanged = deal.stageChangedOn ? new Date(deal.stageChangedOn) : new Date()
-    const daysInStage = Math.floor((today - stageChanged) / 86400000)
     ;(deal.flags || []).forEach(flag => {
+      const flagId = flag.id || flag.flag
       flatFlags.push({
-        flagId: flag.id || flag.flag,
+        flagId,
         flagTitle: flag.title || flag.message || flag.id,
         flagSeverity: flag.severity,
         dealId: deal.id,
@@ -70,7 +109,8 @@ export default function NeedAttention() {
         repName: deal.repName,
         stage: deal.stage,
         pipeline: deal.pipeline,
-        daysInStage,
+        daysInStage: flag.daysCount ?? 0,
+        daysTooltip: DAYS_TOOLTIPS[flagId] || 'Days since deal entered current stage',
       })
     })
   })
@@ -99,7 +139,7 @@ export default function NeedAttention() {
   })
 
   const repOptions = [...new Set(flatFlags.map(f => f.repName).filter(Boolean))].sort()
-  const flagOptions = [...new Set(flatFlags.map(f => f.flagId).filter(Boolean))].sort()
+  const flagOptions = FLAG_ORDER
 
   if (loading) return <div className="main"><Loading text="Fetching deals…" /></div>
   if (error) return (
@@ -137,7 +177,7 @@ export default function NeedAttention() {
               style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink-1)' }}>
               <option value="all">All flags</option>
               {flagOptions.map(f => (
-                <option key={f} value={f}>{f.toUpperCase()}</option>
+                <option key={f} value={f}>{f.toUpperCase()} - {FLAG_LABELS[f]}</option>
               ))}
             </select>
             <select value={filterRep} onChange={e => setFilterRep(e.target.value)}
@@ -206,7 +246,7 @@ export default function NeedAttention() {
                     <td style={{ padding: '10px 12px', color: 'var(--ink-2)', fontSize: 12 }}>
                       {f.stage}
                     </td>
-                    <td style={{ padding: '10px 12px' }}>
+                    <td style={{ padding: '10px 12px' }} title={f.daysTooltip}>
                       <span style={{ fontWeight: 600, color: f.daysInStage > 14 ? '#E5484D' : f.daysInStage > 7 ? '#C2410C' : 'var(--ink-3)' }}>
                         {f.daysInStage}d
                       </span>

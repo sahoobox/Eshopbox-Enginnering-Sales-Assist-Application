@@ -761,7 +761,7 @@ app.get('/api/deals', requireAuth, async (c) => {
           severity: 'warning',
           title: 'Rep not in Sales Assist',
           desc: `${d.repName} is not a member of the Sales Assist team. This deal won't appear in their dashboard.`,
-          rule: 'r_no_sa_member',
+          id: 'r_no_sa_member',
         })
       }
       return {
