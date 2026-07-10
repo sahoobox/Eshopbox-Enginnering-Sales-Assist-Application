@@ -167,9 +167,9 @@ export default function getAttentionFlags(deal) {
   }
 
   // R16 — Deal owned by an MDE/AE rep but sitting in the wrong pipeline
-  if (deal.repEmail && MDE_REPS.includes(deal.repEmail) && deal.pipeline !== 'Mid-market') {
+  if (!isTerminal && deal.repEmail && MDE_REPS.includes(deal.repEmail) && deal.pipeline !== 'Mid-market') {
     flags.push({ id: 'r16', title: 'Deal in wrong pipeline', severity: 'high', daysCount: daysAgoStage })
-  } else if (deal.repEmail && AE_REPS.includes(deal.repEmail) && deal.pipeline !== 'Enterprise 2.0') {
+  } else if (!isTerminal && deal.repEmail && AE_REPS.includes(deal.repEmail) && deal.pipeline !== 'Enterprise 2.0') {
     flags.push({ id: 'r16', title: 'Deal in wrong pipeline', severity: 'high', daysCount: daysAgoStage })
   }
 
