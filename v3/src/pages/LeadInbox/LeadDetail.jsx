@@ -16,6 +16,8 @@ function formatDateTime(dt) {
   try { return new Date(dt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) } catch { return dt }
 }
 
+const SEQUENCE_DAY_LABELS = ['Day 1', 'Day 2', 'Day 4', 'Day 7']
+
 const CALL_PURPOSE_OPTIONS = [
   'None', 'Intro/first contact', 'Discovery call', 'Request for demo',
   'Follow-up Call', 'Pricing Discussion', 'Proposal Review',
@@ -53,9 +55,6 @@ export default function LeadDetail() {
   const [showReassign, setShowReassign] = useState(false)
   const [leadEmails, setLeadEmails] = useState({ mails: [], drafts: [], scheduled: [] })
   const [leadEmailsLoading, setLeadEmailsLoading] = useState(false)
-  const [emailSubTab, setEmailSubTab] = useState('mails')
-  const [selectedEmail, setSelectedEmail] = useState(null)
-  const [emailBodyLoading, setEmailBodyLoading] = useState(false)
   const [editingFields, setEditingFields] = useState(false)
   const [fieldsForm, setFieldsForm] = useState({ phone: '', email: '', company: '', city: '', website: '' })
   const [savingFields, setSavingFields] = useState(false)
@@ -322,146 +321,25 @@ export default function LeadDetail() {
 
           {tab === 'emails' && (
             <div>
-              {/* Sub-tab bar */}
-              <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #e5e7eb', marginBottom: 16 }}>
-                {['mails', 'drafts', 'scheduled'].map(st => (
-                  <button
-                    key={st}
-                    onClick={() => setEmailSubTab(st)}
-                    style={{
-                      padding: '8px 20px',
-                      background: 'none',
-                      border: 'none',
-                      borderBottom: emailSubTab === st ? '2px solid #F95253' : '2px solid transparent',
-                      color: emailSubTab === st ? '#F95253' : '#6b7280',
-                      fontWeight: emailSubTab === st ? 600 : 400,
-                      cursor: 'pointer',
-                      textTransform: 'capitalize',
-                      fontSize: 14,
-                    }}
-                  >
-                    {st.charAt(0).toUpperCase() + st.slice(1)}
-                  </button>
-                ))}
-              </div>
-
               {leadEmailsLoading ? (
                 <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>Loading emails...</div>
               ) : (() => {
-                const rows = leadEmails[emailSubTab] || []
-                if (rows.length === 0) return (
-                  <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
-                    No {emailSubTab} found for this lead
+                const sentMails = [...(leadEmails.mails || [])]
+                  .sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0))
+                if (sentMails.length === 0) return (
+                  <div style={{ color: 'var(--ink-3)', fontSize: 16, fontStyle: 'italic', padding: 48, textAlign: 'center' }}>
+                    No emails sent yet from cadence
                   </div>
                 )
-                return (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                      <thead>
-                        <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                          {['Subject', 'Date', 'Source', 'From', 'Status'].map(h => (
-                            <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#6b7280', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rows.map(email => (
-                          <tr
-                            key={email.id}
-                            onClick={() => {
-                              setSelectedEmail(email)
-                              setEmailBodyLoading(true)
-                              authFetch(`/api/leads/${lead.id}/emails/${email.id}`)
-                                .then(r => r.json())
-                                .then(d => setSelectedEmail(prev => ({ ...prev, content: d.content })))
-                                .catch(() => {})
-                                .finally(() => setEmailBodyLoading(false))
-                            }}
-                            style={{ borderBottom: '1px solid #f3f4f6', cursor: 'pointer' }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
-                            onMouseLeave={e => e.currentTarget.style.background = ''}
-                          >
-                            <td style={{ padding: '10px 14px', color: '#1f2937', maxWidth: 280 }}>
-                              <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {email.subject}
-                              </div>
-                              {email.to && (
-                                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{email.to}</div>
-                              )}
-                            </td>
-                            <td style={{ padding: '10px 14px', color: '#6b7280', whiteSpace: 'nowrap' }}>
-                              {email.date ? new Date(email.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
-                            </td>
-                            <td style={{ padding: '10px 14px', color: '#6b7280' }}>{email.source}</td>
-                            <td style={{ padding: '10px 14px', color: '#6b7280' }}>{email.from}</td>
-                            <td style={{ padding: '10px 14px' }}>
-                              <span style={{
-                                padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 600,
-                                background: email.status === 'sent' ? '#d1fae5' : email.status === 'draft' ? '#fef3c7' : '#dbeafe',
-                                color: email.status === 'sent' ? '#065f46' : email.status === 'draft' ? '#92400e' : '#1e40af',
-                              }}>
-                                {email.status ? email.status.charAt(0).toUpperCase() + email.status.slice(1) : '—'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )
+                return sentMails.map((email, i) => (
+                  <SentEmailCard
+                    key={email.id}
+                    email={email}
+                    dayLabel={SEQUENCE_DAY_LABELS[i] || `Day ${i + 1}`}
+                    leadId={lead.id}
+                  />
+                ))
               })()}
-
-              {/* Email Detail Modal */}
-              {selectedEmail && (
-                <div
-                  onClick={() => setSelectedEmail(null)}
-                  style={{
-                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-                    zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end',
-                  }}
-                >
-                  <div
-                    onClick={e => e.stopPropagation()}
-                    style={{
-                      width: 560, height: '100vh', background: '#fff',
-                      display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 24px rgba(0,0,0,0.15)',
-                    }}
-                  >
-                    {/* Modal header */}
-                    <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ flex: 1, paddingRight: 12 }}>
-                        <div style={{ fontWeight: 700, fontSize: 15, color: '#111827', marginBottom: 6 }}>
-                          {selectedEmail.subject}
-                        </div>
-                        <div style={{ fontSize: 12, color: '#6b7280' }}>
-                          <span style={{ fontWeight: 600 }}>From:</span> {selectedEmail.from || '—'}
-                        </div>
-                        <div style={{ fontSize: 12, color: '#6b7280' }}>
-                          <span style={{ fontWeight: 600 }}>To:</span> {selectedEmail.to || '—'}
-                        </div>
-                        <div style={{ fontSize: 12, color: '#6b7280' }}>
-                          <span style={{ fontWeight: 600 }}>Date:</span>{' '}
-                          {selectedEmail.date ? new Date(selectedEmail.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setSelectedEmail(null)}
-                        style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#6b7280', lineHeight: 1 }}
-                      >✕</button>
-                    </div>
-                    {/* Email body */}
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
-                      {emailBodyLoading ? (
-                        <div style={{ textAlign: 'center', paddingTop: 40, color: '#9ca3af' }}>Loading email...</div>
-                      ) : selectedEmail?.content ? (
-                        <div dangerouslySetInnerHTML={{ __html: selectedEmail.content }} style={{ fontSize: 14, lineHeight: 1.7, color: '#374151' }} />
-                      ) : (
-                        <div style={{ color: '#9ca3af', textAlign: 'center', paddingTop: 40 }}>No content available</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -987,6 +865,98 @@ export default function LeadDetail() {
           }}
         />
       )}
+    </div>
+  )
+}
+
+function SentEmailCard({ email, dayLabel, leadId }) {
+  const { authFetch } = useAuth()
+  const [expanded, setExpanded] = useState(false)
+  const [body, setBody] = useState(null)
+  const [bodyLoading, setBodyLoading] = useState(false)
+
+  function toggleExpand() {
+    if (!expanded && body === null && !bodyLoading) {
+      setBodyLoading(true)
+      authFetch(`/api/leads/${leadId}/emails/${email.id}`)
+        .then(r => r.json())
+        .then(d => setBody(d.content || ''))
+        .catch(() => setBody(''))
+        .finally(() => setBodyLoading(false))
+    }
+    setExpanded(e => !e)
+  }
+
+  return (
+    <div style={{
+      border: '1.5px solid var(--line)',
+      borderRadius: 12,
+      overflow: 'hidden',
+      marginBottom: 12,
+      background: '#F0FFF4',
+    }}>
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '14px 16px',
+        borderBottom: '1px solid var(--line)',
+        background: '#E6F9ED',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: '50%',
+            background: '#2F9E44', color: 'white',
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 11, fontWeight: 700, flexShrink: 0,
+          }}>
+            {dayLabel.replace('Day ', 'D')}
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-1)' }}>
+              {email.subject}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
+              Sent on {email.date ? new Date(email.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' }) : '—'}
+            </div>
+          </div>
+        </div>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          padding: '4px 10px', borderRadius: 20,
+          fontSize: 11, fontWeight: 700,
+          background: '#2F9E44', color: 'white',
+        }}>✓ Sent</span>
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: '12px 16px' }}>
+        {bodyLoading ? (
+          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Loading…</div>
+        ) : body !== null && (
+          <div
+            style={{
+              fontSize: 12, color: 'var(--ink-3)',
+              lineHeight: 1.6,
+              maxHeight: expanded ? 'none' : 72,
+              overflow: 'hidden',
+            }}
+            dangerouslySetInnerHTML={{ __html: body }}
+          />
+        )}
+        <button
+          onClick={toggleExpand}
+          style={{
+            marginTop: 6, fontSize: 11,
+            color: 'var(--ink-3)', background: 'none',
+            border: 'none', cursor: 'pointer',
+            padding: 0, fontFamily: 'inherit',
+          }}
+        >
+          {expanded ? '▲ Collapse' : '▼ Expand'}
+        </button>
+      </div>
     </div>
   )
 }
