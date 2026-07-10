@@ -57,6 +57,9 @@ export default function NeedAttention() {
 
   const flatFlags = []
   flaggedDeals.forEach(deal => {
+    const today = new Date()
+    const stageChanged = deal.stageChangedOn ? new Date(deal.stageChangedOn) : new Date()
+    const daysInStage = Math.floor((today - stageChanged) / 86400000)
     ;(deal.flags || []).forEach(flag => {
       flatFlags.push({
         flagId: flag.id || flag.flag,
@@ -67,7 +70,7 @@ export default function NeedAttention() {
         repName: deal.repName,
         stage: deal.stage,
         pipeline: deal.pipeline,
-        daysInStage: deal.daysInStage || 0,
+        daysInStage,
       })
     })
   })
