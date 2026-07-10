@@ -3501,7 +3501,6 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
     const token = await getAccessToken(c.env)
-    const { demoScheduled, demoScheduledDateTime } = await c.req.json()
 
     // 1. Get lead details
     const leadRes = await safeJson(await fetch(
@@ -3586,9 +3585,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
           Owner: { id: ownerId },
           How_many_orders_do_you_ship_in_a_month: volume,
           Lead_Source: leadSource,
-          Layout: { id: '6483035000025962021' },
-          Demo_Scheduled: demoScheduled ? 'Yes' : 'No',
-          ...(demoScheduled && demoScheduledDateTime ? { Demo_Scheduled_Date_Time: demoScheduledDateTime } : {})
+          Layout: { id: '6483035000025962021' }
         }] })
       }
     ))

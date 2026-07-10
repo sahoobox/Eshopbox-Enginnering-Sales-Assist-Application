@@ -55,7 +55,8 @@ export default function LeadDetail() {
   const [disqualifying, setDisqualifying] = useState(false)
   const [showDisqualify, setShowDisqualify] = useState(false)
   const [disqualifyReason, setDisqualifyReason] = useState('')
-  const [showConvertModal, setShowConvertModal] = useState(false)
+  const [converting, setConverting] = useState(false)
+  const [convertError, setConvertError] = useState(null)
   const [showActivityDropdown, setShowActivityDropdown] = useState(false)
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [showMeetingModal, setShowMeetingModal] = useState(false)
@@ -157,6 +158,39 @@ export default function LeadDetail() {
     } catch {
       alert('Failed to disqualify. Please try again.')
       setDisqualifying(false)
+    }
+  }
+
+  async function handleConvert() {
+    if (!confirm(`Convert ${lead.company || lead.fullName} to a deal?`)) return
+    setConverting(true)
+    setConvertError(null)
+    try {
+      const res = await authFetch(`/api/leads/${leadId}/convert`, {
+        method: 'POST'
+      })
+      const contentType = res.headers.get('content-type')
+      let data
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json()
+      } else {
+        const text = await res.text()
+        throw new Error(`Server error: ${res.status} ${text.slice(0, 100)}`)
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Conversion failed')
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Conversion failed')
+      }
+
+      navigate(`/pipeline/${data.dealId}`)
+    } catch (err) {
+      setConvertError(err.message || 'Conversion failed. Please try again.')
+    } finally {
+      setConverting(false)
     }
   }
 
@@ -279,8 +313,8 @@ export default function LeadDetail() {
                 <button className="btn btn-sm btn-danger" onClick={() => setShowDisqualify(true)} disabled={disqualifying}>
                   {disqualifying ? 'Disqualifying…' : 'Disqualify'}
                 </button>
-                <button className="btn btn-sm btn-primary" onClick={() => setShowConvertModal(true)}>
-                  Convert to deal →
+                <button className="btn btn-sm btn-primary" onClick={handleConvert} disabled={converting}>
+                  {converting ? 'Converting…' : 'Convert to deal →'}
                 </button>
               </>
             )}
@@ -623,9 +657,17 @@ export default function LeadDetail() {
           <div className="card">
             <div className="ws-side-head"><h4>Conversion</h4></div>
             <div className="ws-side-body">
-              <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setShowConvertModal(true)}>
-                Convert to deal →
+              <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleConvert} disabled={converting}>
+                {converting ? 'Converting…' : 'Convert to deal →'}
               </button>
+              {convertError && (
+                <div style={{
+                  color: '#E5484D', fontSize: 12,
+                  marginTop: 6, textAlign: 'center'
+                }}>
+                  {convertError}
+                </div>
+              )}
               <div style={{ marginTop: 12 }}>
                 {dedup === null ? (
                   <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Checking for existing records…</div>
@@ -947,16 +989,6 @@ export default function LeadDetail() {
           onSuccess={() => {
             setShowReassign(false)
             authFetch(`/api/leads/${leadId}`).then(r => r.json()).then(setLead)
-          }}
-        />
-      )}
-      {showConvertModal && (
-        <ConvertLeadModal
-          lead={lead}
-          onClose={() => setShowConvertModal(false)}
-          onSuccess={(data) => {
-            setShowConvertModal(false)
-            navigate(`/pipeline/${data.dealId}`)
           }}
         />
       )}
@@ -1642,186 +1674,6 @@ function LeadCallModal({ leadId, onClose, onSuccess }) {
       </div>
     </div>
   )
-}
-
-function ConvertLeadModal({ lead, onClose, onSuccess }) {
-  const { authFetch } = useAuth();
-  const [step, setStep] = useState('question');
-  // 'question' | 'datetime' | 'warning'
-  const [dateTime, setDateTime] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  async function convertLead(demoScheduled, demoDateTime) {
-    setSaving(true);
-    try {
-      const res = await authFetch(
-        `/api/leads/${lead.id}/convert`,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            demoScheduled,
-            demoScheduledDateTime: demoDateTime || null
-          })
-        }
-      );
-      const data = await res.json();
-      if (data.success) onSuccess(data);
-      else alert(data.error || 'Failed to convert lead');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box"
-        onClick={e => e.stopPropagation()}
-        style={{ maxWidth: 480 }}
-      >
-
-        {/* STEP 1 — Is demo scheduled? */}
-        {step === 'question' && (
-          <>
-            <div className="modal-head">
-              <h3>Convert to Deal</h3>
-              <button className="btn-close"
-                onClick={onClose}>✕</button>
-            </div>
-            <div className="modal-body">
-              <p style={{
-                marginBottom: 20,
-                color: 'var(--ink-2)',
-                fontSize: 14
-              }}>
-                Before converting — has the demo been
-                scheduled with this prospect?
-              </p>
-              <div style={{ display: 'flex', gap: 12 }}>
-                <button
-                  className="btn btn-primary"
-                  style={{ flex: 1 }}
-                  onClick={() => setStep('datetime')}
-                >
-                  ✓ Yes, it's scheduled
-                </button>
-                <button
-                  className="btn"
-                  style={{ flex: 1 }}
-                  onClick={() => setStep('warning')}
-                >
-                  ✗ Not yet
-                </button>
-              </div>
-            </div>
-            <div className="modal-foot">
-              <button className="btn" onClick={onClose}>
-                Cancel
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* STEP 2 — Date/time picker */}
-        {step === 'datetime' && (
-          <>
-            <div className="modal-head">
-              <h3>Schedule Demo</h3>
-              <button className="btn-close"
-                onClick={onClose}>✕</button>
-            </div>
-            <div className="modal-body">
-              <p style={{
-                marginBottom: 12,
-                color: 'var(--ink-2)',
-                fontSize: 14
-              }}>
-                Select the demo date and time:
-              </p>
-              <input
-                type="datetime-local"
-                value={dateTime}
-                onChange={e => setDateTime(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  border: '1px solid var(--line)',
-                  borderRadius: 8,
-                  fontSize: 14,
-                  color: 'var(--ink-1)'
-                }}
-              />
-            </div>
-            <div className="modal-foot">
-              <button className="btn"
-                onClick={() => setStep('question')}>
-                ← Back
-              </button>
-              <button className="btn" onClick={onClose}>
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={saving || !dateTime}
-                onClick={() => convertLead(true, dateTime)}
-              >
-                {saving ? 'Converting...' : 'Convert →'}
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* STEP 3 — Warning: no demo scheduled */}
-        {step === 'warning' && (
-          <>
-            <div className="modal-head">
-              <h3>No Demo Scheduled</h3>
-              <button className="btn-close"
-                onClick={onClose}>✕</button>
-            </div>
-            <div className="modal-body">
-              <p style={{
-                color: 'var(--ink-2)',
-                fontSize: 14,
-                marginBottom: 12
-              }}>
-                You're converting without a scheduled
-                demo date. The deal will be created in
-                <strong> Upcoming Demo</strong> stage
-                with demo marked as not yet scheduled.
-              </p>
-              <p style={{
-                color: 'var(--ink-3)',
-                fontSize: 13,
-                background: 'var(--surface-2)',
-                padding: '10px 14px',
-                borderRadius: 8
-              }}>
-                Are you sure you want to continue?
-              </p>
-            </div>
-            <div className="modal-foot">
-              <button className="btn"
-                onClick={() => setStep('question')}>
-                ← Go back
-              </button>
-              <button className="btn" onClick={onClose}>
-                Cancel
-              </button>
-              <button
-                className="btn btn-danger"
-                disabled={saving}
-                onClick={() => convertLead(false, null)}
-              >
-                {saving ? 'Converting...'
-                  : 'Yes, convert anyway'}
-              </button>
-            </div>
-          </>
-        )}
-
-      </div>
-    </div>
-  );
 }
 
 function ReassignLeadModal({ lead, onClose, onSuccess }) {
