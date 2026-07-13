@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import DOMPurify from 'dompurify'
 import { useAuth } from '../../context/AuthContext'
@@ -61,6 +61,7 @@ export default function LeadDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [tab, setTab] = useState('leadfields')
+  const tabDataCache = useRef({})
   const [disqualifying, setDisqualifying] = useState(false)
   const [showDisqualify, setShowDisqualify] = useState(false)
   const [disqualifyReason, setDisqualifyReason] = useState('')
@@ -295,6 +296,7 @@ export default function LeadDetail() {
                       }}>
                         {['Task', 'Meeting', 'Call'].map(type => (
                           <div key={type}
+                            className="dropdown-item"
                             onClick={() => {
                               setShowActivityDropdown(false)
                               if (type === 'Task') setShowTaskModal(true)
@@ -306,8 +308,6 @@ export default function LeadDetail() {
                               cursor: 'pointer', color: 'var(--ink-1)',
                               borderBottom: '0.5px solid var(--line)'
                             }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                           >
                             {type}
                           </div>
@@ -351,7 +351,7 @@ export default function LeadDetail() {
           </div>
 
           {tab === 'activity' && (
-            <ActivityTab leadId={leadId} lead={lead} />
+            <ActivityTab leadId={leadId} lead={lead} tabDataCache={tabDataCache} />
           )}
 
           {tab === 'emails' && (
@@ -475,7 +475,7 @@ export default function LeadDetail() {
           )}
 
           {tab === 'notes' && (
-            <LeadNotesTab leadId={leadId} lead={lead} />
+            <LeadNotesTab leadId={leadId} lead={lead} tabDataCache={tabDataCache} />
           )}
 
           {tab === 'leadfields' && (
@@ -1000,14 +1000,15 @@ export default function LeadDetail() {
   )
 }
 
-function ActivityTab({ leadId, lead }) {
+function ActivityTab({ leadId, lead, tabDataCache }) {
   const { authFetch } = useAuth()
-  const [loading, setLoading] = useState(true)
-  const [tasks, setTasks] = useState([])
-  const [meetings, setMeetings] = useState([])
-  const [calls, setCalls] = useState([])
-  const [systemEvents, setSystemEvents] = useState([])
-  const [localCompleted, setLocalCompleted] = useState(new Set())
+  const cached = tabDataCache?.current?.activity
+  const [loading, setLoading] = useState(!cached)
+  const [tasks, setTasks] = useState(cached?.tasks || [])
+  const [meetings, setMeetings] = useState(cached?.meetings || [])
+  const [calls, setCalls] = useState(cached?.calls || [])
+  const [systemEvents, setSystemEvents] = useState(cached?.systemEvents || [])
+  const [localCompleted, setLocalCompleted] = useState(cached?.localCompleted || new Set())
   const [confirmModal, setConfirmModal] = useState(null)
   const [activeChip, setActiveChip] = useState('All')
   const [expandedDesc, setExpandedDesc] = useState({})
@@ -1026,22 +1027,33 @@ function ActivityTab({ leadId, lead }) {
         authFetch(`/api/leads/${leadId}/calls`, { signal }).then(r => r.json()),
         authFetch(`/api/leads/${leadId}/timeline`, { signal }).then(r => r.json()),
       ])
-      setTasks(tRes.tasks || [])
-      setMeetings(mRes.meetings || [])
-      setCalls(cRes.calls || [])
-      setSystemEvents(evRes.events || [])
+      const newTasks = tRes.tasks || []
+      const newMeetings = mRes.meetings || []
+      const newCalls = cRes.calls || []
+      const newEvents = evRes.events || []
+      setTasks(newTasks)
+      setMeetings(newMeetings)
+      setCalls(newCalls)
+      setSystemEvents(newEvents)
+      if (tabDataCache) {
+        tabDataCache.current.activity = {
+          tasks: newTasks, meetings: newMeetings, calls: newCalls,
+          systemEvents: newEvents, localCompleted: new Set(),
+        }
+      }
     } catch (err) {
       if (err.name === 'AbortError') return
     } finally {
       if (!signal?.aborted) setLoading(false)
     }
-  }, [leadId, authFetch])
+  }, [leadId, authFetch, tabDataCache])
 
   useEffect(() => {
+    if (tabDataCache?.current?.activity) return // already hydrated from cache — skip the network fetch
     const controller = new AbortController()
     fetchAll(controller.signal)
     return () => controller.abort()
-  }, [fetchAll])
+  }, [fetchAll, tabDataCache])
 
   useEffect(() => {
     if (!showDropdown) return
@@ -1057,7 +1069,13 @@ function ActivityTab({ leadId, lead }) {
       onConfirm: async () => {
         setConfirmModal(null)
         await authFetch(`/api/leads/${leadId}/tasks/${taskId}`, { method: 'PATCH' })
-        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'Completed' } : t))
+        setTasks(prev => {
+          const next = prev.map(t => t.id === taskId ? { ...t, status: 'Completed' } : t)
+          if (tabDataCache?.current?.activity) {
+            tabDataCache.current.activity = { ...tabDataCache.current.activity, tasks: next }
+          }
+          return next
+        })
       }
     })
   }
@@ -1067,7 +1085,13 @@ function ActivityTab({ leadId, lead }) {
       onConfirm: async () => {
         setConfirmModal(null)
         await authFetch(`/api/leads/${leadId}/meeting/${meetingId}/complete`, { method: 'PATCH' })
-        setLocalCompleted(prev => new Set([...prev, meetingId]))
+        setLocalCompleted(prev => {
+          const next = new Set([...prev, meetingId])
+          if (tabDataCache?.current?.activity) {
+            tabDataCache.current.activity = { ...tabDataCache.current.activity, localCompleted: next }
+          }
+          return next
+        })
       }
     })
   }
@@ -1077,7 +1101,13 @@ function ActivityTab({ leadId, lead }) {
       onConfirm: async () => {
         setConfirmModal(null)
         await authFetch(`/api/leads/${leadId}/call/${callId}/complete`, { method: 'PATCH' })
-        setLocalCompleted(prev => new Set([...prev, callId]))
+        setLocalCompleted(prev => {
+          const next = new Set([...prev, callId])
+          if (tabDataCache?.current?.activity) {
+            tabDataCache.current.activity = { ...tabDataCache.current.activity, localCompleted: next }
+          }
+          return next
+        })
       }
     })
   }
@@ -1207,6 +1237,7 @@ function ActivityTab({ leadId, lead }) {
                 }}>
                   {['Task', 'Meeting', 'Call'].map(item => (
                     <button key={item}
+                      className="dropdown-item"
                       onClick={() => {
                         setShowDropdown(false)
                         if (item === 'Task') setShowTaskModal(true)
@@ -1214,8 +1245,6 @@ function ActivityTab({ leadId, lead }) {
                         else setShowCallModal(true)
                       }}
                       style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', border: 'none', background: 'none', fontSize: 13, cursor: 'pointer', color: 'var(--ink)', fontFamily: 'inherit' }}
-                      onMouseEnter={e => e.target.style.background = 'var(--surface-2)'}
-                      onMouseLeave={e => e.target.style.background = 'none'}
                     >{item}</button>
                   ))}
                 </div>
@@ -1362,17 +1391,23 @@ function ActivityTab({ leadId, lead }) {
   )
 }
 
-function LeadNotesTab({ leadId, lead }) {
+function LeadNotesTab({ leadId, lead, tabDataCache }) {
   const { authFetch } = useAuth()
-  const [d1Notes, setD1Notes] = useState([])
+  const cachedNotes = tabDataCache?.current?.notes
+  const [d1Notes, setD1Notes] = useState(cachedNotes || [])
   const [newNote, setNewNote] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!cachedNotes)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+    if (tabDataCache?.current?.notes) return // already hydrated from cache — skip the network fetch
     authFetch(`/api/leads/${leadId}/notes`)
       .then(r => r.json())
-      .then(d => setD1Notes(d.notes || []))
+      .then(d => {
+        const notes = d.notes || []
+        setD1Notes(notes)
+        if (tabDataCache) tabDataCache.current.notes = notes
+      })
       .finally(() => setLoading(false))
   }, [leadId])
 
@@ -1386,7 +1421,11 @@ function LeadNotesTab({ leadId, lead }) {
       })
       const data = await res.json()
       if (data.success) {
-        setD1Notes(prev => [data.note, ...prev])
+        setD1Notes(prev => {
+          const next = [data.note, ...prev]
+          if (tabDataCache) tabDataCache.current.notes = next
+          return next
+        })
         setNewNote('')
       }
     } finally { setSaving(false) }

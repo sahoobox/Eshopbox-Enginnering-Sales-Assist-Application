@@ -11,6 +11,26 @@ import { logTimelineEvent } from './services/timeline.js';
 import { logLeadTimelineEvent } from './services/leadTimeline.js';
 import { sendGmailEmail, sendGmailEmailWithToken, createGmailDraft, checkDraftSent, getRealMessageId } from './services/gmail.js';
 
+// Patches specific lead(s) in-place inside the v3_leads_cache KV entry instead of
+// invalidating the whole cache. Falls back to a full delete if the cache is malformed.
+async function patchLeadsInCache(env, leadIds, updates) {
+  try {
+    const cached = await env.TOKEN_CACHE.get('v3_leads_cache', 'json')
+    if (!cached) return
+    const idSet = new Set(leadIds)
+    const patched = cached.map(lead =>
+      idSet.has(lead.id) ? { ...lead, ...updates } : lead
+    )
+    await env.TOKEN_CACHE.put('v3_leads_cache', JSON.stringify(patched), { expirationTtl: 7200 })
+  } catch (e) {
+    try { await env.TOKEN_CACHE.delete('v3_leads_cache') } catch {}
+  }
+}
+
+async function patchLeadInCache(env, leadId, updates) {
+  return patchLeadsInCache(env, [leadId], updates)
+}
+
 const app = new Hono();
 
 app.use('*', cors({
@@ -3432,12 +3452,13 @@ app.post('/api/leads/:id/disqualify', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
     const { reason } = await c.req.json().catch(() => ({}))
-    await updateLead(c.env, leadId, {
+    const leadUpdates = {
       Lead_Status: 'Disqualified',
       ...(reason ? { Disqualified_reason: reason } : {})
-    })
-    // Clear leads cache so inbox refreshes
-    try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch {}
+    }
+    await updateLead(c.env, leadId, leadUpdates)
+    // Patch leads cache in place so inbox reflects the new status without a full Zoho re-fetch
+    await patchLeadInCache(c.env, leadId, leadUpdates)
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: 'Failed to disqualify lead', details: err.message }, 500)
@@ -4337,7 +4358,9 @@ app.patch('/api/leads/:id/reassign', requireAuth, async (c) => {
     await zohoAPI(c.env, 'PUT', `/Leads/${leadId}`, {
       data: [{ id: leadId, Owner: { id: zohoUser.id } }]
     })
-    try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch (_) {}
+    await patchLeadInCache(c.env, leadId, {
+      Owner: { id: zohoUser.id, name: newOwnerName, email: newOwnerEmail }
+    })
     await logLeadTimelineEvent(c.env, leadId, {
       eventType: 'lead_reassigned',
       description: `Lead reassigned to ${newOwnerName}`,
@@ -4373,7 +4396,9 @@ app.post('/api/leads/bulk-reassign', requireAuth, async (c) => {
     })
     console.log('Zoho bulk PUT response:', JSON.stringify(massUpdateRes))
 
-    try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch (_) {}
+    await patchLeadsInCache(c.env, leadIds, {
+      Owner: { id: zohoUser.id, name: newOwnerName, email: newOwnerEmail }
+    })
 
     for (const leadId of leadIds) {
       try {
@@ -4531,10 +4556,11 @@ app.patch('/api/leads/:id/fields', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
     const { phone, email, company, city, website } = await c.req.json()
+    const fieldUpdates = { Phone: phone, Email: email, Company: company, City: city, Website: website }
     await zohoAPI(c.env, 'PUT', `/Leads/${leadId}`, {
-      data: [{ id: leadId, Phone: phone, Email: email, Company: company, City: city, Website: website }]
+      data: [{ id: leadId, ...fieldUpdates }]
     })
-    try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch (_) {}
+    await patchLeadInCache(c.env, leadId, fieldUpdates)
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
