@@ -1270,10 +1270,12 @@ function ActivityTab({ leadId, lead }) {
             {CHIPS.map(chip => (
               <button key={chip} onClick={() => setActiveChip(chip)}
                 style={{
-                  padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                  border: '1px solid var(--line)', cursor: 'pointer', fontFamily: 'inherit',
-                  background: activeChip === chip ? 'var(--ink-1)' : 'transparent',
+                  padding: '4px 12px', borderRadius: 20, fontSize: 12,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  background: activeChip === chip ? 'var(--ink)' : 'var(--surface-2)',
                   color: activeChip === chip ? 'var(--surface)' : 'var(--ink-2)',
+                  border: activeChip === chip ? '0.5px solid var(--ink)' : '0.5px solid var(--line)',
+                  fontWeight: activeChip === chip ? 500 : 400,
                 }}
               >{chip}</button>
             ))}
