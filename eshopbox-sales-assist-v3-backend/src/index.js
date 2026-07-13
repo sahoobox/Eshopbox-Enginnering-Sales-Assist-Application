@@ -3820,6 +3820,27 @@ app.post('/api/leads/:id/merge', requireAuth, async (c) => {
 
 // ── LEAD ACTIVITIES ───────────────────────────────────────
 
+app.get('/api/leads/:id/timeline', requireAuth, async (c) => {
+  try {
+    const leadId = c.req.param('id')
+    const { results } = await c.env.DB.prepare(
+      `SELECT id, event_type, description, actor_name, actor_email, created_at
+       FROM lead_timeline WHERE lead_id = ? ORDER BY created_at DESC LIMIT 100`
+    ).bind(leadId).all()
+    return c.json({
+      events: (results || []).map(e => ({
+        id: e.id,
+        type: 'system',
+        description: e.description || '',
+        actor: e.actor_name || 'System',
+        createdAt: e.created_at,
+      }))
+    })
+  } catch (err) {
+    return c.json({ events: [] })
+  }
+})
+
 app.get('/api/leads/:id/tasks', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')

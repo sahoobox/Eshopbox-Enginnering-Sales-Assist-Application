@@ -23,6 +23,15 @@ function formatSentDate(dateStr) {
   } catch { return dateStr }
 }
 
+function formatActivityDate(dateStr) {
+  if (!dateStr) return '—'
+  try {
+    return new Date(dateStr).toLocaleDateString('en-IN', {
+      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
+    })
+  } catch { return dateStr }
+}
+
 const DAY_LABELS = ['Day 1', 'Day 2', 'Day 4', 'Day 7']
 
 const DAY_HEADINGS = {
@@ -330,8 +339,7 @@ export default function LeadDetail() {
           <div className="tabs">
             {[
               { id: 'leadfields', label: 'Lead Fields' },
-              { id: 'timeline', label: 'Timeline' },
-              { id: 'activities', label: 'Activities' },
+              { id: 'activity', label: 'Activity' },
               { id: 'emails', label: 'Sequence' },
               { id: 'notes', label: 'Notes' },
               { id: 'utm', label: 'UTM & Tracking' },
@@ -342,12 +350,8 @@ export default function LeadDetail() {
             ))}
           </div>
 
-          {tab === 'timeline' && (
-            <LeadTimelineTab leadId={leadId} lead={lead} />
-          )}
-
-          {tab === 'activities' && (
-            <LeadActivitiesTab leadId={leadId} />
+          {tab === 'activity' && (
+            <ActivityTab leadId={leadId} lead={lead} />
           )}
 
           {tab === 'emails' && (
@@ -996,114 +1000,329 @@ export default function LeadDetail() {
   )
 }
 
-function LeadTimelineTab({ leadId, lead }) {
+function ActivityTab({ leadId, lead }) {
   const { authFetch } = useAuth()
-  const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
+  const [tasks, setTasks] = useState([])
+  const [meetings, setMeetings] = useState([])
+  const [calls, setCalls] = useState([])
+  const [systemEvents, setSystemEvents] = useState([])
+  const [localCompleted, setLocalCompleted] = useState(new Set())
+  const [confirmModal, setConfirmModal] = useState(null)
+  const [activeChip, setActiveChip] = useState('All')
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [showTaskModal, setShowTaskModal] = useState(false)
+  const [showMeetingModal, setShowMeetingModal] = useState(false)
+  const [showCallModal, setShowCallModal] = useState(false)
+  const todayStr = new Date().toISOString().split('T')[0]
+
+  const fetchAll = useCallback(async (signal) => {
+    setLoading(true)
+    try {
+      const [tRes, mRes, cRes, evRes] = await Promise.all([
+        authFetch(`/api/leads/${leadId}/tasks`, { signal }).then(r => r.json()),
+        authFetch(`/api/leads/${leadId}/meetings`, { signal }).then(r => r.json()),
+        authFetch(`/api/leads/${leadId}/calls`, { signal }).then(r => r.json()),
+        authFetch(`/api/leads/${leadId}/timeline`, { signal }).then(r => r.json()),
+      ])
+      setTasks(tRes.tasks || [])
+      setMeetings(mRes.meetings || [])
+      setCalls(cRes.calls || [])
+      setSystemEvents(evRes.events || [])
+    } catch (err) {
+      if (err.name === 'AbortError') return
+    } finally {
+      if (!signal?.aborted) setLoading(false)
+    }
+  }, [leadId, authFetch])
 
   useEffect(() => {
-    Promise.all([
-      authFetch(`/api/leads/${leadId}/tasks`).then(r => r.json()).catch(() => ({ tasks: [] })),
-      authFetch(`/api/leads/${leadId}/meetings`).then(r => r.json()).catch(() => ({ meetings: [] })),
-      authFetch(`/api/leads/${leadId}/calls`).then(r => r.json()).catch(() => ({ calls: [] })),
-    ]).then(([tData, mData, cData]) => {
-      const taskEvents = (tData.tasks || []).map(t => ({
-        id: `task-${t.id}`,
-        event_type: 'task_created',
-        description: t.subject || 'Task',
-        actor_name: t.ownerName || '',
-        created_at: t.dueDate || t.createdTime || '',
-        source: 'zoho',
-      }))
-      const meetingEvents = (mData.meetings || []).map(m => ({
-        id: `meeting-${m.id}`,
-        event_type: 'meeting_created',
-        description: m.title || 'Meeting',
-        actor_name: m.createdBy || '',
-        created_at: m.from || '',
-        source: 'zoho',
-      }))
-      const callEvents = (cData.calls || []).map(c => ({
-        id: `call-${c.id}`,
-        event_type: c.status === 'Scheduled' ? 'call_scheduled' : 'call_logged',
-        description: c.subject || (c.purpose && c.purpose !== 'None' ? c.purpose : 'Call'),
-        actor_name: c.createdBy || '',
-        created_at: c.timing || '',
-        source: 'zoho',
-      }))
-      const noteEvents = (lead?.notes || []).map((n, i) => ({
-        id: `note-${n.id || i}`,
-        event_type: 'note_added',
-        description: (() => {
-          const raw = n.Note_Content || n.content || ''
-          const stripped = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-          return stripped.slice(0, 120) || 'Note added'
-        })(),
-        actor_name: n.Created_By?.name || n.createdBy || '',
-        created_at: n.Created_Time || n.date || '',
-        source: 'zoho',
-      }))
-      const all = [...taskEvents, ...meetingEvents, ...callEvents, ...noteEvents]
-        .filter(e => e.created_at)
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      setEvents(all)
-    }).finally(() => setLoading(false))
-  }, [leadId])
+    const controller = new AbortController()
+    fetchAll(controller.signal)
+    return () => controller.abort()
+  }, [fetchAll])
 
-  const iconMap = {
-    task_created:    <CheckSquare size={14} />,
-    meeting_created: <Calendar size={14} />,
-    call_logged:     <Phone size={14} />,
-    call_scheduled:  <Phone size={14} />,
-    note_added:      <StickyNote size={14} />,
-  }
-  const colorMap = {
-    task_created:    '#3B5BDB',
-    meeting_created: '#2F9E44',
-    call_logged:     '#C2255C',
-    call_scheduled:  '#C2255C',
-    note_added:      '#6B7280',
+  useEffect(() => {
+    if (!showDropdown) return
+    const handler = (e) => {
+      if (!e.target.closest('[data-activity-dropdown]')) setShowDropdown(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showDropdown])
+
+  function toggleTask(taskId) {
+    setConfirmModal({
+      onConfirm: async () => {
+        setConfirmModal(null)
+        await authFetch(`/api/leads/${leadId}/tasks/${taskId}`, { method: 'PATCH' })
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'Completed' } : t))
+      }
+    })
   }
 
-  if (loading) return (
-    <div style={{ padding: 24, color: 'var(--ink-3)', fontSize: 13 }}>Loading timeline...</div>
+  function completeMeeting(meetingId) {
+    setConfirmModal({
+      onConfirm: async () => {
+        setConfirmModal(null)
+        await authFetch(`/api/leads/${leadId}/meeting/${meetingId}/complete`, { method: 'PATCH' })
+        setLocalCompleted(prev => new Set([...prev, meetingId]))
+      }
+    })
+  }
+
+  function completeCall(callId) {
+    setConfirmModal({
+      onConfirm: async () => {
+        setConfirmModal(null)
+        await authFetch(`/api/leads/${leadId}/call/${callId}/complete`, { method: 'PATCH' })
+        setLocalCompleted(prev => new Set([...prev, callId]))
+      }
+    })
+  }
+
+  // Normalize tasks/meetings/calls/notes/system events into one shape
+  const items = [
+    ...tasks.map(t => ({
+      id: `task-${t.id}`, type: 'task', title: t.subject || 'Task',
+      status: t.status === 'Completed' ? 'completed' : 'open',
+      dueDate: t.dueDate || '', priority: t.priority || '', ownerName: t.ownerName || '',
+      createdAt: t.dueDate || '', raw: t,
+    })),
+    ...meetings.map(m => ({
+      id: `meeting-${m.id}`, type: 'meeting', title: m.title || 'Meeting',
+      status: ((m.to && new Date(m.to) < new Date()) || localCompleted.has(m.id)) ? 'completed' : 'scheduled',
+      dueDate: m.from || '', priority: '', ownerName: m.createdBy || '',
+      createdAt: m.from || '', raw: m,
+    })),
+    ...calls.map(c => ({
+      id: `call-${c.id}`, type: 'call', title: c.subject || (c.purpose && c.purpose !== 'None' ? c.purpose : 'Call'),
+      status: ((c.status !== 'Scheduled' && c.status !== 'scheduled' && c.status !== '' && c.status != null) || localCompleted.has(c.id)) ? 'completed' : 'scheduled',
+      dueDate: c.timing || '', priority: '', ownerName: c.createdBy || '',
+      createdAt: c.timing || '', raw: c,
+    })),
+    ...(lead?.notes || []).map((n, i) => ({
+      id: `note-${n.id || i}`, type: 'note',
+      title: (() => {
+        const raw = n.Note_Content || n.content || ''
+        const stripped = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+        return stripped.slice(0, 120) || 'Note added'
+      })(),
+      status: 'completed', dueDate: '', priority: '',
+      ownerName: n.Created_By?.name || n.createdBy || '',
+      createdAt: n.Created_Time || n.date || '', raw: n,
+    })),
+    ...systemEvents.map(e => ({
+      id: `system-${e.id}`, type: 'system', title: e.description || 'Update',
+      status: 'completed', dueDate: '', priority: '', ownerName: e.actor || 'System',
+      createdAt: e.createdAt || '', raw: e,
+    })),
+  ]
+
+  const openItems = items
+    .filter(i => (i.type === 'task' || i.type === 'meeting' || i.type === 'call') && i.status !== 'completed')
+    .sort((a, b) => {
+      const av = a.dueDate ? new Date(a.dueDate).getTime() : Infinity
+      const bv = b.dueDate ? new Date(b.dueDate).getTime() : Infinity
+      return av - bv
+    })
+
+  const historyItems = items
+    .filter(i => i.status === 'completed' && i.createdAt)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+
+  const CHIPS = ['All', 'Tasks', 'Calls', 'Meetings', 'Notes', 'System']
+  const CHIP_TYPE = { Tasks: 'task', Calls: 'call', Meetings: 'meeting', Notes: 'note', System: 'system' }
+  const filteredHistory = activeChip === 'All' ? historyItems : historyItems.filter(i => i.type === CHIP_TYPE[activeChip])
+
+  const TYPE_ICON = {
+    task: <CheckSquare size={12} />, meeting: <Calendar size={12} />,
+    call: <Phone size={12} />, note: <StickyNote size={12} />, system: <RefreshCw size={12} />,
+  }
+  const TYPE_COLOR = { task: '#2F9E44', call: '#C2410C', meeting: '#3B5BDB', note: '#9333EA', system: '#6B7280' }
+  const TYPE_PILL_STYLE = {
+    task:    { background: '#F0F4FF', color: '#3B5BDB' },
+    meeting: { background: '#F0FFF4', color: '#2F9E44' },
+    call:    { background: '#FFF0F6', color: '#C2255C' },
+  }
+  const typePill = (type) => (
+    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, display: 'inline-block', textTransform: 'capitalize', ...(TYPE_PILL_STYLE[type] || {}) }}>{type}</span>
   )
-  if (events.length === 0) return (
-    <div style={{ padding: 24, color: 'var(--ink-3)', fontSize: 13 }}>No timeline events yet.</div>
-  )
+
+  function dueBadge(dueDate) {
+    if (!dueDate) return null
+    const dateOnly = dueDate.slice(0, 10)
+    if (dateOnly < todayStr) return <span style={{ fontSize: 11, fontWeight: 700, color: '#E5484D' }}>Overdue</span>
+    if (dateOnly === todayStr) return <span style={{ fontSize: 11, fontWeight: 700, color: '#C2410C' }}>Due today</span>
+    return <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{formatActivityDate(dueDate)}</span>
+  }
 
   return (
-    <div style={{ padding: '4px 0' }}>
-      {events.map((event, i) => {
-        const color = colorMap[event.event_type] || '#6B7280'
-        const icon = iconMap[event.event_type] || <RefreshCw size={14} />
-        return (
-          <div key={event.id || i} style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--line)' }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: color + '18', color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
-              {icon}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-1)', marginBottom: 2 }}>
-                {event.description}
-              </div>
-              {event.actor_name && (
-                <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-                  {event.actor_name}
-                  <span style={{ marginLeft: 6, fontSize: 10, background: '#EEF2FF', color: '#4F46E5', padding: '1px 6px', borderRadius: 10, fontWeight: 600 }}>Zoho CRM</span>
+    <div>
+      {/* OPEN · NEXT STEPS */}
+      <div className="card card-pad" style={{ marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+          <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--ink-3)' }}>OPEN · NEXT STEPS</h4>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-sm" onClick={() => setShowTaskModal(true)}>+ New task</button>
+            <div data-activity-dropdown style={{ position: 'relative' }}>
+              <button className="btn btn-sm btn-primary" onClick={() => setShowDropdown(v => !v)}>Log Activity ▾</button>
+              {showDropdown && (
+                <div style={{
+                  position: 'absolute', top: '100%', right: 0, zIndex: 200,
+                  background: 'var(--surface)', border: '1px solid var(--line-2)',
+                  borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-2)',
+                  marginTop: 4, minWidth: 140, overflow: 'hidden'
+                }}>
+                  {['Task', 'Meeting', 'Call'].map(item => (
+                    <button key={item}
+                      onClick={() => {
+                        setShowDropdown(false)
+                        if (item === 'Task') setShowTaskModal(true)
+                        else if (item === 'Meeting') setShowMeetingModal(true)
+                        else setShowCallModal(true)
+                      }}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', border: 'none', background: 'none', fontSize: 13, cursor: 'pointer', color: 'var(--ink)', fontFamily: 'inherit' }}
+                      onMouseEnter={e => e.target.style.background = 'var(--surface-2)'}
+                      onMouseLeave={e => e.target.style.background = 'none'}
+                    >{item}</button>
+                  ))}
                 </div>
               )}
-              {!event.actor_name && (
-                <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-                  <span style={{ fontSize: 10, background: '#EEF2FF', color: '#4F46E5', padding: '1px 6px', borderRadius: 10, fontWeight: 600 }}>Zoho CRM</span>
-                </div>
-              )}
-              <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
-                {new Date(event.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-              </div>
             </div>
           </div>
-        )
-      })}
+        </div>
+
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[0, 1, 2].map(i => (
+              <div key={i} style={{ height: 52, borderRadius: 10, background: 'var(--surface-2)', opacity: 0.5 }} />
+            ))}
+          </div>
+        ) : openItems.length === 0 ? (
+          <div style={{ textAlign: 'center', color: 'var(--ink-3)', fontSize: 13, padding: '20px 0' }}>
+            No open tasks. Use "+ New task" to add one.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {openItems.map(item => (
+              <div key={item.id} style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <input type="checkbox" checked={false}
+                  onChange={() => {
+                    if (item.type === 'task') toggleTask(item.raw.id)
+                    else if (item.type === 'meeting') completeMeeting(item.raw.id)
+                    else completeCall(item.raw.id)
+                  }}
+                  style={{ cursor: 'pointer', width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600, fontSize: 13.5 }}>{item.title}</span>
+                    {typePill(item.type)}
+                    {dueBadge(item.dueDate)}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                    {[item.priority && `Priority: ${item.priority}`, item.ownerName && `Assigned: ${item.ownerName}`].filter(Boolean).join(' · ')}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* HISTORY */}
+      <div className="card card-pad">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+          <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--ink-3)' }}>HISTORY</h4>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {CHIPS.map(chip => (
+              <button key={chip} onClick={() => setActiveChip(chip)}
+                style={{
+                  padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                  border: '1px solid var(--line)', cursor: 'pointer', fontFamily: 'inherit',
+                  background: activeChip === chip ? 'var(--ink-1)' : 'transparent',
+                  color: activeChip === chip ? 'var(--surface)' : 'var(--ink-2)',
+                }}
+              >{chip}</button>
+            ))}
+          </div>
+        </div>
+
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[0, 1, 2, 3, 4].map(i => (
+              <div key={i} style={{ height: 40, borderRadius: 8, background: 'var(--surface-2)', opacity: 0.5 }} />
+            ))}
+          </div>
+        ) : filteredHistory.length === 0 ? (
+          <div style={{ textAlign: 'center', color: 'var(--ink-3)', fontSize: 13, padding: '20px 0' }}>No history yet.</div>
+        ) : (
+          <div>
+            {filteredHistory.map((item, i) => (
+              <div key={item.id} style={{ display: 'flex', gap: 12, position: 'relative', paddingBottom: i === filteredHistory.length - 1 ? 0 : 16 }}>
+                {i !== filteredHistory.length - 1 && (
+                  <div style={{ position: 'absolute', left: 9, top: 20, bottom: 0, width: 2, background: 'var(--line)' }} />
+                )}
+                <div style={{
+                  width: 20, height: 20, borderRadius: '50%',
+                  background: (TYPE_COLOR[item.type] || '#6B7280') + '18',
+                  color: TYPE_COLOR[item.type] || '#6B7280',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0, zIndex: 1,
+                }}>
+                  {TYPE_ICON[item.type]}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-1)' }}>{item.title}</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
+                    {[item.ownerName, formatActivityDate(item.createdAt)].filter(Boolean).join(' · ')}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {showTaskModal && (
+        <TaskModal
+          dealId={leadId}
+          onClose={() => setShowTaskModal(false)}
+          onSubmit={async (data) => {
+            const res = await authFetch(`/api/leads/${leadId}/tasks`, { method: 'POST', body: JSON.stringify(data) })
+            const json = await res.json()
+            if (json.success) { setShowTaskModal(false); fetchAll() }
+            else alert(json.error || 'Failed to create task')
+          }}
+        />
+      )}
+      {showMeetingModal && (
+        <LeadMeetingModal
+          leadId={leadId}
+          onClose={() => setShowMeetingModal(false)}
+          onSuccess={() => { setShowMeetingModal(false); fetchAll() }}
+        />
+      )}
+      {showCallModal && (
+        <LeadCallModal
+          leadId={leadId}
+          onClose={() => setShowCallModal(false)}
+          onSuccess={() => { setShowCallModal(false); fetchAll() }}
+        />
+      )}
+
+      {confirmModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-md)', padding: '28px 32px', maxWidth: 380, width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-1)', marginBottom: 8 }}>Mark as completed?</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 24 }}>This action cannot be undone.</div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmModal(null)} style={{ padding: '8px 18px', borderRadius: 8, border: '1.5px solid var(--line)', background: 'transparent', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: 'var(--ink-2)', fontFamily: 'inherit' }}>Cancel</button>
+              <button onClick={confirmModal.onConfirm} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#E5484D', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#FFFFFF', fontFamily: 'inherit' }}>Yes, mark complete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1222,306 +1441,6 @@ function LeadNotesTab({ leadId, lead }) {
         ))
       )}
     </div>
-  )
-}
-
-function LeadActivitiesTab({ leadId }) {
-  const { authFetch } = useAuth()
-  const [tasks, setTasks] = useState([])
-  const [meetings, setMeetings] = useState([])
-  const [calls, setCalls] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [localCompleted, setLocalCompleted] = useState(new Set())
-  const [confirmModal, setConfirmModal] = useState(null)
-  const [showDropdown, setShowDropdown] = useState(false)
-  const [showTaskModal, setShowTaskModal] = useState(false)
-  const [showMeetingModal, setShowMeetingModal] = useState(false)
-  const [showCallModal, setShowCallModal] = useState(false)
-  const todayStr = new Date().toISOString().split('T')[0]
-
-  useEffect(() => {
-    if (!showDropdown) return
-    const handler = (e) => {
-      if (!e.target.closest('[data-activity-dropdown]')) setShowDropdown(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [showDropdown])
-
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [tRes, mRes, cRes] = await Promise.all([
-        authFetch(`/api/leads/${leadId}/tasks`).then(r => r.json()),
-        authFetch(`/api/leads/${leadId}/meetings`).then(r => r.json()),
-        authFetch(`/api/leads/${leadId}/calls`).then(r => r.json()),
-      ])
-      setTasks(tRes.tasks || [])
-      setMeetings(mRes.meetings || [])
-      setCalls(cRes.calls || [])
-    } catch { /* ignore */ }
-    finally { setLoading(false) }
-  }, [leadId, authFetch])
-
-  useEffect(() => { fetchAll() }, [fetchAll])
-
-  async function toggleTask(taskId, isComplete) {
-    if (!isComplete) {
-      setConfirmModal({
-        onConfirm: async () => {
-          setConfirmModal(null)
-          await authFetch(`/api/leads/${leadId}/tasks/${taskId}`, { method: 'PATCH' })
-          setTasks(prev => prev.map(t => t.id === taskId ? { ...t, isComplete: true, status: 'Completed' } : t))
-        }
-      })
-    }
-  }
-
-  function completeMeeting(meetingId) {
-    setConfirmModal({
-      onConfirm: async () => {
-        setConfirmModal(null)
-        await authFetch(`/api/leads/${leadId}/meeting/${meetingId}/complete`, { method: 'PATCH' })
-        setLocalCompleted(prev => new Set([...prev, meetingId]))
-      }
-    })
-  }
-
-  function completeCall(callId) {
-    setConfirmModal({
-      onConfirm: async () => {
-        setConfirmModal(null)
-        await authFetch(`/api/leads/${leadId}/call/${callId}/complete`, { method: 'PATCH' })
-        setLocalCompleted(prev => new Set([...prev, callId]))
-      }
-    })
-  }
-
-  const allActivities = [
-    ...tasks.map(t => ({ id: t.id, type: 'Task', date: t.dueDate, done: t.status === 'Completed', _t: t })),
-    ...meetings.map(m => ({ id: m.id, type: 'Meeting', date: m.from, done: (m.to && new Date(m.to) < new Date()) || localCompleted.has(m.id), _m: m })),
-    ...calls.map(c => ({ id: c.id, type: 'Call', date: c.timing, done: (c.status !== 'Scheduled' && c.status !== 'scheduled' && c.status !== '' && c.status !== null) || localCompleted.has(c.id), _c: c })),
-  ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-
-  const TYPE_PILL_STYLE = {
-    Task:    { background: '#F0F4FF', color: '#3B5BDB' },
-    Meeting: { background: '#F0FFF4', color: '#2F9E44' },
-    Call:    { background: '#FFF0F6', color: '#C2255C' },
-  }
-  const typePill = (type) => (
-    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, display: 'inline-block', ...(TYPE_PILL_STYLE[type] || {}) }}>{type}</span>
-  )
-  const typeBadge = (label) => (
-    <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 4, background: 'var(--surface-2)', color: 'var(--ink-3)', flexShrink: 0 }}>{label}</span>
-  )
-
-  if (loading) return <div className="card card-pad" style={{ color: 'var(--ink-3)' }}>Loading activities…</div>
-
-  return (
-    <>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <div data-activity-dropdown style={{ position: 'relative' }}>
-          <button className="btn btn-sm btn-primary" onClick={() => setShowDropdown(v => !v)}>
-            + New Activity ▾
-          </button>
-          {showDropdown && (
-            <div style={{
-              position: 'absolute', top: '100%', right: 0, zIndex: 200,
-              background: 'var(--surface)', border: '1px solid var(--line-2)',
-              borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-2)',
-              marginTop: 4, minWidth: 140, overflow: 'hidden'
-            }}>
-              {['Task', 'Meeting', 'Call'].map(item => (
-                <button key={item}
-                  onClick={() => {
-                    setShowDropdown(false)
-                    if (item === 'Task') setShowTaskModal(true)
-                    else if (item === 'Meeting') setShowMeetingModal(true)
-                    else setShowCallModal(true)
-                  }}
-                  style={{
-                    display: 'block', width: '100%', textAlign: 'left',
-                    padding: '10px 14px', border: 'none', background: 'none',
-                    fontSize: 13, cursor: 'pointer', color: 'var(--ink)',
-                    fontFamily: 'inherit'
-                  }}
-                  onMouseEnter={e => e.target.style.background = 'var(--surface-2)'}
-                  onMouseLeave={e => e.target.style.background = 'none'}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {allActivities.length === 0 ? (
-        <div className="card card-pad" style={{ textAlign: 'center', color: 'var(--ink-3)' }}>No activities on this lead.</div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {allActivities.map((item, idx) => {
-            if (item.type === 'Task') {
-              const t = item._t
-              const isOverdue = t.dueDate && t.dueDate < todayStr && !item.done
-              return (
-                <div key={item.id || idx} className="card card-pad"
-                  style={{ opacity: item.done ? 0.75 : 1, color: item.done ? 'var(--ink-3)' : 'inherit' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <input type="checkbox" checked={item.done} onChange={() => toggleTask(t.id, item.done)}
-                      style={{ cursor: item.done ? 'default' : 'pointer', width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 600, fontSize: 13.5 }}>{t.subject}</span>
-                        {typePill('Task')}
-                      </div>
-                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: t.description ? 6 : 0 }}>
-                        {t.dueDate && <span style={{ color: isOverdue ? 'var(--danger)' : 'var(--ink-3)' }}>Due: {formatDate(t.dueDate)}</span>}
-                        {t.priority && <span>Priority: {t.priority}</span>}
-                        <span>Status: {t.status || 'Not Started'}</span>
-                        {t.ownerName && <span>Assigned: {t.ownerName}</span>}
-                      </div>
-                      {t.description && <div style={{ fontSize: 12.5, color: item.done ? 'var(--ink-3)' : 'var(--ink-2)', lineHeight: 1.5, marginTop: 2 }}>{t.description}</div>}
-                    </div>
-                  </div>
-                </div>
-              )
-            }
-
-            if (item.type === 'Meeting') {
-              const m = item._m
-              return (
-                <div key={item.id || idx} className="card card-pad" style={{ opacity: item.done ? 0.75 : 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <input type="checkbox" checked={item.done}
-                      onChange={item.done ? () => {} : () => completeMeeting(m.id)}
-                      style={{ cursor: item.done ? 'default' : 'pointer', width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 600, fontSize: 13.5 }}>{m.title}</span>
-                        {typePill('Meeting')}
-                        {m.status && typeBadge(m.status)}
-                      </div>
-                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: m.description ? 6 : 0 }}>
-                        {m.venue && <span>Venue: {m.venue}</span>}
-                        {m.from && <span>From: {formatDateTime(m.from)}</span>}
-                        {m.to && <span>To: {formatDateTime(m.to)}</span>}
-                        {m.createdBy && <span>By: {m.createdBy}</span>}
-                      </div>
-                      {m.description && <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5, marginTop: 2 }}>{m.description}</div>}
-                    </div>
-                  </div>
-                </div>
-              )
-            }
-
-            if (item.type === 'Call') {
-              const c = item._c
-              return (
-                <div key={item.id || idx} className="card card-pad" style={{ opacity: item.done ? 0.75 : 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <input type="checkbox" checked={item.done}
-                      onChange={item.done ? () => {} : () => completeCall(c.id)}
-                      style={{ cursor: item.done ? 'default' : 'pointer', width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 600, fontSize: 13.5 }}>{c.subject}</span>
-                        {typePill('Call')}
-                        {typeBadge(c.status === 'Scheduled' ? 'Scheduled' : 'Completed')}
-                      </div>
-                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: (c.agenda || c.description) ? 6 : 0 }}>
-                        {c.timing && <span>{formatDateTime(c.timing)}</span>}
-                        {c.purpose && c.purpose !== 'None' && <span>Purpose: {c.purpose}</span>}
-                        {c.result && c.result !== 'None' && <span>Result: {c.result}</span>}
-                        {c.createdBy && <span>By: {c.createdBy}</span>}
-                      </div>
-                      {c.agenda && <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5, marginTop: 2 }}>Agenda: {c.agenda}</div>}
-                      {c.description && <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5, marginTop: 2 }}>{c.description}</div>}
-                    </div>
-                  </div>
-                </div>
-              )
-            }
-
-            return null
-          })}
-        </div>
-      )}
-
-      {showTaskModal && (
-        <TaskModal
-          dealId={leadId}
-          onClose={() => setShowTaskModal(false)}
-          onSubmit={async (data) => {
-            const res = await authFetch(`/api/leads/${leadId}/tasks`, { method: 'POST', body: JSON.stringify(data) })
-            const json = await res.json()
-            if (json.success) { setShowTaskModal(false); fetchAll() }
-            else alert(json.error || 'Failed to create task')
-          }}
-        />
-      )}
-      {showMeetingModal && (
-        <LeadMeetingModal
-          leadId={leadId}
-          onClose={() => setShowMeetingModal(false)}
-          onSuccess={() => { setShowMeetingModal(false); fetchAll() }}
-        />
-      )}
-      {showCallModal && (
-        <LeadCallModal
-          leadId={leadId}
-          onClose={() => setShowCallModal(false)}
-          onSuccess={() => { setShowCallModal(false); fetchAll() }}
-        />
-      )}
-
-      {confirmModal && (
-        <div style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'center',
-          justifyContent: 'center', zIndex: 1000
-        }}>
-          <div style={{
-            background: 'var(--surface)',
-            borderRadius: 'var(--radius-md)',
-            padding: '28px 32px',
-            maxWidth: 380, width: '100%',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.18)'
-          }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-1)', marginBottom: 8 }}>
-              Mark as completed?
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 24 }}>
-              This action cannot be undone.
-            </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={() => setConfirmModal(null)}
-                style={{
-                  padding: '8px 18px', borderRadius: 8,
-                  border: '1.5px solid var(--line)',
-                  background: 'transparent', fontSize: 13,
-                  fontWeight: 600, cursor: 'pointer',
-                  color: 'var(--ink-2)', fontFamily: 'inherit'
-                }}>
-                Cancel
-              </button>
-              <button onClick={confirmModal.onConfirm}
-                style={{
-                  padding: '8px 18px', borderRadius: 8,
-                  border: 'none',
-                  background: '#E5484D', fontSize: 13,
-                  fontWeight: 700, cursor: 'pointer',
-                  color: '#FFFFFF', fontFamily: 'inherit'
-                }}>
-                Yes, mark complete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
   )
 }
 
