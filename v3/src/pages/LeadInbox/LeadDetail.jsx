@@ -1010,6 +1010,7 @@ function ActivityTab({ leadId, lead }) {
   const [localCompleted, setLocalCompleted] = useState(new Set())
   const [confirmModal, setConfirmModal] = useState(null)
   const [activeChip, setActiveChip] = useState('All')
+  const [expandedDesc, setExpandedDesc] = useState({})
   const [showDropdown, setShowDropdown] = useState(false)
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [showMeetingModal, setShowMeetingModal] = useState(false)
@@ -1087,18 +1088,21 @@ function ActivityTab({ leadId, lead }) {
       id: `task-${t.id}`, type: 'task', title: t.subject || 'Task',
       status: t.status === 'Completed' ? 'completed' : 'open',
       dueDate: t.dueDate || '', priority: t.priority || '', ownerName: t.ownerName || '',
+      description: t.description || '',
       createdAt: t.dueDate || '', raw: t,
     })),
     ...meetings.map(m => ({
       id: `meeting-${m.id}`, type: 'meeting', title: m.title || 'Meeting',
       status: ((m.to && new Date(m.to) < new Date()) || localCompleted.has(m.id)) ? 'completed' : 'scheduled',
       dueDate: m.from || '', priority: '', ownerName: m.createdBy || '',
+      description: m.description || '',
       createdAt: m.from || '', raw: m,
     })),
     ...calls.map(c => ({
       id: `call-${c.id}`, type: 'call', title: c.subject || (c.purpose && c.purpose !== 'None' ? c.purpose : 'Call'),
       status: ((c.status !== 'Scheduled' && c.status !== 'scheduled' && c.status !== '' && c.status != null) || localCompleted.has(c.id)) ? 'completed' : 'scheduled',
       dueDate: c.timing || '', priority: '', ownerName: c.createdBy || '',
+      description: c.agenda || c.result || c.description || '',
       createdAt: c.timing || '', raw: c,
     })),
     ...(lead?.notes || []).map((n, i) => ({
@@ -1155,6 +1159,33 @@ function ActivityTab({ leadId, lead }) {
     if (dateOnly < todayStr) return <span style={{ fontSize: 11, fontWeight: 700, color: '#E5484D' }}>Overdue</span>
     if (dateOnly === todayStr) return <span style={{ fontSize: 11, fontWeight: 700, color: '#C2410C' }}>Due today</span>
     return <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{formatActivityDate(dueDate)}</span>
+  }
+
+  function renderDescription(item, { lines, borderColor, background, marginTop, marginBottom }) {
+    if (!item.description) return null
+    const isLong = item.description.length > 100
+    const expanded = expandedDesc[item.id]
+    return (
+      <div
+        onClick={() => isLong && setExpandedDesc(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+        style={{ cursor: isLong ? 'pointer' : 'default' }}
+      >
+        <div style={{
+          marginTop, marginBottom,
+          padding: '8px 10px', background, borderRadius: 8,
+          borderLeft: `2.5px solid ${borderColor}`,
+          fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.6,
+          ...(expanded ? {} : { display: '-webkit-box', WebkitLineClamp: lines, WebkitBoxOrient: 'vertical', overflow: 'hidden' }),
+        }}>
+          {item.description}
+        </div>
+        {isLong && (
+          <span style={{ fontSize: 11, color: 'var(--info)', cursor: 'pointer', display: 'block', marginTop: 4 }}>
+            {expanded ? 'Show less ▲' : 'Show more ▼'}
+          </span>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -1223,6 +1254,7 @@ function ActivityTab({ leadId, lead }) {
                   <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
                     {[item.priority && `Priority: ${item.priority}`, item.ownerName && `Assigned: ${item.ownerName}`].filter(Boolean).join(' · ')}
                   </div>
+                  {renderDescription(item, { lines: 3, borderColor: 'var(--info)', background: 'var(--bg)', marginTop: 8, marginBottom: 0 })}
                 </div>
               </div>
             ))}
@@ -1274,6 +1306,7 @@ function ActivityTab({ leadId, lead }) {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-1)' }}>{item.title}</div>
+                  {renderDescription(item, { lines: 2, borderColor: 'var(--line-2)', background: 'var(--surface-2)', marginTop: 6, marginBottom: 4 })}
                   <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
                     {[item.ownerName, formatActivityDate(item.createdAt)].filter(Boolean).join(' · ')}
                   </div>
