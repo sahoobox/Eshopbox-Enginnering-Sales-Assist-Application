@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef, useCallback, useTransition, forwardRef, useImperativeHandle } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useLeads } from '../../hooks/useLeads'
@@ -275,7 +275,6 @@ export default function LeadInbox() {
   const { role, user } = useAuth()
   const isAdmin = role === ROLES.ADMIN
   const { leads, loading, error, refetch } = useLeads()
-  const [isPending, startTransition] = useTransition()
   const [searchParams, setSearchParams] = useSearchParams()
   const searchQuery = searchParams.get('q') || ''
   const [localSearch, setLocalSearch] = useState(
@@ -360,41 +359,39 @@ export default function LeadInbox() {
   // Date tiles write into activeFilters (as a createdAt filter) instead of keeping separate state,
   // so they stay unified with the Add Filter chip system.
   const setDatePresetFilter = (preset) => {
-    startTransition(() => {
-      if (preset === null) {
-        const fs = activeFilters.filter(f => f.field !== 'createdAt')
-        updateParams({ filters: fs.length ? fs : null, page: null })
-        return
-      }
-      if (preset === 'lastMonth') {
-        const from = lastMonthStart.toISOString().split('T')[0]
-        const to = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]
-        const existing = activeFilters.filter(f => f.field !== 'createdAt')
-        const fs = [...existing, {
-          id: String(Date.now()),
-          field: 'createdAt',
-          op: 'is',
-          values: [],
-          preset: 'custom',
-          from,
-          to,
-          _tilePreset: 'lastMonth',
-        }]
-        updateParams({ filters: fs, page: null })
-        return
-      }
+    if (preset === null) {
+      const fs = activeFilters.filter(f => f.field !== 'createdAt')
+      updateParams({ filters: fs.length ? fs : null, page: null })
+      return
+    }
+    if (preset === 'lastMonth') {
+      const from = lastMonthStart.toISOString().split('T')[0]
+      const to = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]
       const existing = activeFilters.filter(f => f.field !== 'createdAt')
       const fs = [...existing, {
         id: String(Date.now()),
         field: 'createdAt',
         op: 'is',
         values: [],
-        preset,
-        from: '',
-        to: '',
+        preset: 'custom',
+        from,
+        to,
+        _tilePreset: 'lastMonth',
       }]
       updateParams({ filters: fs, page: null })
-    })
+      return
+    }
+    const existing = activeFilters.filter(f => f.field !== 'createdAt')
+    const fs = [...existing, {
+      id: String(Date.now()),
+      field: 'createdAt',
+      op: 'is',
+      values: [],
+      preset,
+      from: '',
+      to: '',
+    }]
+    updateParams({ filters: fs, page: null })
   }
 
   const activeDateTile = (() => {
@@ -511,7 +508,7 @@ export default function LeadInbox() {
         actions={<button className="btn btn-sm" onClick={refetch}>↻ Refresh</button>}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 16, opacity: isPending ? 0.7 : 1, transition: 'opacity 0.1s ease' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 16 }}>
         <DateFilterTile
           label="Today"
           value={loading ? '…' : leadsToday}
