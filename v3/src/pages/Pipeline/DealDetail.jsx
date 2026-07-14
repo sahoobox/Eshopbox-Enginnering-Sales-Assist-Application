@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router-dom'
 import DOMPurify from 'dompurify'
 import { useDeal } from '../../hooks/useDeals'
 import { useAuth } from '../../context/AuthContext'
-import { Loading, Empty, Pill } from '../../components/ui'
+import { Empty, Pill } from '../../components/ui'
 import { toast } from '../../components/ui/Toast'
+import { SkeletonCard, SkeletonLine } from '../../components/ui/Skeleton'
 import { MID_MARKET_STAGES, ENT_STAGES, getStagePill, stageColor, initials, formatDate, daysAgo } from '../../lib/stageConfig'
 import { TaskModal } from '../Tasks'
 
@@ -38,7 +39,13 @@ export default function DealDetail({ dealId }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [stageDropdown])
 
-  if (loading) return <div className="main"><Loading text="Loading deal…" /></div>
+  if (loading) return (
+    <div className="main" style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 16 }}>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <SkeletonCard key={i} rows={3} />
+      ))}
+    </div>
+  )
   if (error || !deal) return (
     <div className="main">
       <button className="btn btn-ghost" onClick={() => navigate('/pipeline')} style={{ marginBottom: 10 }}>← Back to pipeline</button>
@@ -476,7 +483,17 @@ function TimelineTab({ dealId }) {
   }
 
   if (loading) return (
-    <div style={{ padding: 24, color: 'var(--ink-3)', fontSize: 13 }}>Loading timeline...</div>
+    <div style={{ padding: '4px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {[0, 1, 2, 3, 4].map(i => (
+        <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div className="skeleton" style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0 }} />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <SkeletonLine width={i % 2 === 0 ? '55%' : '40%'} height={13} />
+            <SkeletonLine width="30%" height={11} />
+          </div>
+        </div>
+      ))}
+    </div>
   )
 
   if (events.length === 0) return (
@@ -662,7 +679,13 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
     })
   }
 
-  if (loading) return <div className="card card-pad" style={{ color: 'var(--ink-3)' }}>Loading activities…</div>
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {[0, 1, 2].map(i => (
+        <SkeletonCard key={i} rows={2} />
+      ))}
+    </div>
+  )
 
   return (
     <>
@@ -1933,7 +1956,13 @@ function NotesTab({ dealId, deal }) {
     ...dedupedZohoNotes,
   ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 
-  if (loading) return <div className="card card-pad" style={{ color: 'var(--ink-3)' }}>Loading notes…</div>
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {[0, 1, 2].map(i => (
+        <SkeletonCard key={i} rows={2} />
+      ))}
+    </div>
+  )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

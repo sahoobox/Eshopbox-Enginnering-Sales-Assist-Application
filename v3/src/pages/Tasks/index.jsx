@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useTasks } from '../../hooks/useTasks'
-import { Topbar, Loading } from '../../components/ui'
+import { Topbar } from '../../components/ui'
 import { toast } from '../../components/ui/Toast'
+import { SkeletonCard } from '../../components/ui/Skeleton'
 import { formatDate } from '../../lib/stageConfig'
 
 function taskType(subject = '') {
@@ -28,7 +29,13 @@ export default function Tasks() {
 
   const title = (isMDE || isAE) ? 'My tasks' : 'Team tasks'
 
-  if (loading) return <div className="main"><Loading text="Fetching tasks from Zoho CRM…" /></div>
+  if (loading) return (
+    <div className="main" style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 20 }}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <SkeletonCard key={i} rows={2} />
+      ))}
+    </div>
+  )
   if (error) return (
     <div className="main">
       <Topbar title={title} />

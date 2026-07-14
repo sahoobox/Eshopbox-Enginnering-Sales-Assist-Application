@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
-import { Topbar, Loading } from '../../components/ui'
+import { Topbar } from '../../components/ui'
+import { SkeletonTable } from '../../components/ui/Skeleton'
 
 const RESOLVE_INSTRUCTIONS = {
   r1:  "Recap email not sent after demo. Send the Day 1 recap email from the Sequence tab to keep the prospect engaged while the demo is fresh.",
@@ -163,7 +164,7 @@ export default function NeedAttention() {
   const repOptions = [...new Set(flatFlags.map(f => f.repName).filter(Boolean))].sort()
   const flagOptions = FLAG_ORDER
 
-  if (loading) return <div className="main"><Loading text="Fetching deals…" /></div>
+  if (loading) return <div className="main"><SkeletonTable rows={6} cols={6} /></div>
   if (error) return (
     <div className="main">
       <Topbar title="Need Attention" />

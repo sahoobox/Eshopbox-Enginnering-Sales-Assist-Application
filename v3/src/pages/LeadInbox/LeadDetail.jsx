@@ -4,6 +4,7 @@ import DOMPurify from 'dompurify'
 import { useAuth } from '../../context/AuthContext'
 import { Loading } from '../../components/ui'
 import { toast } from '../../components/ui/Toast'
+import { SkeletonCard, SkeletonLine } from '../../components/ui/Skeleton'
 import { TaskModal } from '../Tasks'
 import { StickyNote, Phone, Calendar, CheckSquare, RefreshCw } from 'lucide-react'
 
@@ -1260,7 +1261,7 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
         {loading ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[0, 1, 2].map(i => (
-              <div key={i} style={{ height: 52, borderRadius: 10, background: 'var(--surface-2)', opacity: 0.5 }} />
+              <SkeletonCard key={i} rows={2} />
             ))}
           </div>
         ) : openItems.length === 0 ? (
@@ -1316,9 +1317,15 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
         </div>
 
         {loading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[0, 1, 2, 3, 4].map(i => (
-              <div key={i} style={{ height: 40, borderRadius: 8, background: 'var(--surface-2)', opacity: 0.5 }} />
+              <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <div className="skeleton" style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0 }} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <SkeletonLine width={i % 2 === 0 ? '50%' : '35%'} height={13} />
+                  <SkeletonLine width="25%" height={11} />
+                </div>
+              </div>
             ))}
           </div>
         ) : filteredHistory.length === 0 ? (

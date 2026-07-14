@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useLeads } from '../../hooks/useLeads'
 import { Topbar } from '../../components/ui'
+import { SkeletonTable } from '../../components/ui/Skeleton'
 
 const MDE_EMAILS = [
   'sriya.komal@eshopbox.com',
@@ -621,19 +622,8 @@ export default function LeadInbox() {
           ↻ Refreshing...
         </div>
       ) : loading ? (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '48px 24px',
-          color: 'var(--ink-3)',
-          gap: 12
-        }}>
-          <div className="spinner" />
-          <div style={{ fontSize: 13 }}>
-            Fetching leads from Zoho CRM…
-          </div>
+        <div>
+          <SkeletonTable rows={8} cols={6} />
         </div>
       ) : (
       <div ref={tableRef} className="table-wrap" style={{ overflowX: 'auto' }} onScroll={handleTableScroll}>
