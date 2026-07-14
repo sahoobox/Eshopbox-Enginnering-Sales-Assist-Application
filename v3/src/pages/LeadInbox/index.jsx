@@ -135,7 +135,9 @@ const LeadFilterBar = forwardRef(function LeadFilterBar({ filters, onChange, lea
   const applyDraft = () => {
     if (!draft?.field) return
     if (open.mode === 'add') {
-      onChange([...filters, { ...draft, id: String(Date.now()) }])
+      // Replace any existing filter on the same field instead of appending a duplicate
+      const withoutSameField = filters.filter(f => f.field !== draft.field)
+      onChange([...withoutSameField, { ...draft, id: String(Date.now()) }])
     } else {
       onChange(filters.map(f => f.id === open.id ? { ...draft, id: open.id } : f))
     }
@@ -319,7 +321,6 @@ export default function LeadInbox() {
   const [stickyLeft, setStickyLeft] = useState(0)
   const [stickyWidth, setStickyWidth] = useState(0)
   const [colWidths, setColWidths] = useState([])
-  const [activeDateFilter, setActiveDateFilter] = useState(null) // null | 'today' | 'week' | 'month' | 'lastMonth'
 
   const scopedLeads = useMemo(() => {
     if (role === ROLES.MDE || role === ROLES.AE) return leads.filter(l => l.ownerEmail === user?.email)
@@ -334,13 +335,14 @@ export default function LeadInbox() {
 
   // ── Date range tiles (Today / This Week / This Month / Last Month / All Time) ──
   const now = new Date()
-  const todayStr = now.toISOString().split('T')[0]
   const weekStart = new Date(now)
   weekStart.setDate(now.getDate() - 7)
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
 
-  const leadsToday = scopedLeads.filter(l => l.createdAt?.startsWith(todayStr)).length
+  // Same local-calendar-date comparison as matchLeadSingle's createdAt 'today' preset,
+  // so the tile's displayed count always matches what clicking it actually filters to.
+  const leadsToday = scopedLeads.filter(l => l.createdAt && new Date(l.createdAt).toDateString() === now.toDateString()).length
   const leadsThisWeek = scopedLeads.filter(l => l.createdAt && new Date(l.createdAt) >= weekStart).length
   const leadsThisMonth = scopedLeads.filter(l => {
     if (!l.createdAt) return false
@@ -353,6 +355,54 @@ export default function LeadInbox() {
     return d >= lastMonthStart && d <= lastMonthEnd
   }).length
   const leadsTotal = scopedLeads.length
+
+  // Date tiles write into activeFilters (as a createdAt filter) instead of keeping separate state,
+  // so they stay unified with the Add Filter chip system.
+  const setDatePresetFilter = (preset) => {
+    if (preset === null) {
+      const fs = activeFilters.filter(f => f.field !== 'createdAt')
+      updateParams({ filters: fs.length ? fs : null, page: null })
+      return
+    }
+    if (preset === 'lastMonth') {
+      const from = lastMonthStart.toISOString().split('T')[0]
+      const to = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]
+      const existing = activeFilters.filter(f => f.field !== 'createdAt')
+      const fs = [...existing, {
+        id: String(Date.now()),
+        field: 'createdAt',
+        op: 'is',
+        values: [],
+        preset: 'custom',
+        from,
+        to,
+        _tilePreset: 'lastMonth',
+      }]
+      updateParams({ filters: fs, page: null })
+      return
+    }
+    const existing = activeFilters.filter(f => f.field !== 'createdAt')
+    const fs = [...existing, {
+      id: String(Date.now()),
+      field: 'createdAt',
+      op: 'is',
+      values: [],
+      preset,
+      from: '',
+      to: '',
+    }]
+    updateParams({ filters: fs, page: null })
+  }
+
+  const activeDateTile = (() => {
+    const dateFilter = activeFilters.find(f => f.field === 'createdAt')
+    if (!dateFilter) return null
+    if (dateFilter._tilePreset === 'lastMonth') return 'lastMonth'
+    if (dateFilter.preset === 'today') return 'today'
+    if (dateFilter.preset === 'week') return 'week'
+    if (dateFilter.preset === 'month') return 'month'
+    return null
+  })()
 
   const filteredLeads = useMemo(() => {
     let result = scopedLeads
@@ -382,20 +432,8 @@ export default function LeadInbox() {
       result = result.filter(l => matchLeadFilters(l, activeFilters))
     }
 
-    if (activeDateFilter) {
-      result = result.filter(l => {
-        if (!l.createdAt) return false
-        const d = new Date(l.createdAt)
-        if (activeDateFilter === 'today') return l.createdAt.startsWith(todayStr)
-        if (activeDateFilter === 'week') return d >= weekStart
-        if (activeDateFilter === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-        if (activeDateFilter === 'lastMonth') return d >= lastMonthStart && d <= lastMonthEnd
-        return true
-      })
-    }
-
     return result
-  }, [scopedLeads, localSearch, activeFilters, activePipeline, activeDateFilter])
+  }, [scopedLeads, localSearch, activeFilters, activePipeline])
 
   const sortedLeads = useMemo(() =>
     [...filteredLeads].sort((a, b) => {
@@ -476,36 +514,36 @@ export default function LeadInbox() {
           label="Today"
           value={leadsToday}
           sub={new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-          active={activeDateFilter === 'today'}
-          onClick={() => setActiveDateFilter(activeDateFilter === 'today' ? null : 'today')}
+          active={activeDateTile === 'today'}
+          onClick={() => setDatePresetFilter(activeDateTile === 'today' ? null : 'today')}
         />
         <DateFilterTile
           label="This Week"
           value={leadsThisWeek}
           sub="Last 7 days"
-          active={activeDateFilter === 'week'}
-          onClick={() => setActiveDateFilter(activeDateFilter === 'week' ? null : 'week')}
+          active={activeDateTile === 'week'}
+          onClick={() => setDatePresetFilter(activeDateTile === 'week' ? null : 'week')}
         />
         <DateFilterTile
           label="This Month"
           value={leadsThisMonth}
           sub={new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
-          active={activeDateFilter === 'month'}
-          onClick={() => setActiveDateFilter(activeDateFilter === 'month' ? null : 'month')}
+          active={activeDateTile === 'month'}
+          onClick={() => setDatePresetFilter(activeDateTile === 'month' ? null : 'month')}
         />
         <DateFilterTile
           label="Last Month"
           value={leadsLastMonth}
           sub={new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
-          active={activeDateFilter === 'lastMonth'}
-          onClick={() => setActiveDateFilter(activeDateFilter === 'lastMonth' ? null : 'lastMonth')}
+          active={activeDateTile === 'lastMonth'}
+          onClick={() => setDatePresetFilter(activeDateTile === 'lastMonth' ? null : 'lastMonth')}
         />
         <DateFilterTile
           label="All Time"
           value={leadsTotal}
           sub="All leads"
-          active={activeDateFilter === null}
-          onClick={() => setActiveDateFilter(null)}
+          active={activeDateTile === null && !activeFilters.find(f => f.field === 'createdAt' && f.preset === 'custom' && !f._tilePreset)}
+          onClick={() => setDatePresetFilter(null)}
         />
       </div>
 
@@ -549,31 +587,6 @@ export default function LeadInbox() {
               ? `Showing all ${totalLeads} leads`
               : `Showing ${start}–${end} of ${totalLeads} leads`}
         </span>
-        {activeDateFilter && (
-          <span style={{ fontSize: 12, color: 'var(--ink-3)', marginLeft: 8 }}>
-            · filtered by{' '}
-            <strong style={{ color: 'var(--ink-1)' }}>
-              {activeDateFilter === 'today' ? 'Today'
-               : activeDateFilter === 'week' ? 'This Week'
-               : activeDateFilter === 'month' ? 'This Month'
-               : 'Last Month'}
-            </strong>
-            {' '}
-            <button
-              onClick={() => setActiveDateFilter(null)}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--danger)',
-                fontSize: 12,
-                padding: 0
-              }}
-            >
-              ✕ clear
-            </button>
-          </span>
-        )}
         <select
           value={pageSize}
           onChange={e => updateParams({ size: Number(e.target.value) === 50 ? null : Number(e.target.value), page: null })}
@@ -781,8 +794,8 @@ function DateFilterTile({ label, value, sub, active, onClick }) {
     <div
       onClick={onClick}
       style={{
-        background: active ? 'var(--ink)' : 'var(--surface-2)',
-        border: active ? '1.5px solid var(--ink)' : '1.5px solid var(--line)',
+        background: active ? '#FFF7ED' : 'var(--surface-2)',
+        border: active ? '1.5px solid var(--warn)' : '1.5px solid var(--line)',
         borderRadius: 12,
         padding: '14px 16px',
         cursor: 'pointer',
@@ -798,7 +811,7 @@ function DateFilterTile({ label, value, sub, active, onClick }) {
           position: 'absolute',
           top: 0, left: 0, right: 0,
           height: 3,
-          background: 'var(--ok)',
+          background: 'var(--warn)',
           borderRadius: '12px 12px 0 0'
         }} />
       )}
@@ -809,7 +822,7 @@ function DateFilterTile({ label, value, sub, active, onClick }) {
         fontWeight: 600,
         letterSpacing: '0.07em',
         textTransform: 'uppercase',
-        color: active ? 'rgba(255,255,255,0.7)' : 'var(--ink-3)',
+        color: active ? 'var(--ink-2)' : 'var(--ink-3)',
         marginBottom: 6
       }}>
         {label}
@@ -819,7 +832,7 @@ function DateFilterTile({ label, value, sub, active, onClick }) {
       <div style={{
         fontSize: 26,
         fontWeight: 700,
-        color: active ? '#fff' : 'var(--ink-1)',
+        color: active ? 'var(--ink)' : 'var(--ink-2)',
         lineHeight: 1,
         marginBottom: 4
       }}>
@@ -829,7 +842,7 @@ function DateFilterTile({ label, value, sub, active, onClick }) {
       {/* Sub caption */}
       <div style={{
         fontSize: 11,
-        color: active ? 'rgba(255,255,255,0.6)' : 'var(--ink-3)',
+        color: 'var(--ink-3)',
         marginTop: 2,
         whiteSpace: 'nowrap',
         overflow: 'hidden',
@@ -847,7 +860,7 @@ function DateFilterTile({ label, value, sub, active, onClick }) {
           width: 18,
           height: 18,
           borderRadius: '50%',
-          background: 'var(--ok)',
+          background: 'var(--warn)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
