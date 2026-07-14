@@ -425,14 +425,6 @@ a .card:hover {
   box-shadow: var(--shadow-2);
 }
 
-/* Cards inside modals animate in when they appear.
-   Scoped narrowly (not all .card) since plain .card is used per-row in
-   lists (e.g. notes) inside tabs that remount on every tab switch — a
-   global entrance animation would re-fire on every such remount. */
-.modal .card {
-  animation: fadeUp var(--duration-slow) var(--ease) both;
-}
-
 /* ── Section headers ── */
 .section-head {
   display: flex;
@@ -539,63 +531,84 @@ table.t tr:hover td { background: #faf9f7; }
 .q-actions { padding: 10px 14px; display: flex; align-items: center; gap: 6px; }
 
 /* ── Modal ── */
-.modal-backdrop {
+.modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(29, 29, 29, 0.4);
-  display: grid;
-  place-items: center;
+  background: rgba(29, 29, 29, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 1000;
   padding: 24px;
   animation: fadeIn var(--duration-base) var(--ease-out) both;
 }
-.modal {
+
+.modal-box {
   background: var(--surface);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-2);
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(29,29,29,0.16);
   animation: scaleIn var(--duration-base) var(--ease) both;
 }
+
 .modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 18px 20px 14px;
   border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
 }
+
 .modal-head h3,
 .modal-head h2 {
   font-size: var(--text-lg);
   font-weight: 600;
   letter-spacing: var(--tracking-tight);
+  color: var(--ink);
+  margin: 0;
 }
-.modal-close {
-  background: transparent;
-  border: none;
-  font-size: 20px;
-  color: var(--ink-3);
-  cursor: pointer;
-  padding: 0 4px;
-  line-height: 1;
+
+.modal-body {
+  padding: 18px 20px;
 }
-.modal-close:hover { color: var(--ink); }
-.modal-body { padding: 18px 20px; }
+
 .modal-foot {
   padding: 14px 20px;
   border-top: 1px solid var(--line);
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
 }
 
-/* ── Modal overlay/box (DealDetail modals) ── */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn var(--duration-base) var(--ease-out) both; }
-.modal-box { background: var(--surface); border-radius: 12px; width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.18); animation: scaleIn var(--duration-base) var(--ease) both; }
-.btn-close { background: none; border: none; cursor: pointer; font-size: 18px; color: var(--ink-3); padding: 4px; }
-.btn-close:hover { color: var(--ink); }
+.btn-close {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  color: var(--ink-3);
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+  transition:
+    color var(--duration-fast) var(--ease),
+    background var(--duration-fast) var(--ease);
+}
+
+.btn-close:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+
 .input { border: 1px solid var(--line-2); border-radius: 7px; padding: 8px 10px; font-size: 13px; font-family: inherit; background: var(--surface); color: var(--ink); }
 .input:focus { outline: none; border-color: var(--brand); }
 

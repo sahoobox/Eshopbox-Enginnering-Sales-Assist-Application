@@ -31,21 +31,7 @@ export function Pill({ children, variant = 'neutral', dot = false }) {
   )
 }
 
-// ── Modal ────────────────────────────────────────────────
-export function Modal({ title, onClose, children, footer, wide = false }) {
-  return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={wide ? { maxWidth: 680 } : {}}>
-        <div className="modal-head">
-          <h3>{title}</h3>
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
-        <div className="modal-body">{children}</div>
-        {footer && <div className="modal-foot">{footer}</div>}
-      </div>
-    </div>
-  )
-}
+// TODO: use .modal-overlay/.modal-box pattern
 
 // ── KPI Tile ─────────────────────────────────────────────
 export function KpiTile({ label, value, meta, valueClass = '' }) {
