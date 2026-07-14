@@ -319,6 +319,7 @@ export default function LeadInbox() {
   const [stickyLeft, setStickyLeft] = useState(0)
   const [stickyWidth, setStickyWidth] = useState(0)
   const [colWidths, setColWidths] = useState([])
+  const [activeDateFilter, setActiveDateFilter] = useState(null) // null | 'today' | 'week' | 'month' | 'lastMonth'
 
   const scopedLeads = useMemo(() => {
     if (role === ROLES.MDE || role === ROLES.AE) return leads.filter(l => l.ownerEmail === user?.email)
@@ -330,6 +331,28 @@ export default function LeadInbox() {
   const showOwnerFilter = role === ROLES.ADMIN ||
     role === ROLES.SALES_LEAD_MIDMARKET ||
     role === ROLES.SALES_LEAD_ENTERPRISE
+
+  // ── Date range tiles (Today / This Week / This Month / Last Month / All Time) ──
+  const now = new Date()
+  const todayStr = now.toISOString().split('T')[0]
+  const weekStart = new Date(now)
+  weekStart.setDate(now.getDate() - 7)
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
+
+  const leadsToday = scopedLeads.filter(l => l.createdAt?.startsWith(todayStr)).length
+  const leadsThisWeek = scopedLeads.filter(l => l.createdAt && new Date(l.createdAt) >= weekStart).length
+  const leadsThisMonth = scopedLeads.filter(l => {
+    if (!l.createdAt) return false
+    const d = new Date(l.createdAt)
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+  }).length
+  const leadsLastMonth = scopedLeads.filter(l => {
+    if (!l.createdAt) return false
+    const d = new Date(l.createdAt)
+    return d >= lastMonthStart && d <= lastMonthEnd
+  }).length
+  const leadsTotal = scopedLeads.length
 
   const filteredLeads = useMemo(() => {
     let result = scopedLeads
@@ -359,8 +382,20 @@ export default function LeadInbox() {
       result = result.filter(l => matchLeadFilters(l, activeFilters))
     }
 
+    if (activeDateFilter) {
+      result = result.filter(l => {
+        if (!l.createdAt) return false
+        const d = new Date(l.createdAt)
+        if (activeDateFilter === 'today') return l.createdAt.startsWith(todayStr)
+        if (activeDateFilter === 'week') return d >= weekStart
+        if (activeDateFilter === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+        if (activeDateFilter === 'lastMonth') return d >= lastMonthStart && d <= lastMonthEnd
+        return true
+      })
+    }
+
     return result
-  }, [scopedLeads, localSearch, activeFilters, activePipeline])
+  }, [scopedLeads, localSearch, activeFilters, activePipeline, activeDateFilter])
 
   const sortedLeads = useMemo(() =>
     [...filteredLeads].sort((a, b) => {
@@ -420,9 +455,6 @@ export default function LeadInbox() {
   const end = showAll ? totalLeads : Math.min(safePage * pageSize, totalLeads)
   const paginated = showAll ? sortedLeads : sortedLeads.slice((safePage - 1) * pageSize, safePage * pageSize)
 
-  const todayStr = new Date().toISOString().split('T')[0]
-  const leadsToday = scopedLeads.filter(l => l.createdAt?.startsWith(todayStr))
-
   if (loading) return <div className="main"><Loading text="Fetching leads from Zoho CRM…" /></div>
   if (error) return (
     <div className="main">
@@ -439,8 +471,42 @@ export default function LeadInbox() {
         actions={<button className="btn btn-sm" onClick={refetch}>↻ Refresh</button>}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 12, marginBottom: 16 }}>
-        <StatTile label="TODAY" value={leadsToday.length} sub="new leads" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 16 }}>
+        <DateFilterTile
+          label="Today"
+          value={leadsToday}
+          sub={new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+          active={activeDateFilter === 'today'}
+          onClick={() => setActiveDateFilter(activeDateFilter === 'today' ? null : 'today')}
+        />
+        <DateFilterTile
+          label="This Week"
+          value={leadsThisWeek}
+          sub="Last 7 days"
+          active={activeDateFilter === 'week'}
+          onClick={() => setActiveDateFilter(activeDateFilter === 'week' ? null : 'week')}
+        />
+        <DateFilterTile
+          label="This Month"
+          value={leadsThisMonth}
+          sub={new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+          active={activeDateFilter === 'month'}
+          onClick={() => setActiveDateFilter(activeDateFilter === 'month' ? null : 'month')}
+        />
+        <DateFilterTile
+          label="Last Month"
+          value={leadsLastMonth}
+          sub={new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+          active={activeDateFilter === 'lastMonth'}
+          onClick={() => setActiveDateFilter(activeDateFilter === 'lastMonth' ? null : 'lastMonth')}
+        />
+        <DateFilterTile
+          label="All Time"
+          value={leadsTotal}
+          sub="All leads"
+          active={activeDateFilter === null}
+          onClick={() => setActiveDateFilter(null)}
+        />
       </div>
 
       <div className="pipeline-searchbar">
@@ -483,6 +549,31 @@ export default function LeadInbox() {
               ? `Showing all ${totalLeads} leads`
               : `Showing ${start}–${end} of ${totalLeads} leads`}
         </span>
+        {activeDateFilter && (
+          <span style={{ fontSize: 12, color: 'var(--ink-3)', marginLeft: 8 }}>
+            · filtered by{' '}
+            <strong style={{ color: 'var(--ink-1)' }}>
+              {activeDateFilter === 'today' ? 'Today'
+               : activeDateFilter === 'week' ? 'This Week'
+               : activeDateFilter === 'month' ? 'This Month'
+               : 'Last Month'}
+            </strong>
+            {' '}
+            <button
+              onClick={() => setActiveDateFilter(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--danger)',
+                fontSize: 12,
+                padding: 0
+              }}
+            >
+              ✕ clear
+            </button>
+          </span>
+        )}
         <select
           value={pageSize}
           onChange={e => updateParams({ size: Number(e.target.value) === 50 ? null : Number(e.target.value), page: null })}
@@ -681,6 +772,92 @@ function StatTile({ label, value, sub, warn }) {
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--ink-3)', marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 28, fontWeight: 700, color: warn ? 'var(--danger)' : 'var(--ink-1)', lineHeight: 1 }}>{value}</div>
       <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 4 }}>{sub}</div>
+    </div>
+  )
+}
+
+function DateFilterTile({ label, value, sub, active, onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: active ? 'var(--ink)' : 'var(--surface-2)',
+        border: active ? '1.5px solid var(--ink)' : '1.5px solid var(--line)',
+        borderRadius: 12,
+        padding: '14px 16px',
+        cursor: 'pointer',
+        transition: 'all 0.15s ease',
+        userSelect: 'none',
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+    >
+      {/* Active indicator bar at top */}
+      {active && (
+        <div style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0,
+          height: 3,
+          background: 'var(--ok)',
+          borderRadius: '12px 12px 0 0'
+        }} />
+      )}
+
+      {/* Label */}
+      <div style={{
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: '0.07em',
+        textTransform: 'uppercase',
+        color: active ? 'rgba(255,255,255,0.7)' : 'var(--ink-3)',
+        marginBottom: 6
+      }}>
+        {label}
+      </div>
+
+      {/* Count */}
+      <div style={{
+        fontSize: 26,
+        fontWeight: 700,
+        color: active ? '#fff' : 'var(--ink-1)',
+        lineHeight: 1,
+        marginBottom: 4
+      }}>
+        {value}
+      </div>
+
+      {/* Sub caption */}
+      <div style={{
+        fontSize: 11,
+        color: active ? 'rgba(255,255,255,0.6)' : 'var(--ink-3)',
+        marginTop: 2,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }}>
+        {sub}
+      </div>
+
+      {/* Active checkmark */}
+      {active && (
+        <div style={{
+          position: 'absolute',
+          top: 10,
+          right: 10,
+          width: 18,
+          height: 18,
+          borderRadius: '50%',
+          background: 'var(--ok)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 10,
+          color: '#fff',
+          fontWeight: 700
+        }}>
+          ✓
+        </div>
+      )}
     </div>
   )
 }
