@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useRef, useCallback, forwardRef, useImper
 import { useSearchParams } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useLeads } from '../../hooks/useLeads'
-import { Topbar, Loading } from '../../components/ui'
+import { Topbar } from '../../components/ui'
 
 const MDE_EMAILS = [
   'sriya.komal@eshopbox.com',
@@ -493,7 +493,6 @@ export default function LeadInbox() {
   const end = showAll ? totalLeads : Math.min(safePage * pageSize, totalLeads)
   const paginated = showAll ? sortedLeads : sortedLeads.slice((safePage - 1) * pageSize, safePage * pageSize)
 
-  if (loading) return <div className="main"><Loading text="Fetching leads from Zoho CRM…" /></div>
   if (error) return (
     <div className="main">
       <Topbar title="Lead inbox" />
@@ -512,35 +511,35 @@ export default function LeadInbox() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 16 }}>
         <DateFilterTile
           label="Today"
-          value={leadsToday}
+          value={loading ? '…' : leadsToday}
           sub={new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
           active={activeDateTile === 'today'}
           onClick={() => setDatePresetFilter(activeDateTile === 'today' ? null : 'today')}
         />
         <DateFilterTile
           label="This Week"
-          value={leadsThisWeek}
+          value={loading ? '…' : leadsThisWeek}
           sub="Last 7 days"
           active={activeDateTile === 'week'}
           onClick={() => setDatePresetFilter(activeDateTile === 'week' ? null : 'week')}
         />
         <DateFilterTile
           label="This Month"
-          value={leadsThisMonth}
+          value={loading ? '…' : leadsThisMonth}
           sub={new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
           active={activeDateTile === 'month'}
           onClick={() => setDatePresetFilter(activeDateTile === 'month' ? null : 'month')}
         />
         <DateFilterTile
           label="Last Month"
-          value={leadsLastMonth}
+          value={loading ? '…' : leadsLastMonth}
           sub={new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
           active={activeDateTile === 'lastMonth'}
           onClick={() => setDatePresetFilter(activeDateTile === 'lastMonth' ? null : 'lastMonth')}
         />
         <DateFilterTile
           label="All Time"
-          value={leadsTotal}
+          value={loading ? '…' : leadsTotal}
           sub="All leads"
           active={activeDateTile === null && !activeFilters.find(f => f.field === 'createdAt' && f.preset === 'custom' && !f._tilePreset)}
           onClick={() => setDatePresetFilter(null)}
@@ -609,6 +608,31 @@ export default function LeadInbox() {
         </select>
       </div>
 
+      {loading && leads.length > 0 ? (
+        <div style={{
+          textAlign: 'center',
+          padding: '12px',
+          color: 'var(--ink-3)',
+          fontSize: 12
+        }}>
+          ↻ Refreshing...
+        </div>
+      ) : loading ? (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '48px 24px',
+          color: 'var(--ink-3)',
+          gap: 12
+        }}>
+          <div className="spinner" />
+          <div style={{ fontSize: 13 }}>
+            Fetching leads from Zoho CRM…
+          </div>
+        </div>
+      ) : (
       <div ref={tableRef} className="table-wrap" style={{ overflowX: 'auto' }} onScroll={handleTableScroll}>
         <table className="t" style={{ minWidth: 1180, tableLayout: 'fixed' }}>
           <colgroup>
@@ -708,6 +732,7 @@ export default function LeadInbox() {
           </tbody>
         </table>
       </div>
+      )}
 
       {showStickyHeader && (
         <div
