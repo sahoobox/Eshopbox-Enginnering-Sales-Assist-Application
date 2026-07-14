@@ -3521,6 +3521,8 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
 
   try {
     const leadId = c.req.param('id')
+    const body = await c.req.json().catch(() => ({}))
+    const { demoScheduled, demoScheduledDateTime } = body
     const token = await getAccessToken(c.env)
 
     // 1. Get lead details
@@ -3592,22 +3594,28 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
     }
 
     // 4. Create Deal
+    const dealPayload = {
+      Deal_Name: company + ' — Inbound',
+      Stage: 'Upcoming Demo',
+      Pipeline: pipeline,
+      Account_Name: { id: accountId },
+      Contact_Name: { id: contactId },
+      Owner: { id: ownerId },
+      How_many_orders_do_you_ship_in_a_month: volume,
+      Lead_Source: leadSource,
+      Layout: { id: '6483035000025962021' }
+    }
+    dealPayload.Demo_Scheduled = demoScheduled ? 'Yes' : 'No'
+    if (demoScheduled && demoScheduledDateTime) {
+      dealPayload.Demo_Scheduled_Date_Time = demoScheduledDateTime
+    }
+
     const dealRes = await safeJson(await fetch(
       'https://www.zohoapis.com/crm/v2/Deals',
       {
         method: 'POST',
         headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: [{
-          Deal_Name: company + ' — Inbound',
-          Stage: 'Upcoming Demo',
-          Pipeline: pipeline,
-          Account_Name: { id: accountId },
-          Contact_Name: { id: contactId },
-          Owner: { id: ownerId },
-          How_many_orders_do_you_ship_in_a_month: volume,
-          Lead_Source: leadSource,
-          Layout: { id: '6483035000025962021' }
-        }] })
+        body: JSON.stringify({ data: [dealPayload] })
       }
     ))
 
