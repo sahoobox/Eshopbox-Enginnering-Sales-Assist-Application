@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { Topbar } from '../../components/ui'
+import { toast } from '../../components/ui/Toast'
 
 
 const FLAGS = [
@@ -96,8 +97,8 @@ function TeamTab() {
   }
 
   async function handleInvite() {
-    if (!inviteEmail.trim()) return alert('Enter an email')
-    if (!inviteEmail.endsWith('@eshopbox.com')) return alert('Only @eshopbox.com emails allowed')
+    if (!inviteEmail.trim()) return toast.warn('Enter an email')
+    if (!inviteEmail.endsWith('@eshopbox.com')) return toast.warn('Only @eshopbox.com emails allowed')
     setInviting(true)
     try {
       const res = await authFetch('/auth/invite', {
@@ -110,7 +111,7 @@ function TeamTab() {
         setInviteEmail('')
         fetchTeam()
       } else {
-        alert(data.error || 'Failed to send invite')
+        toast.error(data.error || 'Failed to send invite')
       }
     } finally { setInviting(false) }
   }
@@ -129,7 +130,7 @@ function TeamTab() {
         setSelectedMember(null)
         fetchTeam()
       } else {
-        alert(data.error || 'Failed to update role')
+        toast.error(data.error || 'Failed to update role')
       }
     } finally { setSaving(false) }
   }
@@ -149,9 +150,9 @@ function TeamTab() {
         localStorage.setItem('sa_user', JSON.stringify(data.user))
         window.location.href = '/'
       } else {
-        alert(data.error || 'Failed')
+        toast.error(data.error || 'Failed')
       }
-    } catch { alert('Network error') }
+    } catch { toast.error('Network error') }
   }
 
   async function handleRemove(member) {
@@ -160,8 +161,8 @@ function TeamTab() {
       const res = await authFetch(`/auth/team/${member.id}`, { method: 'DELETE' })
       const data = await res.json()
       if (data.success) fetchTeam()
-      else alert(data.error || 'Failed to remove member')
-    } catch { alert('Network error') }
+      else toast.error(data.error || 'Failed to remove member')
+    } catch { toast.error('Network error') }
   }
 
   const ROLE_PILL = {

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import DOMPurify from 'dompurify'
 import { useAuth } from '../../context/AuthContext'
 import { Loading } from '../../components/ui'
+import { toast } from '../../components/ui/Toast'
 import { TaskModal } from '../Tasks'
 import { StickyNote, Phone, Calendar, CheckSquare, RefreshCw } from 'lucide-react'
 
@@ -151,12 +152,13 @@ export default function LeadDetail() {
         setEmailBodies(prev => ({ ...prev, [emailId]: data.content || data.subject || '' }))
       } catch (err) {
         console.error('Failed to fetch email body', err)
+        toast.error('Failed to load email content')
       }
     }
   }
 
   async function handleDisqualify() {
-    if (!disqualifyReason) return alert('Please select a reason')
+    if (!disqualifyReason) return toast.warn('Please select a reason')
     setDisqualifying(true)
     try {
       await authFetch(`/api/leads/${leadId}/disqualify`, {
@@ -164,9 +166,10 @@ export default function LeadDetail() {
         body: JSON.stringify({ reason: disqualifyReason })
       })
       setShowDisqualify(false)
+      toast.success('Lead disqualified')
       navigate('/leads')
     } catch {
-      alert('Failed to disqualify. Please try again.')
+      toast.error('Failed to disqualify. Please try again.')
       setDisqualifying(false)
     }
   }
@@ -573,9 +576,9 @@ export default function LeadDetail() {
                           })
                           const data = await res.json()
                           if (data.success) { setEditingFields(false); window.location.reload() }
-                          else alert('Save failed: ' + (data.error || 'Unknown error'))
+                          else toast.error('Save failed: ' + (data.error || 'Unknown error'))
                         } catch (e) {
-                          alert('Failed to save: ' + e.message)
+                          toast.error('Failed to save: ' + e.message)
                         } finally {
                           setSavingFields(false)
                         }
@@ -914,7 +917,7 @@ export default function LeadDetail() {
             const res = await authFetch(`/api/leads/${lead.id}/tasks`, { method: 'POST', body: JSON.stringify(data) })
             const json = await res.json()
             if (json.success) setShowTaskModal(false)
-            else alert(json.error || 'Failed to create task')
+            else toast.error(json.error || 'Failed to create task')
           }}
         />
       )}
@@ -1076,6 +1079,7 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
           }
           return next
         })
+        toast.success('Task marked complete')
       }
     })
   }
@@ -1356,7 +1360,7 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
             const res = await authFetch(`/api/leads/${leadId}/tasks`, { method: 'POST', body: JSON.stringify(data) })
             const json = await res.json()
             if (json.success) { setShowTaskModal(false); fetchAll() }
-            else alert(json.error || 'Failed to create task')
+            else toast.error(json.error || 'Failed to create task')
           }}
         />
       )}
@@ -1427,6 +1431,7 @@ function LeadNotesTab({ leadId, lead, tabDataCache }) {
           return next
         })
         setNewNote('')
+        toast.success('Note saved')
       }
     } finally { setSaving(false) }
   }
@@ -1525,8 +1530,8 @@ function LeadMeetingModal({ leadId, onClose, onSuccess }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   async function submit() {
-    if (!form.title.trim() || !form.from || !form.to) return alert('Title, From and To are required')
-    if (form.to <= form.from) return alert('End time must be after start time')
+    if (!form.title.trim() || !form.from || !form.to) return toast.warn('Title, From and To are required')
+    if (form.to <= form.from) return toast.warn('End time must be after start time')
     setSaving(true)
     try {
       const res = await authFetch(`/api/leads/${leadId}/meeting`, {
@@ -1535,7 +1540,7 @@ function LeadMeetingModal({ leadId, onClose, onSuccess }) {
       })
       const data = await res.json()
       if (data.success) onSuccess()
-      else alert(data.error || 'Failed to create meeting')
+      else toast.error(data.error || 'Failed to create meeting')
     } finally { setSaving(false) }
   }
 
@@ -1596,7 +1601,7 @@ function LeadCallModal({ leadId, onClose, onSuccess }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   async function submit() {
-    if (!form.callTiming) return alert('Call timing is required')
+    if (!form.callTiming) return toast.warn('Call timing is required')
     setSaving(true)
     try {
       const endpoint = callMode === 'log' ? 'log-call' : 'schedule-call'
@@ -1606,7 +1611,7 @@ function LeadCallModal({ leadId, onClose, onSuccess }) {
       })
       const data = await res.json()
       if (data.success) onSuccess()
-      else alert(data.error || 'Failed to log call')
+      else toast.error(data.error || 'Failed to log call')
     } finally { setSaving(false) }
   }
 
@@ -1697,8 +1702,8 @@ function ReassignLeadModal({ lead, onClose, onSuccess }) {
         body: JSON.stringify({ newOwnerEmail: selected.email, newOwnerName: selected.name })
       })
       const data = await res.json()
-      if (data.success) onSuccess()
-      else alert(data.error || 'Failed to reassign lead')
+      if (data.success) { toast.success('Lead reassigned'); onSuccess() }
+      else toast.error(data.error || 'Failed to reassign lead')
     } finally { setSaving(false) }
   }
 

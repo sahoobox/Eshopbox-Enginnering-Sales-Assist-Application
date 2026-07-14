@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useDeals } from '../hooks/useDeals';
 import { useAuth } from '../context/AuthContext';
+import { toast } from '../components/ui/Toast';
 
 const C = {
   accent: '#F95253', brand: '#F95253',
@@ -339,32 +340,32 @@ export default function DemoForm() {
 
   const validate = (section) => {
     if (section === 0) {
-      if (!f.zohoId.trim()) { alert("Please enter and verify a Zoho Deal ID."); return false; }
-      if (!verified) { alert("Please verify the Zoho Deal ID first."); return false; }
-      if (!f.prospectName.trim()) { alert("Prospect name is required."); return false; }
-      if (!f.prospectEmail.trim()) { alert("Prospect email is required."); return false; }
-      if (!f.brandName.trim()) { alert("Brand name is required."); return false; }
-      if (!f.orderVolume) { alert("Please select monthly order volume."); return false; }
-      if (!f.productCategory) { alert("Please select product category."); return false; }
-      if (!f.solutionInterest) { alert("Please select solution interest."); return false; }
+      if (!f.zohoId.trim()) { toast.warn("Please enter and verify a Zoho Deal ID."); return false; }
+      if (!verified) { toast.warn("Please verify the Zoho Deal ID first."); return false; }
+      if (!f.prospectName.trim()) { toast.warn("Prospect name is required."); return false; }
+      if (!f.prospectEmail.trim()) { toast.warn("Prospect email is required."); return false; }
+      if (!f.brandName.trim()) { toast.warn("Brand name is required."); return false; }
+      if (!f.orderVolume) { toast.warn("Please select monthly order volume."); return false; }
+      if (!f.productCategory) { toast.warn("Please select product category."); return false; }
+      if (!f.solutionInterest) { toast.warn("Please select solution interest."); return false; }
     }
     if (section === 1) {
-      if (!f.dmPresent) { alert("Please select whether the decision maker was present."); return false; }
-      if (!f.brandType) { alert("Please select brand type."); return false; }
-      if (!f.procurementInvolved) { alert("Please select procurement involvement."); return false; }
-      if (!f.demoFormat) { alert("Please select demo format."); return false; }
+      if (!f.dmPresent) { toast.warn("Please select whether the decision maker was present."); return false; }
+      if (!f.brandType) { toast.warn("Please select brand type."); return false; }
+      if (!f.procurementInvolved) { toast.warn("Please select procurement involvement."); return false; }
+      if (!f.demoFormat) { toast.warn("Please select demo format."); return false; }
     }
     if (section === 2) {
-      if (!f.oms) { alert("Please select the OMS."); return false; }
-      if (!f.shoppingCart) { alert("Please select shopping cart / platform."); return false; }
-      if (!f.shippingSetup) { alert("Please select current shipping setup."); return false; }
-      if (!f.warehousingSetup) { alert("Please select current warehousing setup."); return false; }
+      if (!f.oms) { toast.warn("Please select the OMS."); return false; }
+      if (!f.shoppingCart) { toast.warn("Please select shopping cart / platform."); return false; }
+      if (!f.shippingSetup) { toast.warn("Please select current shipping setup."); return false; }
+      if (!f.warehousingSetup) { toast.warn("Please select current warehousing setup."); return false; }
     }
     if (section === 4) {
-      if (!f.budgetSignal) { alert("Please select budget signal."); return false; }
-      if (!f.purchaseTimeline) { alert("Please select purchase timeline."); return false; }
-      if (!f.nextStep) { alert("Please select next step."); return false; }
-      if (!f.followupMeetingDate) { alert("Please enter the follow-up meeting date."); return false; }
+      if (!f.budgetSignal) { toast.warn("Please select budget signal."); return false; }
+      if (!f.purchaseTimeline) { toast.warn("Please select purchase timeline."); return false; }
+      if (!f.nextStep) { toast.warn("Please select next step."); return false; }
+      if (!f.followupMeetingDate) { toast.warn("Please enter the follow-up meeting date."); return false; }
     }
     return true;
   };
@@ -446,6 +447,7 @@ export default function DemoForm() {
         const errData = await genRes.json().catch(() => ({}));
         const errMsg = errData.error || 'Content generation failed';
         console.error('generate-content failed:', errMsg);
+        toast.error('Content generation failed');
         draftsWarning = true;
         setSyncDraftsWarning(true);
       }

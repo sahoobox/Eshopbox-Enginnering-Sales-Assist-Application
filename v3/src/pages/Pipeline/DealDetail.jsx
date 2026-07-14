@@ -5,6 +5,7 @@ import DOMPurify from 'dompurify'
 import { useDeal } from '../../hooks/useDeals'
 import { useAuth } from '../../context/AuthContext'
 import { Loading, Empty, Pill } from '../../components/ui'
+import { toast } from '../../components/ui/Toast'
 import { MID_MARKET_STAGES, ENT_STAGES, getStagePill, stageColor, initials, formatDate, daysAgo } from '../../lib/stageConfig'
 import { TaskModal } from '../Tasks'
 
@@ -83,10 +84,10 @@ export default function DealDetail({ dealId }) {
         body: JSON.stringify({ stage })
       })
       const data = await res.json()
-      if (data.success) refetchDeal()
-      else alert(data.error || 'Failed to move stage')
+      if (data.success) { toast.success('Stage updated'); refetchDeal() }
+      else toast.error(data.error || 'Failed to move stage')
     } catch {
-      alert('Network error. Try again.')
+      toast.error('Network error. Try again.')
     } finally {
       setMovingStage(null)
     }
@@ -803,7 +804,7 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
             const res = await authFetch('/api/tasks', { method: 'POST', body: JSON.stringify(data) })
             const json = await res.json()
             if (json.success) { setShowTaskModal(false); fetchTasks() }
-            else alert(json.error || 'Failed to create task')
+            else toast.error(json.error || 'Failed to create task')
           }}
         />
       )}
@@ -1100,7 +1101,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
           setDraftCreated(true)
           setGmailDraftId(data.draftId)
           setGmailMessageId(data.gmailMessageId)
-        } else alert(data.error || 'Failed to create Gmail draft')
+        } else toast.error(data.error || 'Failed to create Gmail draft')
       } finally { setCreating(false) }
     }
 
@@ -1125,10 +1126,10 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
         if (data.success) {
           window.location.reload()
         } else {
-          alert('Failed: ' + (data.error || 'Unknown error'))
+          toast.error('Failed: ' + (data.error || 'Unknown error'))
         }
       } catch (e) {
-        alert('Failed: ' + e.message)
+        toast.error('Failed: ' + e.message)
       } finally {
         setMarkingSent(false)
         setShowMarkSentModal(false)
@@ -1520,10 +1521,10 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
                         setShowUndoConfirm(false)
                         window.location.reload()
                       } else {
-                        alert('Failed: ' + data.error)
+                        toast.error('Failed: ' + data.error)
                       }
                     } catch (e) {
-                      alert('Failed: ' + e.message)
+                      toast.error('Failed: ' + e.message)
                     } finally {
                       setUndoing(false)
                     }
@@ -1580,7 +1581,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
         await authFetch(`/api/deals/${deal.id}/day2/mark-sent`, { method: 'POST' })
         window.location.reload()
       } catch {
-        alert('Failed to mark as sent. Please try again.')
+        toast.error('Failed to mark as sent. Please try again.')
         setMarking(false)
       }
     }
@@ -1875,7 +1876,10 @@ function NotesTab({ dealId, deal }) {
     authFetch(`/api/deals/${dealId}/notes`)
       .then(r => r.json())
       .then(d => setD1Notes(d.notes || []))
-      .catch(err => console.error('Notes fetch failed:', err))
+      .catch(err => {
+        console.error('Notes fetch failed:', err)
+        toast.error('Failed to load notes')
+      })
       .finally(() => setLoading(false))
   }, [dealId])
 
@@ -1891,6 +1895,7 @@ function NotesTab({ dealId, deal }) {
       if (data.success) {
         setD1Notes(prev => [data.note, ...prev])
         setNewNote('')
+        toast.success('Note saved')
       }
     } finally { setSaving(false) }
   }
@@ -2123,9 +2128,9 @@ function ContactTab({ deal }) {
                   })
                   const data = await res.json()
                   if (data.success) { setEditing(false); window.location.reload() }
-                  else alert('Save failed: ' + (data.error || 'Unknown error'))
+                  else toast.error('Save failed: ' + (data.error || 'Unknown error'))
                 } catch (e) {
-                  alert('Failed to save: ' + e.message)
+                  toast.error('Failed to save: ' + e.message)
                 } finally {
                   setSaving(false)
                 }
@@ -2242,7 +2247,7 @@ function DemoScheduledModal({ deal, onClose, onSuccess }) {
       );
       const data = await res.json();
       if (data.success) onSuccess();
-      else alert(data.error || 'Failed to save');
+      else toast.error(data.error || 'Failed to save');
     } finally {
       setSaving(false);
     }
@@ -2353,7 +2358,7 @@ function MarkLostModal({ deal, onClose, onSuccess }) {
   const [saving, setSaving] = useState(false)
 
   async function submit() {
-    if (!reason.trim()) return alert('Please enter a reason')
+    if (!reason.trim()) return toast.warn('Please enter a reason')
     setSaving(true)
     try {
       const res = await authFetch(`/api/deals/${deal.id}/stage`, {
@@ -2362,8 +2367,8 @@ function MarkLostModal({ deal, onClose, onSuccess }) {
       })
       const data = await res.json()
       console.log('Mark lost response:', data)
-      if (data.success) onSuccess()
-      else alert(data.error || 'Failed to mark lost')
+      if (data.success) { toast.success('Stage updated'); onSuccess() }
+      else toast.error(data.error || 'Failed to mark lost')
     } finally { setSaving(false) }
   }
 
@@ -2411,7 +2416,7 @@ function MarkOnHoldModal({ deal, onClose, onSuccess }) {
   const [saving, setSaving] = useState(false)
 
   async function submit() {
-    if (!reason.trim()) return alert('Please enter a reason')
+    if (!reason.trim()) return toast.warn('Please enter a reason')
     setSaving(true)
     try {
       const res = await authFetch(`/api/deals/${deal.id}/stage`, {
@@ -2420,8 +2425,8 @@ function MarkOnHoldModal({ deal, onClose, onSuccess }) {
       })
       const data = await res.json()
       console.log('Mark on hold response:', data)
-      if (data.success) onSuccess()
-      else alert(data.error || 'Failed to mark on hold')
+      if (data.success) { toast.success('Stage updated'); onSuccess() }
+      else toast.error(data.error || 'Failed to mark on hold')
     } finally { setSaving(false) }
   }
 
@@ -2493,7 +2498,7 @@ function DemoFormModal({ deal, onClose, onSuccess }) {
       })
       const data = await res.json()
       if (data.success) onSuccess()
-      else alert(data.error || 'Failed to log demo')
+      else toast.error(data.error || 'Failed to log demo')
     } finally { setSaving(false) }
   }
 
@@ -2690,8 +2695,8 @@ function MeetingModal({ dealId, onClose, onSuccess }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   async function submit() {
-    if (!form.title.trim() || !form.from || !form.to) return alert('Title, From and To are required')
-    if (form.to <= form.from) return alert('End time must be after start time')
+    if (!form.title.trim() || !form.from || !form.to) return toast.warn('Title, From and To are required')
+    if (form.to <= form.from) return toast.warn('End time must be after start time')
     setSaving(true)
     try {
       const res = await authFetch(`/api/deals/${dealId}/meeting`, {
@@ -2700,7 +2705,7 @@ function MeetingModal({ dealId, onClose, onSuccess }) {
       })
       const data = await res.json()
       if (data.success) onSuccess()
-      else alert(data.error || 'Failed to create meeting')
+      else toast.error(data.error || 'Failed to create meeting')
     } finally { setSaving(false) }
   }
 
@@ -2761,7 +2766,7 @@ function CallModal({ dealId, onClose, onSuccess }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   async function submit() {
-    if (!form.callTiming) return alert('Call timing is required')
+    if (!form.callTiming) return toast.warn('Call timing is required')
     setSaving(true)
     try {
       const endpoint = callMode === 'log' ? 'log-call' : 'schedule-call'
@@ -2771,7 +2776,7 @@ function CallModal({ dealId, onClose, onSuccess }) {
       })
       const data = await res.json()
       if (data.success) onSuccess()
-      else alert(data.error || 'Failed to log call')
+      else toast.error(data.error || 'Failed to log call')
     } finally { setSaving(false) }
   }
 
@@ -2850,7 +2855,7 @@ function F2FModal({ deal, onClose }) {
       })
       const data = await res.json()
       if (data.success) onClose()
-      else alert(data.error || 'Failed to log F2F')
+      else toast.error(data.error || 'Failed to log F2F')
     } finally { setSaving(false) }
   }
 
@@ -2906,8 +2911,8 @@ function ReassignDealModal({ deal, onClose, onSuccess }) {
         body: JSON.stringify({ newOwnerEmail: selected.email, newOwnerName: selected.name })
       })
       const data = await res.json()
-      if (data.success) onSuccess()
-      else alert(data.error || 'Failed to reassign deal')
+      if (data.success) { toast.success('Deal reassigned'); onSuccess() }
+      else toast.error(data.error || 'Failed to reassign deal')
     } finally { setSaving(false) }
   }
 

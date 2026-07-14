@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useTasks } from '../../hooks/useTasks'
 import { Topbar, Loading } from '../../components/ui'
+import { toast } from '../../components/ui/Toast'
 import { formatDate } from '../../lib/stageConfig'
 
 function taskType(subject = '') {
@@ -71,7 +72,7 @@ export default function Tasks() {
           onSubmit={async (data) => {
             const res = await createTask(data)
             if (res.success) setShowModal(false)
-            else alert(res.error || 'Failed to create task')
+            else toast.error(res.error || 'Failed to create task')
           }}
         />
       )}
@@ -141,8 +142,12 @@ function TaskRow({ task, todayStr, completeTask, reopenTask, showOwner, showDeal
   async function toggle() {
     setBusy(true)
     try {
-      if (task.isComplete) await reopenTask(task.id)
-      else await completeTask(task.id)
+      if (task.isComplete) {
+        await reopenTask(task.id)
+      } else {
+        await completeTask(task.id)
+        toast.success('Task marked complete')
+      }
     } finally {
       setBusy(false)
     }

@@ -13,6 +13,7 @@ import {
   Tasks, Performance, Reports, Settings, NotFound, NeedAttention, BulkAssign,
 } from './pages'
 import { Loading } from './components/ui'
+import { ToastContainer } from './components/ui/Toast'
 
 // Protected layout wrapper
 function AppLayout() {
@@ -171,27 +172,30 @@ export default function App() {
   }
 
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={user ? <Navigate to="/" replace /> : <Login />}
-      />
-      <Route
-        path="/zoho-callback"
-        element={
-          <RequireAuth>
-            <ZohoCallback />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/*"
-        element={
-          <RequireAuth>
-            <AppLayout />
-          </RequireAuth>
-        }
-      />
-    </Routes>
+    <>
+      <Routes>
+        <Route
+          path="/login"
+          element={user ? <Navigate to="/" replace /> : <Login />}
+        />
+        <Route
+          path="/zoho-callback"
+          element={
+            <RequireAuth>
+              <ZohoCallback />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/*"
+          element={
+            <RequireAuth>
+              <AppLayout />
+            </RequireAuth>
+          }
+        />
+      </Routes>
+      <ToastContainer />
+    </>
   )
 }
