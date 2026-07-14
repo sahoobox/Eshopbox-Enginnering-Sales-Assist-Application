@@ -280,7 +280,10 @@ export default function LeadInbox() {
   const [localSearch, setLocalSearch] = useState(
     () => searchParams.get('q') || ''
   )
-  const activeFilters = (() => { try { return JSON.parse(searchParams.get('filters') || '[]') } catch { return [] } })()
+  const activeFilters = useMemo(() => {
+    try { return JSON.parse(searchParams.get('filters') || '[]') }
+    catch { return [] }
+  }, [searchParams])
   const currentPage = Number(searchParams.get('page') || 1)
   const pageSize = Number(searchParams.get('size') || 50)
   const sortOrder = searchParams.get('sort') || 'desc'
