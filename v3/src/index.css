@@ -1014,3 +1014,8 @@ input[type="radio"] {
 * {
   cursor: default;
 }
+
+.date-filter-tile {
+  cursor: pointer !important;
+  user-select: none !important;
+}
