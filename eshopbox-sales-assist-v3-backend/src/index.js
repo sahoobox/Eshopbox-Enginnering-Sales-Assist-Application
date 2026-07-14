@@ -3607,7 +3607,10 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
     }
     dealPayload.Demo_Scheduled = demoScheduled ? 'Yes' : 'No'
     if (demoScheduled && demoScheduledDateTime) {
-      dealPayload.Demo_Scheduled_Date_Time = demoScheduledDateTime
+      // Browser sends datetime-local ("2026-07-17T21:52"); Zoho needs an offset ("...+05:30")
+      dealPayload.Demo_Scheduled_Date_Time = demoScheduledDateTime.length === 16
+        ? demoScheduledDateTime + ':00+05:30'
+        : demoScheduledDateTime
     }
 
     const dealRes = await safeJson(await fetch(
