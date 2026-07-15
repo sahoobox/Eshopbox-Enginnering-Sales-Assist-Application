@@ -60,6 +60,26 @@ function matchSingle(deal, f) {
       const to   = f.dateTo   ? new Date(f.dateTo + 'T23:59:59') : null
       return (!from || d >= from) && (!to || d <= to)
     }
+    case 'createdAt': {
+      if (!deal.createdAt) return false
+      const d = new Date(deal.createdAt)
+      const from = f.dateFrom ? new Date(f.dateFrom) : null
+      const to   = f.dateTo   ? new Date(f.dateTo + 'T23:59:59') : null
+      return (!from || d >= from) && (!to || d <= to)
+    }
+    case 'demoScheduledDateTime': {
+      if (!deal.demoScheduledDateTime) return false
+      const d = new Date(deal.demoScheduledDateTime)
+      const from = f.dateFrom ? new Date(f.dateFrom) : null
+      const to   = f.dateTo   ? new Date(f.dateTo + 'T23:59:59') : null
+      return (!from || d >= from) && (!to || d <= to)
+    }
+    case 'city': {
+      const cityVal = (deal.city || '').toLowerCase()
+      const search = (f.values?.[0] || '').toLowerCase()
+      if (!search) return true
+      return f.op === 'does not contain' ? !cityVal.includes(search) : cityVal.includes(search)
+    }
     case 'flags': {
       let m = false
       if (f.values.includes('Has flags')) m = m || (deal.flags?.length > 0)
@@ -77,6 +97,7 @@ function matchFilters(deal, filters) {
     const m = matchSingle(deal, f)
     if (f.op === 'is'     && !m) return false
     if (f.op === 'is not' &&  m) return false
+    if ((f.op === 'contains' || f.op === 'does not contain') && !m) return false
   }
   return true
 }
@@ -555,7 +576,10 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
     { key: 'stage',       label: 'Stage',        type: 'multi', opts: stages },
     { key: 'grade',       label: 'Grade',        type: 'multi', opts: ['A', 'B', 'C', 'D'] },
     { key: 'orderVolume', label: 'Order Volume',  type: 'multi', opts: ORDER_VOLUME_OPTIONS },
-    { key: 'demoDate',    label: 'Demo Date',     type: 'date' },
+    { key: 'createdAt',             label: 'Deal Created Date',   type: 'date' },
+    { key: 'demoScheduledDateTime', label: 'Demo Scheduled Date', type: 'date' },
+    { key: 'demoDate',    label: 'Demo Logged Date', type: 'date' },
+    { key: 'city',        label: 'City',          type: 'text' },
     { key: 'flags',       label: 'Flags',         type: 'multi', opts: ['Has flags', 'No flags', ...flagTitles] },
   ]
 
@@ -601,6 +625,9 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
   const chipLabel = f => {
     const def = fieldDef(f.field)
     if (!def) return ''
+    if (f.field === 'city') {
+      return `City ${f.op || 'contains'} "${f.values?.[0]}"`
+    }
     const opLbl = f.op === 'is' ? 'is' : 'is not'
     if (def.type === 'date') {
       const val = f.preset || (f.dateFrom && f.dateTo ? `${f.dateFrom} – ${f.dateTo}` : f.dateFrom || f.dateTo || '…')
@@ -668,7 +695,10 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
               <div className="fdd-title">Filter by</div>
               {FIELDS.map(f => (
                 <button key={f.key} className="fdd-field-opt" onClick={() => {
-                  setDraft(d => ({ ...d, field: f.key, values: [], preset: null, dateFrom: '', dateTo: '' }))
+                  setDraft(d => ({
+                    ...d, field: f.key, op: f.type === 'text' ? 'contains' : 'is',
+                    values: [], preset: null, dateFrom: '', dateTo: '',
+                  }))
                   setStep('value')
                 }}>
                   {f.label}
@@ -684,15 +714,17 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
                 <span className="fdd-title" style={{ padding: 0 }}>{activeDef?.label}</span>
               </div>
 
-              <div className="fdd-op-row">
-                {['is', 'is not'].map(op => (
-                  <button
-                    key={op}
-                    className={`fdd-op${draft.op === op ? ' active' : ''}`}
-                    onClick={() => setDraft(d => ({ ...d, op }))}
-                  >{op}</button>
-                ))}
-              </div>
+              {activeDef?.type !== 'text' && (
+                <div className="fdd-op-row">
+                  {['is', 'is not'].map(op => (
+                    <button
+                      key={op}
+                      className={`fdd-op${draft.op === op ? ' active' : ''}`}
+                      onClick={() => setDraft(d => ({ ...d, op }))}
+                    >{op}</button>
+                  ))}
+                </div>
+              )}
 
               {activeDef?.type === 'multi' && (
                 <div className="fdd-opts">
@@ -727,6 +759,28 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
                     <input type="date" value={draft.dateTo}
                       onChange={e => setDraft(d => ({ ...d, dateTo: e.target.value, preset: null }))} />
                   </div>
+                </div>
+              )}
+
+              {activeDef?.type === 'text' && (
+                <div style={{ marginTop: 8 }}>
+                  <select
+                    value={draft.op || 'contains'}
+                    onChange={e => setDraft(d => ({ ...d, op: e.target.value }))}
+                    className="form-select"
+                    style={{ marginBottom: 8, width: '100%' }}
+                  >
+                    <option value="contains">Contains</option>
+                    <option value="does not contain">Does not contain</option>
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Type to search…"
+                    value={draft.values?.[0] || ''}
+                    onChange={e => setDraft(d => ({ ...d, values: [e.target.value] }))}
+                    className="form-input"
+                    style={{ width: '100%' }}
+                  />
                 </div>
               )}
 

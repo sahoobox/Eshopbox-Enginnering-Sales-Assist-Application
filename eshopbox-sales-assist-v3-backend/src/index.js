@@ -159,7 +159,7 @@ const DEAL_FIELDS = [
   'SA_Followup_Meeting_Date', 'SA_Pricing_Raised', 'SA_Demo_Format',
   'SA_F2F_Count', 'SA_Logged', 'Lost_Reason', 'Demo_Date', 'Contact_Name',
   'Account_Name', 'Description', 'How_many_orders_do_you_ship_in_a_month',
-  'Demo_Scheduled', 'Demo_Scheduled_Date_Time',
+  'Demo_Scheduled', 'Demo_Scheduled_Date_Time', 'City',
 ].join(',');
 
 const SHIPPING_PAINS_MAP = {
