@@ -1300,7 +1300,11 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
       id: `call-${c.id}`, type: 'call', title: c.subject || (c.purpose && c.purpose !== 'None' ? c.purpose : 'Call'),
       status: ((c.status !== 'Scheduled' && c.status !== 'scheduled' && c.status !== '' && c.status != null) || localCompleted.has(c.id)) ? 'completed' : 'scheduled',
       dueDate: c.timing || '', priority: '', ownerName: c.createdBy || '',
-      description: c.agenda || c.result || c.description || '',
+      description: [
+        c.agenda && `Agenda: ${c.agenda}`,
+        c.result && `Result: ${c.result}`,
+        c.description && `Notes: ${c.description}`
+      ].filter(Boolean).join('\n') || '',
       createdAt: c.timing || '', raw: c,
     })),
     ...(lead?.notes || []).map((n, i) => ({
@@ -1373,6 +1377,7 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
           padding: '8px 10px', background, borderRadius: 8,
           borderLeft: `2.5px solid ${borderColor}`,
           fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.6,
+          whiteSpace: 'pre-line',
           ...(expanded ? {} : { display: '-webkit-box', WebkitLineClamp: lines, WebkitBoxOrient: 'vertical', overflow: 'hidden' }),
         }}>
           {item.description}
