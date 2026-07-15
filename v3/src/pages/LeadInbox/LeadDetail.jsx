@@ -1378,7 +1378,7 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
           borderLeft: `2.5px solid ${borderColor}`,
           fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.6,
           whiteSpace: 'pre-line',
-          ...(expanded ? {} : { display: '-webkit-box', WebkitLineClamp: lines, WebkitBoxOrient: 'vertical', overflow: 'hidden' }),
+          ...(expanded ? {} : { maxHeight: `${lines * 20}px`, overflow: 'hidden' }),
         }}>
           {item.description}
         </div>
