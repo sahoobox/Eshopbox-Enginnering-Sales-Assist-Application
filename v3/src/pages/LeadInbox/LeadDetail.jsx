@@ -1365,7 +1365,8 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
 
   function renderDescription(item, { lines, borderColor, background, marginTop, marginBottom }) {
     if (!item.description) return null
-    const isLong = item.description.length > 100
+    const isLong = item.description.length > 50 ||
+                   item.description.includes('\n')
     const expanded = expandedDesc[item.id]
     return (
       <div
