@@ -248,6 +248,95 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
   )
 }
 
+function ChangeStatusModal({ lead, targetStatus, onClose, onSuccess }) {
+  const { authFetch } = useAuth()
+  const [description, setDescription] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function submit() {
+    if (!description.trim()) return
+    setSaving(true)
+    try {
+      const res = await authFetch(
+        `/api/leads/${lead.id}/status`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            status: targetStatus,
+            description: description.trim()
+          })
+        }
+      )
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`Status changed to ${targetStatus}`)
+        onSuccess(targetStatus)
+      } else {
+        toast.error(data.error || 'Failed to update status')
+        setSaving(false)
+      }
+    } catch (err) {
+      toast.error('Failed to update status')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box"
+        style={{ maxWidth: 460 }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="modal-head">
+          <h3>Change Status to {targetStatus}</h3>
+          <button className="btn-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <p style={{
+            fontSize: 13,
+            color: 'var(--ink-3)',
+            marginBottom: 12,
+            lineHeight: 1.5
+          }}>
+            Please describe the reason for changing
+            the status to <strong>{targetStatus}</strong>
+          </p>
+          <textarea
+            className="form-textarea"
+            placeholder="Describe the reason for this status change..."
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            rows={4}
+            style={{ width: '100%', resize: 'vertical' }}
+            autoFocus
+          />
+          {!description.trim() && (
+            <p style={{
+              fontSize: 12,
+              color: 'var(--danger)',
+              marginTop: 6
+            }}>
+              Description is required
+            </p>
+          )}
+        </div>
+        <div className="modal-foot">
+          <button className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            className="btn btn-primary"
+            disabled={saving || !description.trim()}
+            onClick={submit}
+          >
+            {saving ? 'Updating...' : 'Confirm'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function LeadDetail() {
   const { leadId } = useParams()
   const navigate = useNavigate()
@@ -262,6 +351,9 @@ export default function LeadDetail() {
   const [showDisqualify, setShowDisqualify] = useState(false)
   const [disqualifyReason, setDisqualifyReason] = useState('')
   const [showConvertModal, setShowConvertModal] = useState(false)
+  const [showStatusModal, setShowStatusModal] = useState(false)
+  const [targetStatus, setTargetStatus] = useState(null)
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false)
   const [showActivityDropdown, setShowActivityDropdown] = useState(false)
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [showMeetingModal, setShowMeetingModal] = useState(false)
@@ -335,6 +427,13 @@ export default function LeadDetail() {
       .finally(() => setLeadEmailsLoading(false))
   }, [tab, lead?.id])
 
+  useEffect(() => {
+    if (!showStatusDropdown) return
+    const handler = () => setShowStatusDropdown(false)
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [showStatusDropdown])
+
   async function handleExpand(emailId) {
     const isCurrentlyExpanded = expandedEmails[emailId]
     setExpandedEmails(prev => ({ ...prev, [emailId]: !isCurrentlyExpanded }))
@@ -387,6 +486,12 @@ export default function LeadDetail() {
     return { label: 'Round-robin to MDE', color: 'var(--info)', desc: `Volume ${vol} + Contact Sales → MDE` }
   }
   const routing = getRouting()
+
+  const statusOptions = (() => {
+    const current = lead.leadStatus || ''
+    const all = ['Connecting', 'Connected', 'Bad Timing']
+    return all.filter(s => s !== current)
+  })()
 
   const createdTime = lead.createdAt
     ? (isToday
@@ -478,6 +583,87 @@ export default function LeadDetail() {
                         ))}
                       </div>
                     </>
+                  )}
+                </div>
+                <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                  <button
+                    className="btn"
+                    onClick={() => setShowStatusDropdown(v => !v)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <span style={{
+                      display: 'inline-block',
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: lead.leadStatus === 'Connected'
+                        ? 'var(--ok)'
+                        : lead.leadStatus === 'Bad Timing'
+                        ? 'var(--warn)'
+                        : 'var(--info)',
+                      flexShrink: 0
+                    }} />
+                    {lead.leadStatus || 'Status'} ▾
+                  </button>
+
+                  {showStatusDropdown && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      marginTop: 4,
+                      background: 'var(--surface)',
+                      border: '1px solid var(--line)',
+                      borderRadius: 8,
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+                      zIndex: 100,
+                      minWidth: 160,
+                      overflow: 'hidden'
+                    }}>
+                      {statusOptions.map(s => (
+                        <button
+                          key={s}
+                          onClick={() => {
+                            setShowStatusDropdown(false)
+                            setTargetStatus(s)
+                            setShowStatusModal(true)
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            width: '100%',
+                            padding: '10px 14px',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: 13,
+                            color: 'var(--ink)',
+                            textAlign: 'left',
+                            borderBottom: '1px solid var(--line)'
+                          }}
+                          onMouseEnter={e =>
+                            e.currentTarget.style.background = 'var(--surface-2)'
+                          }
+                          onMouseLeave={e =>
+                            e.currentTarget.style.background = 'none'
+                          }
+                        >
+                          <span style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            background: s === 'Connected'
+                              ? 'var(--ok)'
+                              : s === 'Bad Timing'
+                              ? 'var(--warn)'
+                              : 'var(--info)',
+                            flexShrink: 0
+                          }} />
+                          {s}
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
                 {(isAdmin || isSalesLead) && (
@@ -1160,6 +1346,26 @@ export default function LeadDetail() {
           onSuccess={(data) => {
             setShowConvertModal(false)
             navigate(`/pipeline/${data.dealId}`)
+          }}
+        />
+      )}
+
+      {showStatusModal && targetStatus && (
+        <ChangeStatusModal
+          lead={lead}
+          targetStatus={targetStatus}
+          onClose={() => {
+            setShowStatusModal(false)
+            setTargetStatus(null)
+          }}
+          onSuccess={(newStatus) => {
+            setShowStatusModal(false)
+            setTargetStatus(null)
+            setLead(prev => ({ ...prev, leadStatus: newStatus }))
+            if (tabDataCache?.current) {
+              delete tabDataCache.current.activity
+              delete tabDataCache.current.notes
+            }
           }}
         />
       )}

@@ -3465,6 +3465,98 @@ app.post('/api/leads/:id/disqualify', requireAuth, async (c) => {
   }
 })
 
+app.patch('/api/leads/:id/status', requireAuth, async (c) => {
+  const leadId = c.req.param('id')
+  const { status, description } = await c.req.json().catch(() => ({}))
+  const user = c.get('user')
+
+  if (!status || !description) {
+    return c.json({ error: 'Status and description are required' }, 400)
+  }
+
+  const validStatuses = ['Connected', 'Connecting', 'Bad Timing']
+  if (!validStatuses.includes(status)) {
+    return c.json({ error: 'Invalid status' }, 400)
+  }
+
+  try {
+    const token = await getAccessToken(c.env)
+
+    // 1. Update Lead_Status in Zoho
+    const updateRes = await fetch(
+      `https://www.zohoapis.com/crm/v2/Leads/${leadId}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Zoho-oauthtoken ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          data: [{ Lead_Status: status }]
+        })
+      }
+    )
+    if (!updateRes.ok) {
+      throw new Error('Failed to update lead status in Zoho')
+    }
+
+    // 2. Create note in D1 deal_notes table
+    const noteContent = `Status changed to ${status}: ${description}`
+    const noteId = crypto.randomUUID()
+    await c.env.DB.prepare(
+      `INSERT INTO deal_notes (id, deal_id, content, author_name, author_email, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ).bind(
+      noteId,
+      leadId,
+      noteContent,
+      user.name || user.email,
+      user.email,
+      new Date().toISOString()
+    ).run()
+
+    // 3. Mirror note to Zoho
+    try {
+      await fetch(
+        `https://www.zohoapis.com/crm/v2/Notes`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Zoho-oauthtoken ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            data: [{
+              Note_Title: `Status changed to ${status}`,
+              Note_Content: description,
+              Parent_Id: leadId,
+              '$se_module': 'Leads'
+            }]
+          })
+        }
+      )
+    } catch (e) {
+      // Non-blocking — note already saved in D1
+      console.error('Zoho note mirror failed:', e.message)
+    }
+
+    // 4. Write to lead_timeline D1
+    await logLeadTimelineEvent(c.env, leadId, {
+      eventType: 'status_changed',
+      description: `Status changed to ${status}: ${description}`,
+      actorName: user.name || user.email,
+      actorEmail: user.email,
+    })
+
+    // 5. Patch lead in KV cache — cache stores raw Zoho-shaped leads, so use the Zoho field name
+    await patchLeadInCache(c.env, leadId, { Lead_Status: status })
+
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message || 'Failed to update status' }, 500)
+  }
+})
+
 app.post('/api/leads/:id/activity', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
