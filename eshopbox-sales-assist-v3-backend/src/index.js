@@ -3595,7 +3595,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
 
     // 4. Create Deal
     const dealPayload = {
-      Deal_Name: company + ' — Inbound',
+      Deal_Name: company || (firstName + ' ' + lastName).trim() || 'New Deal',
       Stage: 'Upcoming Demo',
       Pipeline: pipeline,
       Account_Name: { id: accountId },
