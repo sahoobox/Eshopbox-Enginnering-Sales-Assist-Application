@@ -111,6 +111,8 @@ function PipelineList() {
   const activeTile = searchParams.get('tile') || 'inbox'
   const pipelineFilter = searchParams.get('pipeline') || defaultPipeline
   const view = searchParams.get('view') || 'kanban'
+  const sortBy = searchParams.get('sortBy') || 'createdAt'
+  const sortDir = searchParams.get('sortDir') || 'desc'
   const searchQuery = searchParams.get('q') || ''
   const activeFilters = (() => { try { return JSON.parse(searchParams.get('filters') || '[]') } catch { return [] } })()
   const [showLegend, setShowLegend] = useState(false)
@@ -168,14 +170,36 @@ function PipelineList() {
     return scopedDeals
   }, [scopedDeals, activeTile])
 
-  const totalListDeals = tileFilteredDeals.length
+  const sortedDeals = useMemo(() => {
+    const arr = [...tileFilteredDeals]
+    arr.sort((a, b) => {
+      let aVal, bVal
+      if (sortBy === 'createdAt') {
+        aVal = new Date(a.createdAt || 0)
+        bVal = new Date(b.createdAt || 0)
+      } else if (sortBy === 'demoDate') {
+        aVal = new Date(a.demoDate || 0)
+        bVal = new Date(b.demoDate || 0)
+      } else if (sortBy === 'dealName') {
+        return sortDir === 'asc'
+          ? (a.dealName || '').localeCompare(b.dealName || '')
+          : (b.dealName || '').localeCompare(a.dealName || '')
+      }
+      return sortDir === 'asc'
+        ? aVal - bVal
+        : bVal - aVal
+    })
+    return arr
+  }, [tileFilteredDeals, sortBy, sortDir])
+
+  const totalListDeals = sortedDeals.length
   const showAllList = listPageSize >= 99999
   const listStart = showAllList ? 0 : (listPage - 1) * listPageSize
   const listEnd = showAllList ? totalListDeals : listStart + listPageSize
-  const paginatedDeals = tileFilteredDeals.slice(listStart, listEnd)
+  const paginatedDeals = sortedDeals.slice(listStart, listEnd)
   const totalListPages = Math.ceil(totalListDeals / listPageSize)
 
-  useEffect(() => setListPage(1), [tileFilteredDeals])
+  useEffect(() => setListPage(1), [sortedDeals])
 
   const tileTooltips = {
     inbox: 'Active deals in a conducted or upcoming stage that need action — your working pipeline.',
@@ -274,6 +298,46 @@ function PipelineList() {
               <button className={view === 'kanban' ? 'is-on' : ''} onClick={() => updateParams({ view: 'kanban' })}>Kanban</button>
               <button className={view === 'list' ? 'is-on' : ''} onClick={() => updateParams({ view: 'list' })}>List</button>
             </div>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginLeft: 'auto'
+            }}>
+              <span style={{
+                fontSize: 12,
+                color: 'var(--ink-3)',
+                whiteSpace: 'nowrap'
+              }}>
+                Sort by
+              </span>
+              <select
+                value={sortBy}
+                onChange={e => updateParams({
+                  sortBy: e.target.value,
+                  sortDir: 'desc'
+                })}
+                className="form-select"
+                style={{ fontSize: 13, padding: '5px 10px' }}
+              >
+                <option value="createdAt">Deal Created</option>
+                <option value="demoDate">Demo Date</option>
+                <option value="dealName">Deal Name</option>
+              </select>
+
+              <button
+                className={`btn btn-sm ${sortDir === 'desc' ? 'btn-primary' : ''}`}
+                onClick={() => updateParams({
+                  sortDir: sortDir === 'desc' ? 'asc' : 'desc'
+                })}
+                title={sortDir === 'desc' ? 'Newest first' : 'Oldest first'}
+                style={{ padding: '5px 10px', fontSize: 13 }}
+              >
+                {sortDir === 'desc' ? '↓ Newest' : '↑ Oldest'}
+              </button>
+            </div>
+
             <div data-legend style={{ position: 'relative' }}>
               <button
                 className="btn btn-sm btn-ghost"
@@ -428,7 +492,7 @@ function PipelineList() {
 
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {view === 'kanban'
-          ? <KanbanView deals={tileFilteredDeals} pipelineFilter={pipelineFilter} />
+          ? <KanbanView deals={sortedDeals} pipelineFilter={pipelineFilter} />
           : <ListView
               deals={paginatedDeals}
               onOpen={id => window.open(`/pipeline/${id}`, '_blank')}
