@@ -293,48 +293,56 @@ function PipelineList() {
         title="All Deals"
         subtitle="Grade, stage and flag overview across all your deals"
         actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap'
+          }}>
             <div className="seg">
               <button className={view === 'kanban' ? 'is-on' : ''} onClick={() => updateParams({ view: 'kanban' })}>Kanban</button>
               <button className={view === 'list' ? 'is-on' : ''} onClick={() => updateParams({ view: 'list' })}>List</button>
             </div>
 
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              marginLeft: 'auto'
-            }}>
-              <span style={{
-                fontSize: 12,
-                color: 'var(--ink-3)',
-                whiteSpace: 'nowrap'
-              }}>
-                Sort by
-              </span>
-              <select
-                value={sortBy}
-                onChange={e => updateParams({
-                  sortBy: e.target.value,
-                  sortDir: 'desc'
-                })}
-                className="form-select"
-                style={{ fontSize: 13, padding: '5px 10px' }}
-              >
-                <option value="createdAt">Deal Created</option>
-                <option value="demoDate">Demo Date</option>
-                <option value="dealName">Deal Name</option>
-              </select>
+            {/* Sort controls — integrated with existing seg style */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
 
+              {/* Sort field — segmented */}
+              <div className="seg">
+                {[
+                  { value: 'createdAt', label: 'Created' },
+                  { value: 'demoDate', label: 'Demo' },
+                  { value: 'dealName', label: 'Name' },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    className={sortBy === opt.value ? 'is-on' : ''}
+                    onClick={() => updateParams({
+                      sortBy: opt.value,
+                      sortDir: 'desc'
+                    })}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Direction toggle */}
               <button
-                className={`btn btn-sm ${sortDir === 'desc' ? 'btn-primary' : ''}`}
+                className="btn btn-sm btn-ghost"
                 onClick={() => updateParams({
                   sortDir: sortDir === 'desc' ? 'asc' : 'desc'
                 })}
-                title={sortDir === 'desc' ? 'Newest first' : 'Oldest first'}
-                style={{ padding: '5px 10px', fontSize: 13 }}
+                title={sortDir === 'desc' ? 'Newest first — click for oldest' : 'Oldest first — click for newest'}
+                style={{
+                  padding: '5px 8px',
+                  fontSize: 13,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}
               >
-                {sortDir === 'desc' ? '↓ Newest' : '↑ Oldest'}
+                {sortDir === 'desc' ? '↓' : '↑'}
               </button>
             </div>
 
@@ -405,7 +413,14 @@ function PipelineList() {
                 </div>
               )}
             </div>
-            <button className="btn btn-sm" onClick={refetch}>↻ Refresh</button>
+            <button
+              className="btn btn-sm btn-ghost"
+              onClick={refetch}
+              title="Refresh deals"
+              style={{ padding: '5px 8px' }}
+            >
+              ↻
+            </button>
           </div>
         }
       />
@@ -418,48 +433,92 @@ function PipelineList() {
             onClick={() => updateParams({ tile: tile.key })}
             title={tileTooltips[tile.key]}
             style={{
-              flex: 1, minWidth: 0, padding: '8px 10px',
-              background: activeTile === tile.key ? 'var(--info-bg)' : 'var(--surface)',
-              color: activeTile === tile.key ? 'var(--info)' : 'var(--ink-1)',
+              flex: 1,
+              minWidth: 0,
+              padding: '10px 12px',
+              background: activeTile === tile.key
+                ? 'var(--info-bg)'
+                : 'var(--surface)',
               borderRadius: 'var(--radius-md)',
-              border: `2px solid ${activeTile === tile.key ? 'var(--info)' : 'var(--line)'}`,
-              boxShadow: activeTile === tile.key ? '0 0 0 3px var(--info-bg)' : 'none',
-              cursor: 'pointer'
+              border: `1.5px solid ${activeTile === tile.key
+                ? 'var(--info)'
+                : 'var(--line)'}`,
+              boxShadow: activeTile === tile.key
+                ? '0 0 0 3px rgba(24, 95, 165, 0.08)'
+                : 'var(--shadow-1)',
+              cursor: 'pointer',
+              transition: 'all var(--duration-base) var(--ease)',
+              userSelect: 'none'
             }}
           >
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', opacity: 0.7, marginBottom: 4 }}>
+            <div style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: activeTile === tile.key
+                ? 'var(--info)'
+                : 'var(--ink-3)',
+              marginBottom: 6
+            }}>
               {tile.label}
             </div>
-            <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1 }}>{tile.count}</div>
-            <div style={{ fontSize: 10, marginTop: 4, opacity: 0.7 }}>{tile.sub}</div>
+            <div style={{
+              fontSize: 24,
+              fontWeight: 700,
+              lineHeight: 1,
+              color: activeTile === tile.key
+                ? 'var(--info)'
+                : 'var(--ink)',
+              fontVariantNumeric: 'tabular-nums'
+            }}>
+              {tile.count}
+            </div>
+            <div style={{
+              fontSize: 11,
+              marginTop: 4,
+              color: activeTile === tile.key
+                ? 'var(--info)'
+                : 'var(--ink-3)',
+              lineHeight: 1.4
+            }}>
+              {tile.sub}
+            </div>
           </div>
         ))}
       </div>
 
       {activeTile !== 'all' && (
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '6px 12px', marginBottom: 8,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '8px 14px',
           background: 'var(--info-bg)',
-          borderRadius: 'var(--radius-sm)',
-          fontSize: 12.5, color: 'var(--info)',
-          flexShrink: 0
+          border: '1px solid var(--info)',
+          borderRadius: 8,
+          marginBottom: 12,
+          fontSize: 13,
+          color: 'var(--info)',
+          fontWeight: 500
         }}>
-          <span>⚡</span>
           <span>
-            <b>Viewing: {tiles.find(t => t.key === activeTile)?.label}</b>
-            {' · '}
-            {tileTooltips[activeTile]}
+            Showing: <strong>{tiles.find(t => t.key === activeTile)?.label}</strong>
+            {' '}({tileFilteredDeals.length} deals)
           </span>
           <button
             onClick={() => updateParams({ tile: 'all' })}
             style={{
-              marginLeft: 'auto', background: 'none', border: 'none',
-              color: 'var(--info)', cursor: 'pointer', fontSize: 12,
-              fontWeight: 600, flexShrink: 0
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--info)',
+              fontSize: 13,
+              fontWeight: 500,
+              padding: '2px 6px'
             }}
           >
-            Show all deals ×
+            Show all ×
           </button>
         </div>
       )}
