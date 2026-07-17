@@ -93,3 +93,16 @@ CREATE TABLE IF NOT EXISTS deal_notes (
 );
 
 ALTER TABLE users ADD COLUMN gmail_signature TEXT;
+
+CREATE TABLE IF NOT EXISTS lead_deal_mapping (
+  lead_id TEXT NOT NULL,
+  deal_id TEXT NOT NULL,
+  contact_email TEXT,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (deal_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ldm_lead_id
+  ON lead_deal_mapping(lead_id);
+CREATE INDEX IF NOT EXISTS idx_ldm_email
+  ON lead_deal_mapping(contact_email);

@@ -862,6 +862,35 @@ if (contactId) {
 deal.contactEmail = contactData?.Email || ''
 deal.contactPhone = contactData?.Phone || ''
 
+// Check if we have lead mapping
+let leadId = null
+const mapping = await c.env.DB.prepare(
+  `SELECT lead_id FROM lead_deal_mapping WHERE deal_id = ?`
+).bind(dealId).first()
+
+if (mapping) {
+  leadId = mapping.lead_id
+} else if (deal.contactEmail) {
+  // Auto-discover by searching Zoho Leads by email
+  const searchRes = await zohoAPI(c.env, 'GET', `/Leads/search?criteria=(Email:equals:${encodeURIComponent(deal.contactEmail)})AND(Lead_Status:equals:Converted)&fields=id,Email`)
+  const foundLead = searchRes?.data?.[0]
+  if (foundLead) {
+    leadId = foundLead.id
+    // Store for future — don't search Zoho again
+    await c.env.DB.prepare(
+      `INSERT OR IGNORE INTO lead_deal_mapping
+       (lead_id, deal_id, contact_email, created_at)
+       VALUES (?, ?, ?, ?)`
+    ).bind(
+      leadId,
+      dealId,
+      deal.contactEmail,
+      new Date().toISOString()
+    ).run()
+  }
+}
+deal.originalLeadId = leadId || null
+
 // Fetch email statuses and deal summary from D1 in parallel
 const [emailRows, formRow] = await Promise.all([
   c.env.DB.prepare(
@@ -1797,6 +1826,51 @@ app.get('/api/deals/:id/notes', requireAuth, async (c) => {
     return c.json({ notes: results || [] })
   } catch (err) {
     return c.json({ notes: [] })
+  }
+})
+
+app.get('/api/deals/:id/lead-notes', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const mapping = await c.env.DB.prepare(
+      `SELECT lead_id FROM lead_deal_mapping WHERE deal_id = ?`
+    ).bind(dealId).first()
+    if (!mapping) return c.json({ notes: [] })
+    const { results } = await c.env.DB.prepare(
+      'SELECT id, content, author_name as authorName, author_email as authorEmail, created_at as createdAt FROM deal_notes WHERE deal_id = ? ORDER BY created_at DESC'
+    ).bind(mapping.lead_id).all()
+    return c.json({ notes: results || [] })
+  } catch (err) {
+    return c.json({ notes: [] })
+  }
+})
+
+app.get('/api/deals/:id/lead-activities', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const mapping = await c.env.DB.prepare(
+      `SELECT lead_id FROM lead_deal_mapping WHERE deal_id = ?`
+    ).bind(dealId).first()
+    if (!mapping) return c.json({ calls: [], meetings: [] })
+    const [callsRes, meetingsRes] = await Promise.all([
+      getDealCalls(c.env, mapping.lead_id),
+      getDealMeetings(c.env, mapping.lead_id),
+    ])
+    const meetings = (meetingsRes?.data || []).map(m => ({
+      id: m.id, title: m.Event_Title || '', venue: m.Venue || '',
+      from: m.Start_DateTime, to: m.End_DateTime, description: m.Description || '',
+      status: m.Status || '', createdBy: m.Created_By?.name || '',
+    }))
+    const calls = (callsRes?.data || []).map(cl => ({
+      id: cl.id, subject: cl.Subject || '', purpose: cl.Call_Purpose || '',
+      agenda: cl.Call_Agenda || '', result: cl.Call_Result || '',
+      timing: cl.Call_Start_Time, status: cl.Call_Status || '',
+      outboundStatus: cl.Outbound_Call_Status || '',
+      description: cl.Description || '', createdBy: cl.Created_By?.name || '',
+    }))
+    return c.json({ calls, meetings })
+  } catch (err) {
+    return c.json({ calls: [], meetings: [] })
   }
 })
 
@@ -3728,6 +3802,39 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
         body: JSON.stringify({ data: [{ Lead_Status: 'Converted' }] })
       }
     )
+
+    // Store lead->deal mapping in D1
+    await c.env.DB.prepare(
+      `INSERT OR IGNORE INTO lead_deal_mapping
+       (lead_id, deal_id, contact_email, created_at)
+       VALUES (?, ?, ?, ?)`
+    ).bind(
+      leadId,
+      dealId,
+      email,
+      new Date().toISOString()
+    ).run()
+
+    // Copy D1 notes from lead to deal
+    const leadNotes = await c.env.DB.prepare(
+      `SELECT * FROM deal_notes WHERE deal_id = ?`
+    ).bind(leadId).all()
+
+    for (const note of leadNotes.results) {
+      await c.env.DB.prepare(
+        `INSERT OR IGNORE INTO deal_notes
+         (id, deal_id, content, author_name,
+          author_email, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      ).bind(
+        crypto.randomUUID(),
+        dealId,
+        note.content,
+        note.author_name,
+        note.author_email,
+        note.created_at
+      ).run()
+    }
 
     // 6. Clear caches
     try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch {}

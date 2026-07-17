@@ -598,7 +598,19 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [showMeetingModal, setShowMeetingModal] = useState(false)
   const [showCallModal, setShowCallModal] = useState(false)
+  const [leadMeetings, setLeadMeetings] = useState([])
+  const [leadCalls, setLeadCalls] = useState([])
   const todayStr = new Date().toISOString().split('T')[0]
+
+  useEffect(() => {
+    authFetch(`/api/deals/${dealId}/lead-activities`)
+      .then(r => r.json())
+      .then(d => {
+        setLeadMeetings(d.meetings || [])
+        setLeadCalls(d.calls || [])
+      })
+      .catch(err => console.error('Lead activities fetch failed:', err))
+  }, [dealId])
 
   useEffect(() => {
     if (!showDropdown) return
@@ -643,6 +655,8 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
     ...tasks.map(t => ({ id: t.id, type: 'Task', date: t.dueDate, taskStatus: t.status, done: t.status === 'Completed', _t: t })),
     ...meetings.map(m => ({ id: m.id, type: 'Meeting', date: m.from, status: m.status, done: (m.to && new Date(m.to) < new Date()) || localCompleted.has(m.id), _m: m })),
     ...calls.map(c => ({ id: c.id, type: 'Call', date: c.timing, status: c.status, done: (c.status !== 'Scheduled' && c.status !== 'scheduled' && c.status !== '' && c.status !== null) || localCompleted.has(c.id), _c: c })),
+    ...leadMeetings.map(m => ({ id: m.id, type: 'Meeting', date: m.from, status: m.status, done: true, fromLead: true, _m: m })),
+    ...leadCalls.map(c => ({ id: c.id, type: 'Call', date: c.timing, status: c.status, done: true, fromLead: true, _c: c })),
   ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 
   const TYPE_PILL_STYLE = {
@@ -772,6 +786,11 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
                         <span style={{ fontWeight: 600, fontSize: 13.5 }}>{m.title}</span>
                         {typePill('Meeting')}
                         {m.status && typeBadge(m.status)}
+                        {item.fromLead && (
+                          <span style={{ fontSize: 10, background: 'var(--warn-bg)', color: 'var(--warn)', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
+                            From Lead
+                          </span>
+                        )}
                       </div>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: m.description ? 6 : 0 }}>
                         {m.venue && <span>Venue: {m.venue}</span>}
@@ -799,6 +818,11 @@ function ActivitiesTab({ dealId, deal, onRefresh }) {
                         <span style={{ fontWeight: 600, fontSize: 13.5 }}>{c.subject}</span>
                         {typePill('Call')}
                         {typeBadge(c.status === 'Scheduled' ? 'Scheduled' : 'Completed')}
+                        {item.fromLead && (
+                          <span style={{ fontSize: 10, background: 'var(--warn-bg)', color: 'var(--warn)', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
+                            From Lead
+                          </span>
+                        )}
                       </div>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--ink-3)', marginBottom: (c.agenda || c.description) ? 6 : 0 }}>
                         {c.timing && <span>{formatDateTime(c.timing)}</span>}
@@ -1891,6 +1915,7 @@ function CoachTab({ deal }) {
 function NotesTab({ dealId, deal }) {
   const { authFetch } = useAuth()
   const [d1Notes, setD1Notes] = useState([])
+  const [leadNotes, setLeadNotes] = useState([])
   const [newNote, setNewNote] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -1904,6 +1929,11 @@ function NotesTab({ dealId, deal }) {
         toast.error('Failed to load notes')
       })
       .finally(() => setLoading(false))
+
+    authFetch(`/api/deals/${dealId}/lead-notes`)
+      .then(r => r.json())
+      .then(d => setLeadNotes(d.notes || []))
+      .catch(err => console.error('Lead notes fetch failed:', err))
   }, [dealId])
 
   async function addNote() {
@@ -1955,6 +1985,10 @@ function NotesTab({ dealId, deal }) {
     })),
     ...dedupedZohoNotes,
   ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+
+  // Lead notes already copied onto the deal at conversion time show up in
+  // allNotes above — only show ones here that aren't already duplicated there.
+  const dedupedLeadNotes = (leadNotes || []).filter(n => !d1Contents.has(normalizeContent(n.content)))
 
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -2011,6 +2045,45 @@ function NotesTab({ dealId, deal }) {
             </div>
           </div>
         ))
+      )}
+      {dedupedLeadNotes.length > 0 && (
+        <>
+          <div style={{
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: 'var(--ink-3)',
+            margin: '20px 0 10px',
+            paddingBottom: 6,
+            borderBottom: '1px solid var(--line)'
+          }}>
+            From Lead (before conversion)
+          </div>
+          {dedupedLeadNotes.map((note, i) => (
+            <div key={note.id || i} className="card card-pad">
+              {(() => {
+                const isHTML = (text) => /<[a-z][\s\S]*>/i.test(text || '')
+                return isHTML(note.content)
+                  ? <div
+                      style={{ fontSize: 13, lineHeight: 1.6 }}
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(note.content) }}
+                    />
+                  : <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                      {note.content}
+                    </div>
+              })()}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                  {note.authorName && `${note.authorName} · `}{formatDate(note.createdAt)}
+                </span>
+                <span style={{ fontSize: 10, background: 'var(--warn-bg)', color: 'var(--warn)', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
+                  From Lead
+                </span>
+              </div>
+            </div>
+          ))}
+        </>
       )}
     </div>
   )
