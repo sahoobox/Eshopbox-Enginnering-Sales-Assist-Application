@@ -849,6 +849,7 @@ export default function LeadDetail() {
                 {[
                   { k: 'Lead Name', v: lead.fullName || '—' },
                   { k: 'Lead Owner', v: lead.ownerName || '—' },
+                  { k: 'Created On', v: lead.createdAt ? formatDateTime(lead.createdAt) : '—' },
                   { k: 'Lead Status', v: lead.leadStatus ? <span className="pill pill-neutral">{lead.leadStatus}</span> : '—' },
                   { k: 'Lead Source', v: lead.leadSource || '—' },
                 ].map((row, i) => (
