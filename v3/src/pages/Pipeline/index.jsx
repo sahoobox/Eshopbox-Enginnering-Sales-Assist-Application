@@ -304,46 +304,32 @@ function PipelineList() {
               <button className={view === 'list' ? 'is-on' : ''} onClick={() => updateParams({ view: 'list' })}>List</button>
             </div>
 
-            {/* Sort controls — integrated with existing seg style */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-
-              {/* Sort field — segmented */}
+              <span style={{
+                fontSize: 12,
+                color: 'var(--ink-3)',
+                fontWeight: 500
+              }}>
+                Sort
+              </span>
               <div className="seg">
-                {[
-                  { value: 'createdAt', label: 'Created' },
-                  { value: 'demoDate', label: 'Demo' },
-                  { value: 'dealName', label: 'Name' },
-                ].map(opt => (
-                  <button
-                    key={opt.value}
-                    className={sortBy === opt.value ? 'is-on' : ''}
-                    onClick={() => updateParams({
-                      sortBy: opt.value,
-                      sortDir: 'desc'
-                    })}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+                <button
+                  className={sortDir === 'desc' ? 'is-on' : ''}
+                  onClick={() => updateParams({
+                    sortBy: 'createdAt', sortDir: 'desc'
+                  })}
+                >
+                  Newest
+                </button>
+                <button
+                  className={sortDir === 'asc' ? 'is-on' : ''}
+                  onClick={() => updateParams({
+                    sortBy: 'createdAt', sortDir: 'asc'
+                  })}
+                >
+                  Oldest
+                </button>
               </div>
-
-              {/* Direction toggle */}
-              <button
-                className="btn btn-sm btn-ghost"
-                onClick={() => updateParams({
-                  sortDir: sortDir === 'desc' ? 'asc' : 'desc'
-                })}
-                title={sortDir === 'desc' ? 'Newest first — click for oldest' : 'Oldest first — click for newest'}
-                style={{
-                  padding: '5px 8px',
-                  fontSize: 13,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4
-                }}
-              >
-                {sortDir === 'desc' ? '↓' : '↑'}
-              </button>
             </div>
 
             <div data-legend style={{ position: 'relative' }}>
@@ -417,9 +403,8 @@ function PipelineList() {
               className="btn btn-sm btn-ghost"
               onClick={refetch}
               title="Refresh deals"
-              style={{ padding: '5px 8px' }}
             >
-              ↻
+              ↻ Refresh
             </button>
           </div>
         }
