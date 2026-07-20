@@ -1044,6 +1044,37 @@ function DemoInfoTab({ deal }) {
   )
 }
 
+function plainTextToHtml(text) {
+  if (!text) return ''
+
+  // Split into paragraphs by double newline
+  const paragraphs = text.split(/\n\n+/)
+
+  return paragraphs.map(para => {
+    const lines = para.split('\n').filter(Boolean)
+
+    // Check if paragraph is a bullet list
+    const isList = lines.every(l =>
+      l.trim().startsWith('•') ||
+      l.trim().startsWith('-') ||
+      l.trim().startsWith('*')
+    )
+
+    if (isList) {
+      const items = lines.map(l =>
+        `<li style="margin-bottom:4px">${
+          l.replace(/^[\•\-\*]\s*/, '').trim()
+        }</li>`
+      ).join('')
+      return `<ul style="margin:0 0 12px;padding-left:20px">${items}</ul>`
+    }
+
+    // Regular paragraph
+    const content = lines.join('<br/>')
+    return `<p style="margin:0 0 12px;line-height:1.6">${content}</p>`
+  }).join('')
+}
+
 function SequenceTab({ emails, deal, onRetryGenerate }) {
   const typeLabel = {
     day1: 'Day 1 · Personalised Recap',
@@ -1262,12 +1293,16 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
             )}
             {email.body && (
               <div style={{
-                fontSize: 12, color: 'var(--ink-3)',
+                fontSize: 13,
+                color: 'var(--ink-2)',
                 lineHeight: 1.6,
                 maxHeight: expanded ? 'none' : 72,
-                overflow: 'hidden'
+                overflow: 'hidden',
+                fontFamily: 'inherit'
               }}
-                dangerouslySetInnerHTML={{ __html: email.body }}
+                dangerouslySetInnerHTML={{
+                  __html: plainTextToHtml(email.body)
+                }}
               />
             )}
             {email.body && (
