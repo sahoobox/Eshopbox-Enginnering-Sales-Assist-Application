@@ -3593,6 +3593,7 @@ app.get('/api/leads/:id', requireAuth, async (c) => {
 app.post('/api/leads/:id/disqualify', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
+    const user = c.get('user')
     const { reason } = await c.req.json().catch(() => ({}))
     const leadUpdates = {
       Lead_Status: 'Disqualified',
@@ -3601,6 +3602,13 @@ app.post('/api/leads/:id/disqualify', requireAuth, async (c) => {
     await updateLead(c.env, leadId, leadUpdates)
     // Patch leads cache in place so inbox reflects the new status without a full Zoho re-fetch
     await patchLeadInCache(c.env, leadId, leadUpdates)
+    await logLeadTimelineEvent(c.env, leadId, {
+      eventType: 'lead_disqualified',
+      description: `Lead disqualified by ${user.name || user.email}`,
+      actorName: user.name || user.email,
+      actorEmail: user.email,
+      metadata: { reason: reason || '' }
+    })
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: 'Failed to disqualify lead', details: err.message }, 500)
@@ -3752,8 +3760,8 @@ app.post('/api/leads/:id/notes', requireAuth, async (c) => {
     }
     await logLeadTimelineEvent(c.env, leadId, {
       eventType: 'note_added',
-      description: 'Note added',
-      actorName: user.name,
+      description: `Note added by ${user.name || user.email}: "${content.substring(0, 100)}${content.length > 100 ? '...' : ''}"`,
+      actorName: user.name || user.email,
       actorEmail: user.email,
     })
     return c.json({ success: true, note: { id, content, author_name: user.name, authorName: user.name, authorEmail: user.email, created_at: now } })
@@ -3937,6 +3945,14 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       action: 'lead_converted',
       details: { pipeline, demoScheduled },
       success: true
+    })
+
+    await logLeadTimelineEvent(c.env, leadId, {
+      eventType: 'lead_converted',
+      description: `Lead converted to deal by ${user.name || user.email}. Deal: ${dealPayload.Deal_Name}. Pipeline: ${pipeline}. Demo scheduled: ${demoScheduled ? 'Yes' : 'No'}`,
+      actorName: user.name || user.email,
+      actorEmail: user.email,
+      metadata: { dealId, pipeline, demoScheduled }
     })
 
     return c.json({ success: true, dealId, accountId, contactId, pipeline })
@@ -4135,6 +4151,14 @@ app.post('/api/leads/:id/merge', requireAuth, async (c) => {
     }
 
     try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch {}
+
+    await logLeadTimelineEvent(c.env, leadId, {
+      eventType: 'lead_merged',
+      description: `Lead merged by ${user.name || user.email}`,
+      actorName: user.name || user.email,
+      actorEmail: user.email,
+      metadata: { masterLeadId: masterLead.id, duplicateLeadId }
+    })
 
     return c.json({
       success: true,
@@ -4427,8 +4451,17 @@ app.post('/api/leads/:id/schedule-call', requireAuth, async (c) => {
 
 app.patch('/api/leads/:id/tasks/:taskId', requireAuth, async (c) => {
   try {
+    const leadId = c.req.param('id')
     const taskId = c.req.param('taskId')
+    const user = c.get('user')
     await updateTaskStatus(c.env, taskId, 'Completed')
+    await logLeadTimelineEvent(c.env, leadId, {
+      eventType: 'task_completed',
+      description: `Task completed by ${user.name || user.email}`,
+      actorName: user.name || user.email,
+      actorEmail: user.email,
+      metadata: { taskId }
+    })
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
@@ -4437,7 +4470,9 @@ app.patch('/api/leads/:id/tasks/:taskId', requireAuth, async (c) => {
 
 app.patch('/api/leads/:id/meeting/:meetingId/complete', requireAuth, async (c) => {
   try {
+    const leadId = c.req.param('id')
     const meetingId = c.req.param('meetingId')
+    const user = c.get('user')
     function msToZohoIST(ms) {
       const d = new Date(ms + (5.5 * 60 * 60 * 1000))
       const pad = n => String(n).padStart(2, '0')
@@ -4446,6 +4481,13 @@ app.patch('/api/leads/:id/meeting/:meetingId/complete', requireAuth, async (c) =
     const startMs = Date.now() - (2 * 60 * 1000)
     const endMs = Date.now() - (1 * 60 * 1000)
     await zohoAPI(c.env, 'PUT', `/Events/${meetingId}`, { data: [{ id: meetingId, Start_DateTime: msToZohoIST(startMs), End_DateTime: msToZohoIST(endMs) }] })
+    await logLeadTimelineEvent(c.env, leadId, {
+      eventType: 'meeting_completed',
+      description: `Meeting marked as done by ${user.name || user.email}`,
+      actorName: user.name || user.email,
+      actorEmail: user.email,
+      metadata: { meetingId }
+    })
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
@@ -4456,6 +4498,7 @@ app.patch('/api/leads/:id/call/:callId/complete', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
     const callId = c.req.param('callId')
+    const user = c.get('user')
     const callRes = await zohoAPI(c.env, 'GET', `/Calls/${callId}?fields=Subject,Call_Purpose,Call_Agenda,Description`)
     const callData = callRes?.data?.[0]
     function msToZohoIST(ms) {
@@ -4477,6 +4520,13 @@ app.patch('/api/leads/:id/call/:callId/complete', requireAuth, async (c) => {
         What_Id: leadId,
         '$se_module': 'Leads',
       }]
+    })
+    await logLeadTimelineEvent(c.env, leadId, {
+      eventType: 'call_completed',
+      description: `Call marked as completed by ${user.name || user.email}`,
+      actorName: user.name || user.email,
+      actorEmail: user.email,
+      metadata: { callId }
     })
     return c.json({ success: true })
   } catch (err) {
@@ -4888,12 +4938,20 @@ app.patch('/api/deals/:id/contact', requireAuth, async (c) => {
 app.patch('/api/leads/:id/fields', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
+    const user = c.get('user')
     const { phone, email, company, city, website } = await c.req.json()
     const fieldUpdates = { Phone: phone, Email: email, Company: company, City: city, Website: website }
     await zohoAPI(c.env, 'PUT', `/Leads/${leadId}`, {
       data: [{ id: leadId, ...fieldUpdates }]
     })
     await patchLeadInCache(c.env, leadId, fieldUpdates)
+    await logLeadTimelineEvent(c.env, leadId, {
+      eventType: 'fields_updated',
+      description: `Lead fields updated by ${user.name || user.email}`,
+      actorName: user.name || user.email,
+      actorEmail: user.email,
+      metadata: { fields: Object.keys(fieldUpdates).filter(k => fieldUpdates[k] !== undefined) }
+    })
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
