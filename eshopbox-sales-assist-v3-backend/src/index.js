@@ -3955,26 +3955,42 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       }
     ))
 
+    console.log('Zoho convert response:', JSON.stringify(convertRes))
+
+    // Check for success - handle both response shapes
     const convertData = convertRes?.data?.[0]
-    if (!convertData || convertData.code !== 'SUCCESS') {
+    let dealId, contactId, accountId
+
+    // Shape 1 - standard success response
+    if (convertData?.code === 'SUCCESS') {
+      dealId = convertData.details?.Deals?.id || convertData.details?.Deals
+      contactId = convertData.details?.Contacts?.id || convertData.details?.Contacts
+      accountId = convertData.details?.Accounts?.id || convertData.details?.Accounts
+    }
+    // Shape 2 - already converted, returns IDs directly
+    else if (convertData?.Deals || convertData?.Contacts) {
+      dealId = convertData?.Deals?.id || convertData?.Deals
+      contactId = convertData?.Contacts?.id || convertData?.Contacts
+      accountId = convertData?.Accounts?.id || convertData?.Accounts
+    }
+    // Also check top level response (not wrapped in data array)
+    else if (convertRes?.Deals || convertRes?.Contacts) {
+      dealId = convertRes?.Deals?.id || convertRes?.Deals
+      contactId = convertRes?.Contacts?.id || convertRes?.Contacts
+      accountId = convertRes?.Accounts?.id || convertRes?.Accounts
+    }
+
+    if (!dealId) {
       await logAction(c.env, {
         leadId,
         actorEmail: user.email,
         actorName: user.name,
         action: 'lead_conversion_failed',
-        details: { error: JSON.stringify(convertData) },
+        details: { error: JSON.stringify(convertRes) },
         success: false,
-        error: 'Native convert failed'
+        error: 'Could not extract dealId from Zoho response'
       })
-      return c.json({ error: 'Failed to convert lead', details: convertData }, 400)
-    }
-
-    const dealId = convertData.details?.Deals?.id
-    const contactId = convertData.details?.Contacts?.id
-    const accountId = convertData.details?.Accounts?.id
-
-    if (!dealId) {
-      return c.json({ error: 'Deal ID not returned from Zoho' }, 500)
+      return c.json({ error: 'Failed to convert lead', details: convertRes }, 400)
     }
 
     // 8. Write D1 lead_deal_mapping
