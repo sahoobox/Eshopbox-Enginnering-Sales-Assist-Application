@@ -369,7 +369,7 @@ export async function getAllLeads(env) {
   if (cached) return JSON.parse(cached)
 
   const criteria = encodeURIComponent(
-    '((Lead_Status:equals:Connected)OR(Lead_Status:equals:Connecting)OR(Lead_Status:equals:Bad Timing)OR(Lead_Status:equals:Converted))'
+    '((Lead_Status:equals:Connected)OR(Lead_Status:equals:Connecting)OR(Lead_Status:equals:Bad Timing))'
   )
 
   let allLeads = []

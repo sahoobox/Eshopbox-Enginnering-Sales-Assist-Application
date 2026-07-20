@@ -106,3 +106,24 @@ CREATE INDEX IF NOT EXISTS idx_ldm_lead_id
   ON lead_deal_mapping(lead_id);
 CREATE INDEX IF NOT EXISTS idx_ldm_email
   ON lead_deal_mapping(contact_email);
+
+CREATE TABLE IF NOT EXISTS action_log (
+  id TEXT PRIMARY KEY,
+  lead_id TEXT,
+  deal_id TEXT,
+  actor_email TEXT NOT NULL,
+  actor_name TEXT,
+  action TEXT NOT NULL,
+  details TEXT,
+  success INTEGER DEFAULT 1,
+  error TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_al_lead
+  ON action_log(lead_id);
+CREATE INDEX IF NOT EXISTS idx_al_deal
+  ON action_log(deal_id);
+CREATE INDEX IF NOT EXISTS idx_al_actor
+  ON action_log(actor_email);
+CREATE INDEX IF NOT EXISTS idx_al_created
+  ON action_log(created_at);

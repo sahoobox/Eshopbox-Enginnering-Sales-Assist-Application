@@ -31,6 +31,39 @@ async function patchLeadInCache(env, leadId, updates) {
   return patchLeadsInCache(env, [leadId], updates)
 }
 
+async function logAction(env, {
+  leadId = null,
+  dealId = null,
+  actorEmail,
+  actorName,
+  action,
+  details = {},
+  success = true,
+  error = null
+}) {
+  try {
+    await env.DB.prepare(`
+      INSERT INTO action_log
+      (id, lead_id, deal_id, actor_email, actor_name,
+       action, details, success, error, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      crypto.randomUUID(),
+      leadId,
+      dealId,
+      actorEmail,
+      actorName,
+      action,
+      JSON.stringify(details),
+      success ? 1 : 0,
+      error,
+      new Date().toISOString()
+    ).run()
+  } catch (e) {
+    console.error('Action log failed:', e)
+  }
+}
+
 const app = new Hono();
 
 app.use('*', cors({
@@ -490,6 +523,33 @@ app.post('/api/admin/force-logout', requireAuth, async (c) => {
   const timestamp = Date.now().toString()
   await c.env.TOKEN_CACHE.put('force_logout_after', timestamp)
   return c.json({ success: true, message: 'All sessions invalidated', timestamp })
+})
+
+app.get('/api/admin/action-log', requireAuth, async (c) => {
+  const user = c.get('user')
+  if (user.role !== 'admin') {
+    return c.json({ error: 'Unauthorized' }, 403)
+  }
+
+  const leadId = c.req.query('leadId')
+  const dealId = c.req.query('dealId')
+  const actorEmail = c.req.query('actor')
+  const limit = parseInt(c.req.query('limit') || '50')
+
+  let query = `SELECT * FROM action_log WHERE 1=1`
+  const params = []
+
+  if (leadId) { query += ` AND lead_id = ?`; params.push(leadId) }
+  if (dealId) { query += ` AND deal_id = ?`; params.push(dealId) }
+  if (actorEmail) { query += ` AND actor_email = ?`; params.push(actorEmail) }
+
+  query += ` ORDER BY created_at DESC LIMIT ?`
+  params.push(limit)
+
+  const { results } = await c.env.DB.prepare(query)
+    .bind(...params).all()
+
+  return c.json({ logs: results })
 })
 
 app.post('/api/admin/impersonate', requireAuth, async (c) => {
@@ -1614,6 +1674,14 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
         actorEmail: user.email,
       })
     }
+    await logAction(c.env, {
+      dealId,
+      actorEmail: user.email,
+      actorName: user.name,
+      action: 'stage_changed',
+      details: { stage, reason },
+      success: true
+    })
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
@@ -3556,6 +3624,9 @@ app.patch('/api/leads/:id/status', requireAuth, async (c) => {
   try {
     const token = await getAccessToken(c.env)
 
+    const currentLeadRes = await getLead(c.env, leadId)
+    const previousStatus = currentLeadRes?.data?.[0]?.Lead_Status || ''
+
     // 1. Update Lead_Status in Zoho
     const updateRes = await fetch(
       `https://www.zohoapis.com/crm/v2/Leads/${leadId}`,
@@ -3625,6 +3696,15 @@ app.patch('/api/leads/:id/status', requireAuth, async (c) => {
     // 5. Patch lead in KV cache — cache stores raw Zoho-shaped leads, so use the Zoho field name
     await patchLeadInCache(c.env, leadId, { Lead_Status: status })
 
+    await logAction(c.env, {
+      leadId,
+      actorEmail: user.email,
+      actorName: user.name,
+      action: 'status_changed',
+      details: { from: previousStatus, to: status, description },
+      success: true
+    })
+
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message || 'Failed to update status' }, 500)
@@ -3686,6 +3766,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
   const safeJson = async (res) => { const text = await res.text(); return text ? JSON.parse(text) : null }
 
   try {
+    const user = c.get('user')
     const leadId = c.req.param('id')
     const body = await c.req.json().catch(() => ({}))
     const { demoScheduled, demoScheduledDateTime } = body
@@ -3699,6 +3780,14 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
 
     if (!leadRes?.data?.[0]) return c.json({ error: 'Lead not found' }, 404)
     const lead = leadRes.data[0]
+
+    const leadStatus = lead.Lead_Status || ''
+    if (leadStatus === 'Converted') {
+      return c.json({
+        error: 'This lead has already been converted to a deal',
+        alreadyConverted: true
+      }, 400)
+    }
 
     const email = lead.Email || ''
     const company = lead.Company || ''
@@ -3839,6 +3928,16 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
     // 6. Clear caches
     try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch {}
     try { await c.env.TOKEN_CACHE.delete('v3_deals_cache') } catch {}
+
+    await logAction(c.env, {
+      leadId,
+      dealId,
+      actorEmail: user.email,
+      actorName: user.name,
+      action: 'lead_converted',
+      details: { pipeline, demoScheduled },
+      success: true
+    })
 
     return c.json({ success: true, dealId, accountId, contactId, pipeline })
   } catch (err) {
@@ -4223,6 +4322,14 @@ app.post('/api/leads/:id/meeting', requireAuth, async (c) => {
       actorEmail: user.email,
       metadata: { title: body.title, venue: body.venue },
     })
+    await logAction(c.env, {
+      leadId,
+      actorEmail: user.email,
+      actorName: user.name,
+      action: 'meeting_logged',
+      details: { title: body.title },
+      success: true
+    })
     return c.json({ success: true })
   } catch (err) {
     return c.json({ error: err.message }, 500)
@@ -4271,6 +4378,14 @@ app.post('/api/leads/:id/log-call', requireAuth, async (c) => {
       actorName: user.name,
       actorEmail: user.email,
       metadata: { purpose: body.callPurpose, result: body.callResult },
+    })
+    await logAction(c.env, {
+      leadId,
+      actorEmail: user.email,
+      actorName: user.name,
+      action: 'call_logged',
+      details: { purpose: body.callPurpose, duration: body.callTiming },
+      success: true
     })
     return c.json({ success: true })
   } catch (err) {
@@ -4577,6 +4692,14 @@ app.patch('/api/leads/:id/reassign', requireAuth, async (c) => {
       actorName: user.name,
       actorEmail: user.email,
       metadata: { newOwner: newOwnerName, newOwnerEmail },
+    })
+    await logAction(c.env, {
+      leadId,
+      actorEmail: user.email,
+      actorName: user.name,
+      action: 'lead_reassigned',
+      details: { toEmail: newOwnerEmail },
+      success: true
     })
     return c.json({ success: true })
   } catch (err) {

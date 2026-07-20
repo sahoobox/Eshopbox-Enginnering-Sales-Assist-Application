@@ -77,6 +77,11 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
       )
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
+        if (err.alreadyConverted) {
+          toast.error('This lead has already been converted to a deal')
+          onClose()
+          return
+        }
         toast.error(err.error || 'Conversion failed')
         setSaving(false)
         return
@@ -672,8 +677,17 @@ export default function LeadDetail() {
                 <button className="btn btn-sm btn-danger" onClick={() => setShowDisqualify(true)} disabled={disqualifying}>
                   {disqualifying ? 'Disqualifying…' : 'Disqualify'}
                 </button>
-                <button className="btn btn-sm btn-primary" onClick={() => setShowConvertModal(true)}>
-                  Convert to deal →
+                <button
+                  className="btn btn-sm btn-primary"
+                  onClick={() => setShowConvertModal(true)}
+                  disabled={lead.leadStatus === 'Converted'}
+                  title={lead.leadStatus === 'Converted' ? 'This lead has already been converted' : ''}
+                  style={{
+                    opacity: lead.leadStatus === 'Converted' ? 0.5 : 1,
+                    cursor: lead.leadStatus === 'Converted' ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {lead.leadStatus === 'Converted' ? '✓ Converted' : 'Convert to deal →'}
                 </button>
               </>
             )}
@@ -1012,8 +1026,19 @@ export default function LeadDetail() {
           <div className="card">
             <div className="ws-side-head"><h4>Conversion</h4></div>
             <div className="ws-side-body">
-              <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setShowConvertModal(true)}>
-                Convert to deal →
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowConvertModal(true)}
+                disabled={lead.leadStatus === 'Converted'}
+                title={lead.leadStatus === 'Converted' ? 'This lead has already been converted' : ''}
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  opacity: lead.leadStatus === 'Converted' ? 0.5 : 1,
+                  cursor: lead.leadStatus === 'Converted' ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {lead.leadStatus === 'Converted' ? '✓ Converted' : 'Convert to deal →'}
               </button>
               <div style={{ marginTop: 12 }}>
                 {dedup === null ? (
