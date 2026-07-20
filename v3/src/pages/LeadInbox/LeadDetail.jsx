@@ -77,12 +77,17 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
       )
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
+        if (err.alreadyExists) {
+          toast.error('A deal already exists for this lead — check All Deals')
+          onClose()
+          return
+        }
         if (err.alreadyConverted) {
           toast.error('This lead has already been converted to a deal')
           onClose()
           return
         }
-        toast.error(err.error || 'Conversion failed')
+        toast.error(err.error || 'Conversion failed — please try again')
         setSaving(false)
         return
       }

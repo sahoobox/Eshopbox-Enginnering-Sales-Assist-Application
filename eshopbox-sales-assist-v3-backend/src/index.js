@@ -3980,6 +3980,55 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       accountId = convertRes?.Accounts?.id || convertRes?.Accounts
     }
 
+    // Parse specific Zoho error codes for a helpful message
+    const zohoError = convertData?.data?.[0] || convertData
+    const zohoCode = zohoError?.code || convertData?.code
+    const zohoApiName = zohoError?.details?.api_name || ''
+
+    if (zohoCode === 'INVALID_DATA' && zohoApiName === 'account') {
+      // Account ID invalid — retry without account ID
+      console.log('Account ID invalid, retrying without account...')
+
+      const retryPayload = {
+        ...convertPayload,
+        data: [{
+          ...convertPayload.data[0],
+          Accounts: undefined
+        }]
+      }
+
+      const retryRes = await safeJson(await fetch(
+        `https://www.zohoapis.com/crm/v2/Leads/${leadId}/actions/convert`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(retryPayload)
+        }
+      ))
+      console.log('Retry response:', JSON.stringify(retryRes))
+
+      const retryData = retryRes?.data?.[0]
+      if (retryData?.code === 'SUCCESS') {
+        dealId = retryData.details?.Deals?.id || retryData.details?.Deals
+        contactId = retryData.details?.Contacts?.id || retryData.details?.Contacts
+        accountId = retryData.details?.Accounts?.id || retryData.details?.Accounts
+      }
+    }
+
+    if (!dealId && zohoCode === 'DUPLICATE_DATA') {
+      return c.json({
+        error: 'A deal already exists for this lead. Please check the Deals section.',
+        alreadyExists: true
+      }, 400)
+    }
+
+    if (!dealId && zohoCode === 'INVALID_DATA') {
+      return c.json({
+        error: `Conversion failed — invalid data for field: ${zohoApiName || 'unknown'}. Please contact admin.`,
+        details: convertRes
+      }, 400)
+    }
+
     if (!dealId) {
       await logAction(c.env, {
         leadId,
