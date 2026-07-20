@@ -3869,14 +3869,12 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       `https://www.zohoapis.com/crm/v2/Leads/${leadId}`,
       { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
     ))
+    const lead = leadRes?.data?.[0]
+    if (!lead) return c.json({ error: 'Lead not found' }, 404)
 
-    if (!leadRes?.data?.[0]) return c.json({ error: 'Lead not found' }, 404)
-    const lead = leadRes.data[0]
-
-    const leadStatus = lead.Lead_Status || ''
-    if (leadStatus === 'Converted') {
+    if (lead.Lead_Status === 'Converted') {
       return c.json({
-        error: 'This lead has already been converted to a deal',
+        error: 'This lead has already been converted',
         alreadyConverted: true
       }, 400)
     }
@@ -3885,118 +3883,110 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
     const company = lead.Company || ''
     const firstName = lead.First_Name || ''
     const lastName = lead.Last_Name || ''
-    const phone = lead.Phone || ''
     const volume = lead.How_many_orders_do_you_ship_in_a_month || ''
     const leadSource = lead.Lead_Source || ''
-    const ownerId = lead.Owner?.id || ''
+
+    // 2. Find existing Account
+    let existingAccountId = null
+    if (company) {
+      const accSearch = await safeJson(await fetch(
+        `https://www.zohoapis.com/crm/v2/Accounts/search?criteria=(Account_Name:equals:${encodeURIComponent(company)})&fields=id`,
+        { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
+      ))
+      existingAccountId = accSearch?.data?.[0]?.id || null
+    }
+
+    // 3. Find existing Contact
+    let existingContactId = null
+    if (email) {
+      const conSearch = await safeJson(await fetch(
+        `https://www.zohoapis.com/crm/v2/Contacts/search?criteria=(Email:equals:${encodeURIComponent(email)})&fields=id`,
+        { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
+      ))
+      existingContactId = conSearch?.data?.[0]?.id || null
+    }
+
+    // 4. Determine pipeline
     const pipeline = volume === 'More than 10,000 orders/month' ? 'Enterprise 2.0' : 'Mid-market'
 
-    // 2. Find or create Account
-    let accountId = ''
-    const accountSearchRes = await safeJson(await fetch(
-      `https://www.zohoapis.com/crm/v2/Accounts/search?criteria=(Account_Name:equals:${encodeURIComponent(company)})`,
-      { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
-    ))
+    // 5. Build deal name
+    const dealName = company || `${firstName} ${lastName}`.trim() || 'New Deal'
 
-    if (accountSearchRes?.data?.[0]) {
-      accountId = accountSearchRes.data[0].id
-    } else {
-      const accountCreate = await safeJson(await fetch(
-        'https://www.zohoapis.com/crm/v2/Accounts',
-        {
-          method: 'POST',
-          headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: [{ Account_Name: company, Phone: phone, Owner: { id: ownerId } }] })
-        }
-      ))
-      accountId = accountCreate?.data?.[0]?.details?.id || ''
-    }
-
-    // 3. Find or create Contact
-    let contactId = ''
-    const contactSearchRes = await safeJson(await fetch(
-      `https://www.zohoapis.com/crm/v2/Contacts/search?criteria=(Email:equals:${encodeURIComponent(email)})`,
-      { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
-    ))
-
-    if (contactSearchRes?.data?.[0]) {
-      contactId = contactSearchRes.data[0].id
-    } else {
-      const contactCreate = await safeJson(await fetch(
-        'https://www.zohoapis.com/crm/v2/Contacts',
-        {
-          method: 'POST',
-          headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: [{
-            First_Name: firstName,
-            Last_Name: lastName || company,
-            Email: email,
-            Phone: phone,
-            Account_Name: { id: accountId },
-            Owner: { id: ownerId }
-          }] })
-        }
-      ))
-      contactId = contactCreate?.data?.[0]?.details?.id || ''
-    }
-
-    // 4. Create Deal
-    const dealPayload = {
-      Deal_Name: company || (firstName + ' ' + lastName).trim() || 'New Deal',
-      Stage: 'Upcoming Demo',
-      Pipeline: pipeline,
-      Account_Name: { id: accountId },
-      Contact_Name: { id: contactId },
-      Owner: { id: ownerId },
-      How_many_orders_do_you_ship_in_a_month: volume,
-      Lead_Source: leadSource,
-      Layout: { id: '6483035000025962021' }
-    }
-    dealPayload.Demo_Scheduled = demoScheduled ? 'Yes' : 'No'
+    // 6. Format demo datetime for Zoho IST
+    let formattedDateTime = null
     if (demoScheduled && demoScheduledDateTime) {
       // Browser sends datetime-local ("2026-07-17T21:52"); Zoho needs an offset ("...+05:30")
-      dealPayload.Demo_Scheduled_Date_Time = demoScheduledDateTime.length === 16
+      formattedDateTime = demoScheduledDateTime.length === 16
         ? demoScheduledDateTime + ':00+05:30'
         : demoScheduledDateTime
     }
 
-    const dealRes = await safeJson(await fetch(
-      'https://www.zohoapis.com/crm/v2/Deals',
+    // 7. Call Zoho native convert
+    const convertPayload = {
+      data: [{
+        overwrite: true,
+        notify_lead_owner: false,
+        notify_new_entity_owner: false,
+        Deals: {
+          Deal_Name: dealName,
+          Stage: 'Upcoming Demo',
+          Closing_Date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          Pipeline: pipeline,
+          Lead_Type: 'Inbound',
+          Lifecycle_Stage: 'Opportunity',
+          CRM_Source: 'Zoho',
+          Demo_Scheduled: demoScheduled ? 'Yes' : 'No',
+          ...(formattedDateTime ? { Demo_Scheduled_Date_Time: formattedDateTime } : {}),
+          ...(volume ? { How_many_orders_do_you_ship_in_a_month: volume } : {}),
+          ...(leadSource ? { Lead_Source: leadSource } : {}),
+          Layout: { id: '6483035000025962021' }
+        },
+        ...(existingAccountId ? { Accounts: { id: existingAccountId } } : {}),
+        ...(existingContactId ? { Contacts: { id: existingContactId } } : {})
+      }]
+    }
+
+    const convertRes = await safeJson(await fetch(
+      `https://www.zohoapis.com/crm/v2/Leads/${leadId}/actions/convert`,
       {
         method: 'POST',
         headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: [dealPayload] })
+        body: JSON.stringify(convertPayload)
       }
     ))
 
-    const dealId = dealRes?.data?.[0]?.details?.id || ''
-    if (!dealId) {
-      return c.json({ error: 'Failed to create deal', details: dealRes }, 400)
+    const convertData = convertRes?.data?.[0]
+    if (!convertData || convertData.code !== 'SUCCESS') {
+      await logAction(c.env, {
+        leadId,
+        actorEmail: user.email,
+        actorName: user.name,
+        action: 'lead_conversion_failed',
+        details: { error: JSON.stringify(convertData) },
+        success: false,
+        error: 'Native convert failed'
+      })
+      return c.json({ error: 'Failed to convert lead', details: convertData }, 400)
     }
 
-    // 5. Mark lead as converted
-    await fetch(
-      `https://www.zohoapis.com/crm/v2/Leads/${leadId}`,
-      {
-        method: 'PUT',
-        headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: [{ Lead_Status: 'Converted' }] })
-      }
-    )
+    const dealId = convertData.details?.Deals?.id
+    const contactId = convertData.details?.Contacts?.id
+    const accountId = convertData.details?.Accounts?.id
 
-    // Store lead->deal mapping in D1
+    if (!dealId) {
+      return c.json({ error: 'Deal ID not returned from Zoho' }, 500)
+    }
+
+    // 8. Write D1 lead_deal_mapping
     await c.env.DB.prepare(
       `INSERT OR IGNORE INTO lead_deal_mapping
        (lead_id, deal_id, contact_email, created_at)
        VALUES (?, ?, ?, ?)`
     ).bind(
-      leadId,
-      dealId,
-      email,
-      new Date().toISOString()
+      leadId, dealId, email, new Date().toISOString()
     ).run()
 
-    // Copy D1 notes from lead to deal
+    // 9. Copy D1 notes from lead to deal
     const leadNotes = await c.env.DB.prepare(
       `SELECT * FROM deal_notes WHERE deal_id = ?`
     ).bind(leadId).all()
@@ -4017,9 +4007,18 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       ).run()
     }
 
-    // 6. Clear caches
+    // 10. Clear KV cache
     try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch {}
     try { await c.env.TOKEN_CACHE.delete('v3_deals_cache') } catch {}
+
+    // 11. Log to timeline and audit
+    await logLeadTimelineEvent(c.env, leadId, {
+      eventType: 'lead_converted',
+      description: `Lead converted to deal by ${user.name || user.email}. Deal: ${dealName}. Pipeline: ${pipeline}. Demo scheduled: ${demoScheduled ? 'Yes' : 'No'}`,
+      actorName: user.name || user.email,
+      actorEmail: user.email,
+      metadata: { dealId, pipeline, demoScheduled }
+    })
 
     await logAction(c.env, {
       leadId,
@@ -4027,19 +4026,12 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       actorEmail: user.email,
       actorName: user.name,
       action: 'lead_converted',
-      details: { pipeline, demoScheduled },
+      details: { pipeline, demoScheduled, dealName, demoScheduledDateTime: formattedDateTime },
       success: true
     })
 
-    await logLeadTimelineEvent(c.env, leadId, {
-      eventType: 'lead_converted',
-      description: `Lead converted to deal by ${user.name || user.email}. Deal: ${dealPayload.Deal_Name}. Pipeline: ${pipeline}. Demo scheduled: ${demoScheduled ? 'Yes' : 'No'}`,
-      actorName: user.name || user.email,
-      actorEmail: user.email,
-      metadata: { dealId, pipeline, demoScheduled }
-    })
-
-    return c.json({ success: true, dealId, accountId, contactId, pipeline })
+    // 12. Return success
+    return c.json({ success: true, dealId, contactId, accountId, pipeline })
   } catch (err) {
     console.error('Convert error:', err.message, err.stack)
     return c.json({ error: err.message }, 500)
