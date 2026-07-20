@@ -1755,7 +1755,15 @@ app.post('/api/deals/:id/demo-scheduled', requireAuth, async (c) => {
 app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
   const dealId = c.req.param('id')
   try {
-    const [d1Events, dealRes, stageHistory, notesRes, callsRes, meetingsRes, tasksRes] = await Promise.all([
+    const mapping = await c.env.DB.prepare(
+      `SELECT lead_id FROM lead_deal_mapping WHERE deal_id = ?`
+    ).bind(dealId).first()
+    const leadId = mapping?.lead_id || null
+
+    const [
+      d1Events, dealRes, stageHistory, notesRes, callsRes, meetingsRes, tasksRes,
+      leadTimelineRes, leadCallsRes, leadMeetingsRes, leadTasksRes, leadNotesRes
+    ] = await Promise.all([
       c.env.DB.prepare('SELECT * FROM deal_timeline WHERE deal_id = ? ORDER BY created_at DESC').bind(dealId).all(),
       getDeal(c.env, dealId),
       fetch(
@@ -1766,6 +1774,11 @@ app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
       getDealCalls(c.env, dealId),
       getDealMeetings(c.env, dealId),
       getDealTasks(c.env, dealId),
+      leadId ? c.env.DB.prepare('SELECT * FROM lead_timeline WHERE lead_id = ? ORDER BY created_at DESC').bind(leadId).all() : Promise.resolve({ results: [] }),
+      leadId ? getDealCalls(c.env, leadId) : Promise.resolve(null),
+      leadId ? getDealMeetings(c.env, leadId) : Promise.resolve(null),
+      leadId ? getDealTasks(c.env, leadId) : Promise.resolve(null),
+      leadId ? getLeadNotes(c.env, leadId) : Promise.resolve(null),
     ])
 
     const zohoEvents = (stageHistory?.data || []).map(s => ({
@@ -1869,6 +1882,72 @@ app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
     const dedupedMeetingEvents = meetingEvents.filter(e => !isZohoDuplicate(e))
     const dedupedNotesEvents   = notesEvents.filter(e => !isZohoDuplicate(e))
 
+    // Lead-side history (pre-conversion) — same shape/dedup approach as the deal-side merge above
+    const leadTimelineMapped = (leadTimelineRes.results || []).map(e => ({ ...e, source: 'lead' }))
+
+    const leadCallEvents = (leadCallsRes?.data || []).map(cl => ({
+      id: 'leadcall_' + cl.id,
+      event_type: cl.Call_Status === 'Scheduled' ? 'call_scheduled' : 'call_logged',
+      description: `Call: ${cl.Subject || cl.Call_Purpose || 'Call'} — ${cl.Call_Status || ''}`,
+      actor_name: cl.Created_By?.name || 'Zoho CRM',
+      actor_email: '',
+      metadata: JSON.stringify({ purpose: cl.Call_Purpose, result: cl.Call_Result }),
+      created_at: cl.Created_Time || cl.Call_Start_Time,
+      source: 'lead'
+    }))
+
+    const leadMeetingEvents = (leadMeetingsRes?.data || []).map(m => ({
+      id: 'leadmeeting_' + m.id,
+      event_type: 'meeting_created',
+      description: `Meeting: ${m.Event_Title || 'Meeting'} — ${m.Venue || ''}`,
+      actor_name: m.Created_By?.name || 'Zoho CRM',
+      actor_email: '',
+      metadata: JSON.stringify({ venue: m.Venue }),
+      created_at: m.Created_Time || m.Start_DateTime,
+      source: 'lead'
+    }))
+
+    const leadTaskEvents = (leadTasksRes?.data || []).map(t => ({
+      id: 'leadtask_' + t.id,
+      event_type: t.Status === 'Completed' ? 'task_completed' : 'task_created',
+      description: `Task: ${t.Subject || 'Task'} — ${t.Status || ''}`,
+      actor_name: t.Owner?.name || 'Zoho CRM',
+      actor_email: '',
+      metadata: JSON.stringify({ dueDate: t.Due_Date }),
+      created_at: t.Created_Time,
+      source: 'lead'
+    }))
+
+    const leadNoteEvents = (leadNotesRes?.data || []).map(n => {
+      const rawNote = n.Note_Content || n.Note_Title || ''
+      const strippedNote = rawNote.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+      return {
+        id: 'leadnote_' + n.id,
+        event_type: 'note_added',
+        description: `Note: ${strippedNote.slice(0, 80)}${strippedNote.length > 80 ? '...' : ''}`,
+        actor_name: n.Created_By?.name || 'Zoho CRM',
+        actor_email: '',
+        metadata: JSON.stringify({}),
+        created_at: n.Created_Time,
+        source: 'lead'
+      }
+    })
+
+    const leadFingerprints = new Set(
+      leadTimelineMapped.map(e => `${e.event_type}_${(e.created_at || '').slice(0, 16)}`)
+    )
+
+    function isLeadZohoDuplicate(zohoEvent) {
+      const minute = (zohoEvent.created_at || '').slice(0, 16)
+      const d1Types = zohoToD1Type[zohoEvent.event_type] || []
+      return d1Types.some(t => leadFingerprints.has(`${t}_${minute}`))
+    }
+
+    const dedupedLeadTaskEvents    = leadTaskEvents.filter(e => !isLeadZohoDuplicate(e))
+    const dedupedLeadCallEvents    = leadCallEvents.filter(e => !isLeadZohoDuplicate(e))
+    const dedupedLeadMeetingEvents = leadMeetingEvents.filter(e => !isLeadZohoDuplicate(e))
+    const dedupedLeadNoteEvents    = leadNoteEvents.filter(e => !isLeadZohoDuplicate(e))
+
     const merged = [
       ...d1Mapped,
       ...zohoEvents,
@@ -1876,6 +1955,11 @@ app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
       ...dedupedCallEvents,
       ...dedupedMeetingEvents,
       ...dedupedNotesEvents,
+      ...leadTimelineMapped,
+      ...dedupedLeadTaskEvents,
+      ...dedupedLeadCallEvents,
+      ...dedupedLeadMeetingEvents,
+      ...dedupedLeadNoteEvents,
       dealCreatedEvent
     ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 

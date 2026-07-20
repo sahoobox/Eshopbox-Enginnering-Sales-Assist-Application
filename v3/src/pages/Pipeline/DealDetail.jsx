@@ -525,6 +525,9 @@ function TimelineTab({ dealId }) {
                   {event.source === 'salesassist' && (
                     <span style={{ marginLeft: 6, fontSize: 10, background: '#F0FFF4', color: '#2F9E44', padding: '1px 6px', borderRadius: 10, fontWeight: 600 }}>Sales Assist</span>
                   )}
+                  {event.source === 'lead' && (
+                    <span style={{ marginLeft: 6, fontSize: 10, background: '#FFF7ED', color: '#C2410C', padding: '1px 6px', borderRadius: 10, fontWeight: 600 }}>From Lead</span>
+                  )}
                 </div>
               )}
               <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
