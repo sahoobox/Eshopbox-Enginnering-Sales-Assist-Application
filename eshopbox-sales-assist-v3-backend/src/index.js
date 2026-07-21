@@ -3862,6 +3862,21 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
     const leadId = c.req.param('id')
     const body = await c.req.json().catch(() => ({}))
     const { demoScheduled, demoScheduledDateTime } = body
+
+    if (!demoScheduled) {
+      return c.json({
+        error: 'Demo must be scheduled before converting a lead to a deal',
+        demoRequired: true
+      }, 400)
+    }
+
+    if (!demoScheduledDateTime) {
+      return c.json({
+        error: 'Demo date and time is required',
+        demoRequired: true
+      }, 400)
+    }
+
     const token = await getAccessToken(c.env)
 
     // 1. Get lead details

@@ -57,7 +57,7 @@ const CALL_RESULT_OPTIONS = [
 function ConvertLeadModal({ lead, onClose, onSuccess }) {
   const { authFetch } = useAuth()
   const [step, setStep] = useState('question')
-  // 'question' | 'datetime' | 'warning'
+  // 'question' | 'datetime' | 'blocked'
   const [dateTime, setDateTime] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -85,6 +85,12 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
         if (err.alreadyConverted) {
           toast.error('This lead has already been converted to a deal')
           onClose()
+          return
+        }
+        if (err.demoRequired) {
+          toast.error('Demo must be scheduled before converting')
+          setStep('blocked')
+          setSaving(false)
           return
         }
         toast.error(err.error || 'Conversion failed — please try again')
@@ -126,8 +132,9 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
                 marginBottom: 20,
                 lineHeight: 1.6
               }}>
-                Converting <strong>{lead.company || lead.fullName}</strong> to
-                a deal. Has the demo been scheduled?
+                To convert this lead to a deal, you must
+                first schedule a demo. Has the demo been
+                scheduled?
               </p>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button
@@ -135,12 +142,12 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
                   style={{ flex: 1 }}
                   onClick={() => setStep('datetime')}
                 >
-                  ✓ Yes, scheduled
+                  Yes, schedule demo
                 </button>
                 <button
                   className="btn"
                   style={{ flex: 1 }}
-                  onClick={() => setStep('warning')}
+                  onClick={() => setStep('blocked')}
                 >
                   Not yet
                 </button>
@@ -205,33 +212,39 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
           </>
         )}
 
-        {/* STEP 3 — Warning: no demo scheduled */}
-        {step === 'warning' && (
+        {/* STEP 3 — Blocked: no demo scheduled */}
+        {step === 'blocked' && (
           <>
             <div className="modal-head">
-              <h3>No Demo Scheduled</h3>
+              <h3>Demo Not Scheduled</h3>
               <button className="btn-close" onClick={onClose}>✕</button>
             </div>
             <div className="modal-body">
-              <p style={{
-                fontSize: 14,
-                color: 'var(--ink-2)',
-                marginBottom: 12,
-                lineHeight: 1.6
-              }}>
-                You're converting without a scheduled demo date.
-                The deal will be created in
-                <strong> Upcoming Demo</strong> stage.
-              </p>
               <div style={{
-                fontSize: 13,
-                color: 'var(--ink-3)',
-                background: 'var(--surface-2)',
-                padding: '10px 14px',
+                background: 'var(--danger-bg)',
+                border: '1px solid var(--danger)',
                 borderRadius: 8,
-                lineHeight: 1.5
+                padding: '14px 16px',
+                marginBottom: 16
               }}>
-                Are you sure you want to continue without scheduling?
+                <p style={{
+                  fontSize: 14,
+                  color: 'var(--danger)',
+                  fontWeight: 600,
+                  marginBottom: 6
+                }}>
+                  Cannot convert without a scheduled demo
+                </p>
+                <p style={{
+                  fontSize: 13,
+                  color: 'var(--ink-2)',
+                  lineHeight: 1.6
+                }}>
+                  You must schedule a demo with this
+                  prospect before converting the lead
+                  to a deal. Please schedule a demo
+                  first and then convert.
+                </p>
               </div>
             </div>
             <div className="modal-foot">
@@ -240,14 +253,7 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
                 ← Go back
               </button>
               <button className="btn" onClick={onClose}>
-                Cancel
-              </button>
-              <button
-                className="btn btn-danger"
-                disabled={saving}
-                onClick={() => doConvert(false, null)}
-              >
-                {saving ? 'Converting...' : 'Convert anyway'}
+                Close
               </button>
             </div>
           </>
