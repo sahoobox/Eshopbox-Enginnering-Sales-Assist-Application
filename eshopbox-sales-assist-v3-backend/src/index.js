@@ -297,7 +297,7 @@ score: (() => {
     productType: Array.isArray(d.What_type_of_products_do_you_sell)
       ? d.What_type_of_products_do_you_sell.join(', ')
       : d.What_type_of_products_do_you_sell || '',
-    demoDate: d.Demo_Date || d.Created_Time?.split('T')[0] || '',
+    demoDate: d.Demo_Date || '',
     demoScheduled: d.Demo_Scheduled || null,
     demoScheduledDateTime: d.Demo_Scheduled_Date_Time || null,
     stageChangedOn: d.Modified_Time?.split('T')[0] || '',

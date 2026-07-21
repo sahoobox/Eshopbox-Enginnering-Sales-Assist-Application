@@ -54,7 +54,7 @@ function matchSingle(deal, f) {
     case 'orderVolume': return f.values.includes(deal.orderVolume)
     case 'saLogged':    return f.values.includes(deal.saLogged ? 'Yes' : 'No')
     case 'demoDate': {
-      if (!deal.demoDate) return false
+      if (!deal.demoDate || !deal.saLogged) return false
       const d = new Date(deal.demoDate)
       const from = f.dateFrom ? new Date(f.dateFrom) : null
       const to   = f.dateTo   ? new Date(f.dateTo + 'T23:59:59') : null

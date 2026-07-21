@@ -50,7 +50,7 @@ function mapZohoDeal(d) {
     orderVolume: d['How_many_orders_do_you_ship_in_a_month'] || '',
     modifiedTime: d.Modified_Time || '',
     lostReason: d.Lost_Reason || '',
-    demoDate: d.Demo_Date || d.Created_Time?.split('T')[0] || '',
+    demoDate: d.Demo_Date || '',
     stageChangedOn: d.Modified_Time?.split('T')[0] || '',
     createdAt: d.Created_Time || '',
     tasks: [],
