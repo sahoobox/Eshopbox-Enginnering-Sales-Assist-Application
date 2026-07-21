@@ -163,7 +163,7 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
         {step === 'datetime' && (
           <>
             <div className="modal-head">
-              <h3>Schedule Demo</h3>
+              <h3>Convert to Deal</h3>
               <button className="btn-close" onClick={onClose}>✕</button>
             </div>
             <div className="modal-body">
