@@ -71,6 +71,26 @@ export default function DealCard({ deal }) {
               {flagCount} flag{flagCount > 1 ? 's' : ''}
             </span>
           )}
+          {deal.demoScheduledDateTime && (
+            <span style={{
+              fontSize: 10,
+              background: 'var(--info-bg)',
+              color: 'var(--info)',
+              padding: '2px 6px',
+              borderRadius: 4,
+              fontWeight: 500,
+              whiteSpace: 'nowrap'
+            }}>
+              Demo: {new Date(deal.demoScheduledDateTime)
+                .toLocaleDateString('en-IN', {
+                  day: '2-digit',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true
+                })}
+            </span>
+          )}
         </div>
 
         {/* Footer: owner + days */}
