@@ -132,9 +132,7 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
                 marginBottom: 20,
                 lineHeight: 1.6
               }}>
-                To convert this lead to a deal, you must
-                first schedule a demo. Has the demo been
-                scheduled?
+                Is the demo scheduled?
               </p>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button
@@ -142,7 +140,7 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
                   style={{ flex: 1 }}
                   onClick={() => setStep('datetime')}
                 >
-                  Yes, schedule demo
+                  Yes, it's scheduled
                 </button>
                 <button
                   className="btn"
@@ -175,12 +173,13 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
                 marginBottom: 16,
                 lineHeight: 1.6
               }}>
-                Select the demo date and time:
+                When is the demo scheduled with this brand?
               </p>
               <input
                 type="datetime-local"
                 value={dateTime}
                 onChange={e => setDateTime(e.target.value)}
+                onClick={e => e.target.showPicker?.()}
                 style={{
                   width: '100%',
                   padding: '10px 12px',
@@ -189,7 +188,8 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
                   fontSize: 14,
                   color: 'var(--ink)',
                   background: 'var(--surface)',
-                  outline: 'none'
+                  outline: 'none',
+                  cursor: 'pointer'
                 }}
               />
             </div>
