@@ -429,6 +429,67 @@ app.post('/auth/invite', requireAuth, async (c) => {
   }
 });
 
+app.post('/auth/invites/:id/resend', requireAuth, async (c) => {
+  const user = c.get('user')
+  if (!['admin', 'lead-midmarket', 'lead-enterprise']
+    .includes(user?.role)) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+
+  const inviteId = c.req.param('id')
+
+  // Get existing invite
+  const invite = await c.env.DB.prepare(
+    'SELECT * FROM invites WHERE id = ? AND accepted = 0'
+  ).bind(inviteId).first()
+
+  if (!invite) {
+    return c.json({ error: 'Invite not found' }, 404)
+  }
+
+  // Update expiry to 7 days from now
+  const newExpiry = new Date(
+    Date.now() + 7 * 24 * 60 * 60 * 1000
+  ).toISOString()
+
+  await c.env.DB.prepare(
+    'UPDATE invites SET expires_at = ? WHERE id = ?'
+  ).bind(newExpiry, inviteId).run()
+
+  // Generate new invite link
+  const inviteLink = `${c.env.FRONTEND_URL}/accept-invite?token=${invite.token}`
+
+  return c.json({
+    success: true,
+    inviteLink,
+    expiresAt: newExpiry
+  })
+})
+
+app.delete('/auth/invites/:id', requireAuth, async (c) => {
+  const user = c.get('user')
+  if (!['admin', 'lead-midmarket', 'lead-enterprise']
+    .includes(user?.role)) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+
+  const inviteId = c.req.param('id')
+
+  const invite = await c.env.DB.prepare(
+    'SELECT * FROM invites WHERE id = ? AND accepted = 0'
+  ).bind(inviteId).first()
+
+  if (!invite) {
+    return c.json({ error: 'Invite not found' }, 404)
+  }
+
+  await c.env.DB.prepare(
+    'DELETE FROM invites WHERE id = ?'
+  ).bind(inviteId).run()
+
+  return c.json({ success: true })
+})
+
 app.post('/auth/accept-invite', async (c) => {
   try {
     const { token, password, name } = await c.req.json();

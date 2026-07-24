@@ -165,6 +165,44 @@ function TeamTab() {
     } catch { toast.error('Network error') }
   }
 
+  async function handleResendInvite(inviteId, email) {
+    try {
+      const res = await authFetch(
+        `/auth/invites/${inviteId}/resend`,
+        { method: 'POST' }
+      )
+      const data = await res.json()
+      if (data.success) {
+        await navigator.clipboard.writeText(data.inviteLink)
+        toast.success(`Invite resent for ${email} — link copied to clipboard`)
+        fetchTeam()
+      } else {
+        toast.error(data.error || 'Failed to resend invite')
+      }
+    } catch (err) {
+      toast.error('Failed to resend invite')
+    }
+  }
+
+  async function handleDeleteInvite(inviteId, email) {
+    if (!confirm(`Cancel invite for ${email}?`)) return
+    try {
+      const res = await authFetch(
+        `/auth/invites/${inviteId}`,
+        { method: 'DELETE' }
+      )
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`Invite cancelled for ${email}`)
+        fetchTeam()
+      } else {
+        toast.error(data.error || 'Failed to cancel invite')
+      }
+    } catch (err) {
+      toast.error('Failed to cancel invite')
+    }
+  }
+
   const ROLE_PILL = {
     [ROLES.MDE]: 'pill-info',
     [ROLES.AE]: 'pill-purple',
@@ -250,7 +288,7 @@ function TeamTab() {
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="ws-side-head"><h4>Pending invites · {invites.length}</h4></div>
           <table className="t">
-            <thead><tr><th>Email</th><th>Role</th><th>Invited by</th><th>Expires</th></tr></thead>
+            <thead><tr><th>Email</th><th>Role</th><th>Invited by</th><th>Expires</th><th>Actions</th></tr></thead>
             <tbody>
               {invites.map(inv => (
                 <tr key={inv.id}>
@@ -259,6 +297,24 @@ function TeamTab() {
                   <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{inv.invited_by}</td>
                   <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>
                     {new Date(inv.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        className="btn btn-sm btn-ghost"
+                        onClick={() => handleResendInvite(inv.id, inv.email)}
+                        title="Resend invite"
+                      >
+                        ↻ Resend
+                      </button>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => handleDeleteInvite(inv.id, inv.email)}
+                        title="Cancel invite"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
