@@ -490,6 +490,31 @@ app.delete('/auth/invites/:id', requireAuth, async (c) => {
   return c.json({ success: true })
 })
 
+app.get('/auth/invite-info', async (c) => {
+  const token = c.req.query('token')
+  if (!token) return c.json({ error: 'Token required' }, 400)
+
+  const invite = await c.env.DB.prepare(
+    `SELECT email, role, expires_at
+     FROM invites
+     WHERE token = ? AND accepted = 0`
+  ).bind(token).first()
+
+  if (!invite) {
+    return c.json({ error: 'Invalid or expired invite' }, 404)
+  }
+
+  if (new Date(invite.expires_at) < new Date()) {
+    return c.json({ error: 'This invite has expired. Please ask for a new invite.' }, 410)
+  }
+
+  return c.json({
+    email: invite.email,
+    role: invite.role,
+    expiresAt: invite.expires_at
+  })
+})
+
 app.post('/auth/accept-invite', async (c) => {
   try {
     const { token, password, name } = await c.req.json();

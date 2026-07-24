@@ -4,6 +4,7 @@ import { useAuth, ROLES } from './context/AuthContext'
 import Sidebar from './components/layout/Sidebar'
 import { useDeals } from './hooks/useDeals'
 import Login from './pages/Auth/Login'
+import AcceptInvite from './pages/Auth/AcceptInvite'
 import Pipeline from './pages/Pipeline'
 import LeadDetail from './pages/LeadInbox/LeadDetail'
 import DemoForm from './pages/DemoForm'
@@ -177,6 +178,10 @@ export default function App() {
         <Route
           path="/login"
           element={user ? <Navigate to="/" replace /> : <Login />}
+        />
+        <Route
+          path="/accept-invite"
+          element={<AcceptInvite />}
         />
         <Route
           path="/zoho-callback"
