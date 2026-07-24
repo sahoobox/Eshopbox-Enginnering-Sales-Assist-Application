@@ -1075,6 +1075,16 @@ function plainTextToHtml(text) {
   }).join('')
 }
 
+function formatEmailDateTime(dateStr) {
+  if (!dateStr) return ''
+  try {
+    return new Date(dateStr).toLocaleString('en-IN', {
+      day: '2-digit', month: 'short', year: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: true
+    })
+  } catch { return dateStr }
+}
+
 function SequenceTab({ emails, deal, onRetryGenerate }) {
   const typeLabel = {
     day1: 'Day 1 · Personalised Recap',
@@ -1126,7 +1136,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
   function EmailCard({ email }) {
     const { authFetch, user } = useAuth()
     const isDev = user?.email === 'satyanarayan.sahoo@eshopbox.com'
-    const [expanded, setExpanded] = useState(false)
+    const [expanded, setExpanded] = useState(true)
     const [creating, setCreating] = useState(false)
     const [draftCreated, setDraftCreated] = useState(!!email.gmail_draft_id)
     const [gmailDraftId, setGmailDraftId] = useState(email.gmail_draft_id || null)
@@ -1250,7 +1260,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
               </div>
               {email.scheduled_for && (
                 <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
-                  Scheduled: {formatDate(email.scheduled_for)}
+                  Scheduled: {formatEmailDateTime(email.scheduled_for)}
                 </div>
               )}
             </div>
@@ -1477,7 +1487,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
             justifyContent: 'space-between'
           }}>
             <span style={{ fontSize: 12, color: '#2F9E44', fontWeight: 500 }}>
-              ✓ Sent on {formatDate(email.sent_at)}
+              ✓ Sent on {formatEmailDateTime(email.sent_at)}
             </span>
             {isDev && (
               <button
@@ -1701,7 +1711,7 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
                   <span className="pill pill-ok">sent</span>
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--ok)', marginTop: 4 }}>
-                  ✓ Sent{emailData.sent_at ? ` on ${formatDate(emailData.sent_at)}` : ''}
+                  ✓ Sent{emailData.sent_at ? ` on ${formatEmailDateTime(emailData.sent_at)}` : ''}
                 </div>
               </div>
             )

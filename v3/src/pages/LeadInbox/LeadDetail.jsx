@@ -21,7 +21,10 @@ function formatDateTime(dt) {
 function formatSentDate(dateStr) {
   if (!dateStr) return '—'
   try {
-    return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
+    return new Date(dateStr).toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: true
+    })
   } catch { return dateStr }
 }
 
@@ -438,7 +441,12 @@ export default function LeadDetail() {
     setLeadEmailsLoading(true)
     authFetch(`/api/leads/${lead.id}/emails`)
       .then(r => r.json())
-      .then(d => setLeadEmails(d))
+      .then(d => {
+        setLeadEmails(d)
+        ;(d.mails || []).forEach(e => {
+          if (!emailBodies[e.id]) handleExpand(e.id)
+        })
+      })
       .catch(() => setLeadEmails({ mails: [], drafts: [], scheduled: [] }))
       .finally(() => setLeadEmailsLoading(false))
   }, [tab, lead?.id])
@@ -751,7 +759,7 @@ export default function LeadDetail() {
                   const dayLabel = DAY_LABELS[i] || `Day ${i + 1}`
                   const dayHeading = DAY_HEADINGS[dayLabel] || ''
                   const dayCircle = dayLabel.replace('Day ', 'D')
-                  const isExpanded = expandedEmails[e.id] || false
+                  const isExpanded = expandedEmails[e.id] !== false
 
                   return (
                     <div key={e.id} style={{
