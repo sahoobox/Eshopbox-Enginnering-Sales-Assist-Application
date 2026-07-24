@@ -128,6 +128,19 @@ export default function DealDetail({ dealId }) {
             {deal.flags.length} flag{deal.flags.length > 1 ? 's' : ''}
           </span>
         )}
+        {deal.leadSource && (
+          <span style={{
+            fontSize: 11,
+            background: 'var(--surface-2)',
+            color: 'var(--ink-2)',
+            padding: '2px 8px',
+            borderRadius: 4,
+            fontWeight: 500,
+            border: '1px solid var(--line)'
+          }}>
+            {deal.leadSource}
+          </span>
+        )}
         <div className="hdr-meta">
           {!isTerminal && (
             <>
@@ -356,6 +369,30 @@ export default function DealDetail({ dealId }) {
                   {deal.pipeline === 'Enterprise 2.0' ? 'Enterprise' : 'Mid-market'}
                 </span>
               </div>
+              {deal.leadSource && (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px 0',
+                  borderBottom: '1px solid var(--line)'
+                }}>
+                  <span style={{
+                    fontSize: 12,
+                    color: 'var(--ink-3)',
+                    fontWeight: 500
+                  }}>
+                    Lead Source
+                  </span>
+                  <span style={{
+                    fontSize: 12,
+                    color: 'var(--ink)',
+                    fontWeight: 500
+                  }}>
+                    {deal.leadSource}
+                  </span>
+                </div>
+              )}
               {[
                 { k: 'Solution', v: deal.solutionInterest },
                 { k: 'Volume', v: deal.orderVolume },
