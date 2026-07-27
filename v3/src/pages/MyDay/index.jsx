@@ -11,6 +11,7 @@ const MDE_EMAILS = [
   'mriganki.srivastava@eshopbox.com',
   'shubham.kumar@eshopbox.com',
   'raghwendra.kumar@eshopbox.com',
+  'arihant.sharma@eshopbox.com',
 ]
 
 const AE_EMAILS = [

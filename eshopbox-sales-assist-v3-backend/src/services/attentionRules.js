@@ -2,6 +2,7 @@ const MDE_REPS = [
   'sriya.komal@eshopbox.com',
   'mriganki.srivastava@eshopbox.com',
   'shubham.kumar@eshopbox.com',
+  'arihant.sharma@eshopbox.com',
 ]
 const AE_REPS = [
   'taufeeq.ahmad@eshopbox.com',
