@@ -11,7 +11,7 @@ export default function ApiLog() {
   const [summary, setSummary] = useState([])
   const [loading, setLoading] = useState(true)
   const [service, setService] = useState('all')
-  const [successFilter, setSuccessFilter] = useState('all')
+  const [successFilter, setSuccessFilter] = useState('false')
 
   // Guard — only Satya can access
   useEffect(() => {

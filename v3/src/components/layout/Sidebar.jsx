@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth, ROLES, ROLE_LABELS } from '../../context/AuthContext'
 
@@ -90,14 +90,30 @@ function initials(name = '') {
 }
 
 export default function Sidebar({ counts = {} }) {
-  const { user, role, devRole, setDevRole, logout } = useAuth()
+  const { user, role, devRole, setDevRole, logout, authFetch } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [apiFailures, setApiFailures] = useState(0)
+
+  useEffect(() => {
+    if (user?.email !== 'satyanarayan.sahoo@eshopbox.com') return
+    authFetch('/api/admin/api-log?success=false&limit=200')
+      .then(r => r.json())
+      .then(d => setApiFailures(d.total || d.logs?.length || 0))
+      .catch(() => {})
+  }, [user])
 
   const navItems = getNavItems(role, counts)
   if (user?.email === 'satyanarayan.sahoo@eshopbox.com') {
-    navItems.push({ id: 'api-log', label: 'API Logs', path: '/admin/api-log', section: 'Admin' })
+    navItems.push({
+      id: 'api-log',
+      label: 'API Logs',
+      path: '/admin/api-log',
+      section: 'Admin',
+      count: apiFailures,
+      badge: apiFailures > 0 ? 'danger' : null,
+    })
   }
 
   // Group nav items by section

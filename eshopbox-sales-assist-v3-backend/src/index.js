@@ -109,6 +109,44 @@ async function logApiCall(env, {
   }
 }
 
+function checkZohoResponse(responseBody) {
+  if (!responseBody) return {
+    success: false,
+    code: 'NO_RESPONSE',
+    message: 'Empty response'
+  }
+
+  const data = responseBody.data
+  if (Array.isArray(data) && data.length > 0) {
+    const first = data[0]
+    const code = first.code || ''
+    const status = first.status || ''
+    const message = first.message || ''
+
+    if (status === 'error' ||
+        code === 'INVALID_DATA' ||
+        code === 'MANDATORY_NOT_FOUND' ||
+        code === 'DUPLICATE_DATA' ||
+        code === 'DEPENDENT_FIELD_MISSING') {
+      return { success: false, code, message }
+    }
+
+    if (code === 'SUCCESS' || status === 'success') {
+      return { success: true, code, message }
+    }
+  }
+
+  if (responseBody.code && responseBody.status === 'error') {
+    return {
+      success: false,
+      code: responseBody.code,
+      message: responseBody.message || ''
+    }
+  }
+
+  return { success: true, code: 'SUCCESS', message: '' }
+}
+
 const app = new Hono();
 
 app.use('*', cors({
@@ -1781,6 +1819,7 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
     if (stage === 'On Hold') payload.On_Hold_Reason = reason
     const stageT0 = Date.now()
     const stageResult = await updateDeal(c.env, dealId, payload)
+    const stageZohoResult = checkZohoResponse(stageResult)
     await logApiCall(c.env, {
       service: 'zoho',
       endpoint: `/Deals/${dealId}`,
@@ -1789,8 +1828,8 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
       actorEmail: user.email,
       actorName: user.name,
       requestSummary: 'Update deal stage to ' + stage,
-      success: !!stageResult,
-      errorMessage: stageResult ? null : 'Zoho API returned no result',
+      success: stageZohoResult.success,
+      errorMessage: stageZohoResult.success ? null : stageZohoResult.code + ': ' + stageZohoResult.message,
       durationMs: Date.now() - stageT0
     })
     await c.env.TOKEN_CACHE.delete('v3_deals_cache')
@@ -1849,6 +1888,7 @@ app.post('/api/deals/:id/stage', requireAuth, async (c) => {
     }
     const stageT0 = Date.now()
     const stageResult = await updateDeal(c.env, dealId, { Stage: stage })
+    const stageZohoResult = checkZohoResponse(stageResult)
     await logApiCall(c.env, {
       service: 'zoho',
       endpoint: `/Deals/${dealId}`,
@@ -1857,8 +1897,8 @@ app.post('/api/deals/:id/stage', requireAuth, async (c) => {
       actorEmail: user?.email || null,
       actorName: user?.name || null,
       requestSummary: 'Update deal stage to ' + stage,
-      success: !!stageResult,
-      errorMessage: stageResult ? null : 'Zoho API returned no result',
+      success: stageZohoResult.success,
+      errorMessage: stageZohoResult.success ? null : stageZohoResult.code + ': ' + stageZohoResult.message,
       durationMs: Date.now() - stageT0
     })
     await c.env.TOKEN_CACHE.delete('v3_deals_cache')
@@ -4018,6 +4058,8 @@ app.patch('/api/leads/:id/status', requireAuth, async (c) => {
         })
       }
     )
+    const updateBody = await updateRes.json().catch(() => null)
+    const updateResult = checkZohoResponse(updateBody)
     await logApiCall(c.env, {
       service: 'zoho',
       endpoint: `/crm/v2/Leads/${leadId}`,
@@ -4027,11 +4069,11 @@ app.patch('/api/leads/:id/status', requireAuth, async (c) => {
       actorName: user.name,
       requestSummary: 'Change status to ' + status,
       responseStatus: updateRes.status,
-      success: updateRes.ok,
-      errorMessage: updateRes.ok ? null : 'Failed to update lead status in Zoho',
+      success: updateRes.ok && updateResult.success,
+      errorMessage: updateResult.success ? null : updateResult.code + ': ' + updateResult.message,
       durationMs: Date.now() - statusT0
     })
-    if (!updateRes.ok) {
+    if (!updateRes.ok || !updateResult.success) {
       throw new Error('Failed to update lead status in Zoho')
     }
 
@@ -4137,7 +4179,8 @@ app.post('/api/leads/:id/notes', requireAuth, async (c) => {
     ).bind(id, leadId, content, user.email, user.name, now).run()
     const noteT0 = Date.now()
     try {
-      await createLeadNote(c.env, leadId, content)
+      const noteResult = await createLeadNote(c.env, leadId, content)
+      const noteZohoResult = checkZohoResponse(noteResult)
       await logApiCall(c.env, {
         service: 'zoho',
         endpoint: '/Notes',
@@ -4146,7 +4189,8 @@ app.post('/api/leads/:id/notes', requireAuth, async (c) => {
         actorEmail: user.email,
         actorName: user.name,
         requestSummary: 'Add note to lead',
-        success: true,
+        success: noteZohoResult.success,
+        errorMessage: noteZohoResult.success ? null : noteZohoResult.code + ': ' + noteZohoResult.message,
         durationMs: Date.now() - noteT0
       })
     } catch (zohoErr) {
@@ -4294,6 +4338,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
     )
     const convertDurationMs = Date.now() - t0
     const convertRes = await safeJson(convertFetchRes)
+    const convertZohoResult = checkZohoResponse(convertRes)
 
     console.log('Zoho convert response:', JSON.stringify(convertRes))
 
@@ -4390,7 +4435,9 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
         requestSummary: 'Convert lead to deal',
         responseStatus: convertFetchRes.status,
         success: false,
-        errorMessage: JSON.stringify(convertRes),
+        errorMessage: !convertZohoResult.success
+          ? convertZohoResult.code + ': ' + (convertZohoResult.message || JSON.stringify(convertRes))
+          : 'Could not extract dealId from Zoho response: ' + JSON.stringify(convertRes),
         durationMs: convertDurationMs
       })
       return c.json({ error: 'Failed to convert lead', details: convertRes }, 400)
@@ -4850,7 +4897,8 @@ app.post('/api/leads/:id/meeting', requireAuth, async (c) => {
       }]
     })
     const durationMs = Date.now() - t0
-    const zohoFailed = !result || result.data?.[0]?.status === 'error'
+    const meetingZohoResult = checkZohoResponse(result)
+    const zohoFailed = !meetingZohoResult.success
     await logApiCall(c.env, {
       service: 'zoho',
       endpoint: '/Events',
@@ -4860,7 +4908,7 @@ app.post('/api/leads/:id/meeting', requireAuth, async (c) => {
       actorName: user.name,
       requestSummary: 'Log meeting — ' + (body.title || ''),
       success: !zohoFailed,
-      errorMessage: zohoFailed ? JSON.stringify(result) : null,
+      errorMessage: zohoFailed ? meetingZohoResult.code + ': ' + meetingZohoResult.message : null,
       durationMs
     })
     if (zohoFailed) return c.json({ error: 'Zoho API error', details: result }, 500)
@@ -4922,7 +4970,8 @@ app.post('/api/leads/:id/log-call', requireAuth, async (c) => {
       }]
     })
     const durationMs = Date.now() - t0
-    const zohoFailed = !result || result.data?.[0]?.status === 'error'
+    const callZohoResult = checkZohoResponse(result)
+    const zohoFailed = !callZohoResult.success
     await logApiCall(c.env, {
       service: 'zoho',
       endpoint: '/Calls',
@@ -4932,7 +4981,7 @@ app.post('/api/leads/:id/log-call', requireAuth, async (c) => {
       actorName: user.name,
       requestSummary: 'Log call — ' + (body.callPurpose || 'Call'),
       success: !zohoFailed,
-      errorMessage: zohoFailed ? JSON.stringify(result) : null,
+      errorMessage: zohoFailed ? callZohoResult.code + ': ' + callZohoResult.message : null,
       durationMs
     })
     if (zohoFailed) return c.json({ error: 'Zoho API error', details: result }, 500)
@@ -5274,6 +5323,7 @@ app.patch('/api/leads/:id/reassign', requireAuth, async (c) => {
     const reassignResult = await zohoAPI(c.env, 'PUT', `/Leads/${leadId}`, {
       data: [{ id: leadId, Owner: { id: zohoUser.id } }]
     })
+    const reassignZohoResult = checkZohoResponse(reassignResult)
     await logApiCall(c.env, {
       service: 'zoho',
       endpoint: `/Leads/${leadId}`,
@@ -5282,8 +5332,8 @@ app.patch('/api/leads/:id/reassign', requireAuth, async (c) => {
       actorEmail: user.email,
       actorName: user.name,
       requestSummary: 'Reassign lead',
-      success: !!reassignResult,
-      errorMessage: reassignResult ? null : 'Zoho API returned no result',
+      success: reassignZohoResult.success,
+      errorMessage: reassignZohoResult.success ? null : reassignZohoResult.code + ': ' + reassignZohoResult.message,
       durationMs: Date.now() - reassignT0
     })
     await patchLeadInCache(c.env, leadId, {
