@@ -452,7 +452,7 @@ export async function createLeadActivity(env, leadId, activityData) {
 }
 
 export async function getLeadNotes(env, leadId) {
-  return zohoAPI(env, 'GET', `/Leads/${leadId}/Notes`)
+  return zohoAPI(env, 'GET', `/Leads/${leadId}/Notes?converted=both`)
 }
 
 export async function createLeadNote(env, leadId, noteContent) {
