@@ -5239,7 +5239,7 @@ app.patch('/api/tasks/:id/complete', requireAuth, async (c) => {
     const taskData = taskRes?.data?.[0]
     await updateTaskStatus(c.env, taskId, 'Completed')
     if (taskData?.What_Id) {
-      await logTimelineEvent(c.env, taskData.What_Id, {
+      await logTimelineEvent(c.env, taskData.What_Id?.id, {
         eventType: 'task_completed',
         description: `Task completed: ${taskData.Subject || 'Task'}`,
         actorName: user.name,
