@@ -4311,7 +4311,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
           Stage: 'Upcoming Demo',
           Closing_Date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           Pipeline: pipeline,
-          Lead_Type: 'Inbound',
+          Lead_Type: lead.Lead_Type || 'Inbound',
           Lifecycle_Stage: 'Opportunity',
           CRM_Source: 'Zoho',
           Demo_Scheduled: demoScheduled ? 'Yes' : 'No',

@@ -390,7 +390,7 @@ export async function getAllLeads(env) {
   }
 
   const filtered = allLeads.filter(l =>
-    l.Lead_Type === 'Inbound'
+    ['Inbound', 'Paid'].includes(l.Lead_Type)
   )
 
   const teamUsers = await env.DB.prepare(
