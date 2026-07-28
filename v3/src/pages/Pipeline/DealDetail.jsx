@@ -333,7 +333,7 @@ export default function DealDetail({ dealId }) {
             }
             await refetchDeal()
           }} />}
-          {tab === 'coach' && <CoachTab deal={deal} />}
+          {tab === 'coach' && <CoachTab deal={deal} onRefresh={refetchDeal} />}
           {tab === 'notes' && <NotesTab dealId={deal.id} deal={deal} />}
           {tab === 'contact' && <ContactTab deal={deal} />}
         </div>
@@ -1832,9 +1832,26 @@ function scoreField(field, value, demoInfo) {
   }
 }
 
-function CoachTab({ deal }) {
+function CoachTab({ deal, onRefresh }) {
+  const { authFetch } = useAuth()
+  const [generatingAnalysis, setGeneratingAnalysis] = useState(false)
   const d = deal.demoInfo
   const gradeColor = { A: 'ok', B: 'info', C: 'warn', D: 'danger' }
+  const rawAnalysis = d?.aiAnalysis || deal.aiAnalysis || ''
+
+  useEffect(() => {
+    if (!deal.saLogged) return
+    if (rawAnalysis) return
+
+    setGeneratingAnalysis(true)
+    authFetch(`/api/deals/${deal.id}/analysis`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.aiAnalysis) onRefresh?.()
+      })
+      .catch(err => console.error('Analysis fetch failed:', err))
+      .finally(() => setGeneratingAnalysis(false))
+  }, [deal.id, deal.saLogged, rawAnalysis])
 
   const scoreItems = [
     { label: 'Pain Clarity', score: scoreField('painClarity', d?.painClarity ?? deal.demoInfo?.painClarity), max: 3 },
@@ -1870,7 +1887,7 @@ function CoachTab({ deal }) {
 
   let parsedAnalysis = null
   try {
-    const raw = d?.aiAnalysis || deal.aiAnalysis || ''
+    const raw = rawAnalysis
     if (raw) parsedAnalysis = typeof raw === 'string'
       ? JSON.parse(raw) : raw
   } catch(e) {
@@ -1927,7 +1944,26 @@ function CoachTab({ deal }) {
 
       {/* AI Coach Recommendations */}
       <div className="card card-pad">
-        <div className="ws-side-head" style={{ marginBottom: 12 }}><h4>Coach Recommendations</h4></div>
+        <div className="ws-side-head" style={{ marginBottom: 12 }}>
+          <h4>Coach Recommendations</h4>
+          {parsedAnalysis && (
+            <button
+              className="btn btn-sm btn-ghost"
+              onClick={() => {
+                setGeneratingAnalysis(true)
+                authFetch(`/api/deals/${deal.id}/analysis`)
+                  .then(r => r.json())
+                  .then(data => { if (data.aiAnalysis) onRefresh?.() })
+                  .catch(err => console.error('Analysis fetch failed:', err))
+                  .finally(() => setGeneratingAnalysis(false))
+              }}
+              disabled={generatingAnalysis}
+              style={{ fontSize: 11 }}
+            >
+              {generatingAnalysis ? '...' : '↻ Regenerate'}
+            </button>
+          )}
+        </div>
         {parsedAnalysis ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {parsedAnalysis.strengths?.length > 0 && (
@@ -1988,8 +2024,23 @@ function CoachTab({ deal }) {
             )}
           </div>
         ) : (
-          <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>
-            No coaching analysis available. Log the demo to generate.
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            padding: '24px 16px',
+            color: 'var(--ink-3)',
+            fontSize: 13
+          }}>
+            {generatingAnalysis ? (
+              <>
+                <div className="spinner" />
+                Generating coach analysis...
+              </>
+            ) : (
+              'No coaching analysis available.'
+            )}
           </div>
         )}
       </div>
