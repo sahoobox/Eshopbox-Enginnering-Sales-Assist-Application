@@ -4441,6 +4441,55 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       return c.json({ error: 'Failed to convert lead', details: convertRes }, 400)
     }
 
+    // 7b. Demo_Scheduled safety net — Zoho can silently drop custom fields during
+    // convert, so re-assert them directly on the new deal. Non-blocking: a failure
+    // here must not fail the conversion response, since the deal already exists.
+    try {
+      const demoPatchT0 = Date.now()
+      const demoPatchFetchRes = await fetch(
+        `https://www.zohoapis.com/crm/v2/Deals/${dealId}`,
+        {
+          method: 'PUT',
+          headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            data: [{
+              Demo_Scheduled: demoScheduled ? 'Yes' : 'No',
+              ...(formattedDateTime ? { Demo_Scheduled_Date_Time: formattedDateTime } : {})
+            }]
+          })
+        }
+      )
+      const demoPatchDurationMs = Date.now() - demoPatchT0
+      const demoPatchBody = await demoPatchFetchRes.json().catch(() => null)
+      const demoPatchResult = checkZohoResponse(demoPatchBody)
+      await logApiCall(c.env, {
+        service: 'zoho',
+        endpoint: `/Deals/${dealId}`,
+        method: 'PUT',
+        leadId,
+        dealId,
+        brandName: company || dealName || null,
+        actorEmail: user.email,
+        actorName: user.name,
+        requestSummary: 'Re-apply Demo_Scheduled fields after convert (safety net)',
+        responseStatus: demoPatchFetchRes.status,
+        success: demoPatchResult.success,
+        errorMessage: demoPatchResult.success ? null : demoPatchResult.code + ': ' + demoPatchResult.message,
+        durationMs: demoPatchDurationMs
+      })
+      await logLeadTimelineEvent(c.env, leadId, {
+        eventType: demoPatchResult.success ? 'demo_scheduled_patch_applied' : 'demo_scheduled_patch_failed',
+        description: demoPatchResult.success
+          ? 'Demo_Scheduled fields re-applied on deal after convert'
+          : `Demo_Scheduled fields failed to apply on deal after convert: ${demoPatchResult.code}: ${demoPatchResult.message}`,
+        actorName: user.name || user.email,
+        actorEmail: user.email,
+        metadata: { dealId, demoScheduled, formattedDateTime, zohoCode: demoPatchResult.code }
+      })
+    } catch (demoPatchErr) {
+      console.error('Demo_Scheduled safety-net PATCH failed:', demoPatchErr.message)
+    }
+
     // 8. Write D1 lead_deal_mapping
     await c.env.DB.prepare(
       `INSERT OR IGNORE INTO lead_deal_mapping
