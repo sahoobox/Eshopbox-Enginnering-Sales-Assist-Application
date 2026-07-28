@@ -9,6 +9,7 @@ import Pipeline from './pages/Pipeline'
 import LeadDetail from './pages/LeadInbox/LeadDetail'
 import DemoForm from './pages/DemoForm'
 import AccountSettings from './pages/AccountSettings'
+import ApiLog from './pages/Admin/ApiLog'
 import {
   MyDay, LeadInbox, Accounts,
   Tasks, Performance, Reports, Settings, NotFound, NeedAttention, BulkAssign,
@@ -18,7 +19,7 @@ import { ToastContainer } from './components/ui/Toast'
 
 // Protected layout wrapper
 function AppLayout() {
-  const { role, authFetch } = useAuth()
+  const { role, authFetch, user } = useAuth()
   const { deals } = useDeals()
   const [totalFlags, setTotalFlags] = useState(0)
 
@@ -77,6 +78,11 @@ function AppLayout() {
           <Route path="/form" element={<DemoForm />} />
           <Route path="/form/:dealId" element={<DemoForm />} />
           <Route path="/settings/account" element={<AccountSettings />} />
+
+          {/* API Logs — visible only to satyanarayan.sahoo@eshopbox.com */}
+          {user?.email === 'satyanarayan.sahoo@eshopbox.com' && (
+            <Route path="/admin/api-log" element={<ApiLog />} />
+          )}
 
           {/* Performance + Reports — Sales Lead and Admin only */}
           {(role === ROLES.SALES_LEAD_MIDMARKET ||

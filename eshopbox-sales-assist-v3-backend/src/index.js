@@ -64,6 +64,51 @@ async function logAction(env, {
   }
 }
 
+async function logApiCall(env, {
+  service,
+  endpoint,
+  method = 'POST',
+  leadId = null,
+  dealId = null,
+  brandName = null,
+  actorEmail = null,
+  actorName = null,
+  requestSummary = null,
+  responseStatus = null,
+  success = true,
+  errorMessage = null,
+  durationMs = null
+}) {
+  try {
+    await env.DB.prepare(`
+      INSERT INTO api_log
+      (id, service, endpoint, method, lead_id, deal_id,
+       brand_name, actor_email, actor_name, request_summary,
+       response_status, success, error_message,
+       duration_ms, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      crypto.randomUUID(),
+      service,
+      endpoint,
+      method,
+      leadId,
+      dealId,
+      brandName,
+      actorEmail,
+      actorName,
+      requestSummary,
+      responseStatus,
+      success ? 1 : 0,
+      errorMessage,
+      durationMs,
+      new Date().toISOString()
+    ).run()
+  } catch (e) {
+    console.error('logApiCall failed:', e)
+  }
+}
+
 const app = new Hono();
 
 app.use('*', cors({
@@ -1734,7 +1779,20 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
     const payload = { Stage: stage }
     if (stage === 'Lost/Dropped') payload.Lost_Reason = reason
     if (stage === 'On Hold') payload.On_Hold_Reason = reason
-    await updateDeal(c.env, dealId, payload)
+    const stageT0 = Date.now()
+    const stageResult = await updateDeal(c.env, dealId, payload)
+    await logApiCall(c.env, {
+      service: 'zoho',
+      endpoint: `/Deals/${dealId}`,
+      method: 'PATCH',
+      dealId,
+      actorEmail: user.email,
+      actorName: user.name,
+      requestSummary: 'Update deal stage to ' + stage,
+      success: !!stageResult,
+      errorMessage: stageResult ? null : 'Zoho API returned no result',
+      durationMs: Date.now() - stageT0
+    })
     await c.env.TOKEN_CACHE.delete('v3_deals_cache')
     await logTimelineEvent(c.env, dealId, {
       eventType: 'stage_changed',
@@ -1789,7 +1847,20 @@ app.post('/api/deals/:id/stage', requireAuth, async (c) => {
     if (!VALID_STAGES.includes(stage)) {
       return c.json({ error: 'Invalid stage' }, 400)
     }
-    await updateDeal(c.env, dealId, { Stage: stage })
+    const stageT0 = Date.now()
+    const stageResult = await updateDeal(c.env, dealId, { Stage: stage })
+    await logApiCall(c.env, {
+      service: 'zoho',
+      endpoint: `/Deals/${dealId}`,
+      method: 'PATCH',
+      dealId,
+      actorEmail: user?.email || null,
+      actorName: user?.name || null,
+      requestSummary: 'Update deal stage to ' + stage,
+      success: !!stageResult,
+      errorMessage: stageResult ? null : 'Zoho API returned no result',
+      durationMs: Date.now() - stageT0
+    })
     await c.env.TOKEN_CACHE.delete('v3_deals_cache')
     if (stage === 'Lost/Dropped') {
       await logTimelineEvent(c.env, dealId, {
@@ -2750,16 +2821,48 @@ async function handleCreateGmailDraft(c) {
     }
 
     console.log('Calling createGmailDraft for:', loggedInUser.email, 'to:', prospectEmail)
-    const result = await createGmailDraft(accessToken, {
-      fromEmail: loggedInUser.email,
-      fromName,
-      toEmail: prospectEmail,
-      subject,
-      htmlBody,
-      inReplyTo,
-      references,
-      threadId: day1ThreadId,
-    });
+    const gmailT0 = Date.now();
+    let result;
+    try {
+      result = await createGmailDraft(accessToken, {
+        fromEmail: loggedInUser.email,
+        fromName,
+        toEmail: prospectEmail,
+        subject,
+        htmlBody,
+        inReplyTo,
+        references,
+        threadId: day1ThreadId,
+      });
+      await logApiCall(c.env, {
+        service: 'gmail',
+        endpoint: '/gmail/v1/users/me/drafts',
+        method: 'POST',
+        dealId,
+        brandName: brandName || null,
+        actorEmail: loggedInUser.email,
+        actorName: loggedInUser.name,
+        requestSummary: 'Create Gmail draft — ' + emailType,
+        success: !!result?.draftId,
+        errorMessage: result?.draftId ? null : 'No draftId returned from createGmailDraft',
+        durationMs: Date.now() - gmailT0
+      });
+    } catch (gmailErr) {
+      await logApiCall(c.env, {
+        service: 'gmail',
+        endpoint: '/gmail/v1/users/me/drafts',
+        method: 'POST',
+        dealId,
+        brandName: brandName || null,
+        actorEmail: loggedInUser.email,
+        actorName: loggedInUser.name,
+        requestSummary: 'Create Gmail draft — ' + emailType,
+        success: false,
+        errorMessage: gmailErr.message,
+        durationMs: Date.now() - gmailT0
+      });
+      throw gmailErr;
+    }
 
     console.log('createGmailDraft result:', JSON.stringify(result))
     console.log('create-draft result: draftId =', result.draftId, '| messageId =', result.messageId, '| gmailMessageId =', result.gmailMessageId);
@@ -2899,7 +3002,21 @@ app.get('/api/deals/:id/analysis', requireAuth, async (c) => {
         grade,
         score,
       };
+      const claudeT0 = Date.now();
       const aiAnalysis = await generateDealAnalysis(c.env, zohoData, grade, score);
+      await logApiCall(c.env, {
+        service: 'claude',
+        endpoint: 'generateDealAnalysis',
+        method: 'POST',
+        dealId,
+        brandName: zohoData.brandName || null,
+        actorEmail: user.email,
+        actorName: user.name,
+        requestSummary: 'Generate Claude coach analysis',
+        success: !!aiAnalysis,
+        errorMessage: aiAnalysis ? null : 'Claude returned no analysis',
+        durationMs: Date.now() - claudeT0
+      });
       return c.json({ formData: null, aiAnalysis, scoreBreakdown: [], grade, score });
     }
 
@@ -2909,7 +3026,21 @@ app.get('/api/deals/:id/analysis', requireAuth, async (c) => {
 
     let aiAnalysis = result.ai_analysis ? JSON.parse(result.ai_analysis) : null;
     if (!aiAnalysis) {
+      const claudeT0 = Date.now();
       aiAnalysis = await generateDealAnalysis(c.env, result, result.grade, result.score);
+      await logApiCall(c.env, {
+        service: 'claude',
+        endpoint: 'generateDealAnalysis',
+        method: 'POST',
+        dealId,
+        brandName: result.brand_name || null,
+        actorEmail: user.email,
+        actorName: user.name,
+        requestSummary: 'Generate Claude coach analysis',
+        success: !!aiAnalysis,
+        errorMessage: aiAnalysis ? null : 'Claude returned no analysis',
+        durationMs: Date.now() - claudeT0
+      });
       if (aiAnalysis) {
         await c.env.DB.prepare(
           'UPDATE deal_form_data SET ai_analysis = ?, updated_at = ? WHERE deal_id = ?'
@@ -2925,6 +3056,73 @@ app.get('/api/deals/:id/analysis', requireAuth, async (c) => {
     return c.json({ error: 'Failed to fetch analysis', details: err.message }, 500);
   }
 });
+
+app.get('/api/admin/api-log', requireAuth, async (c) => {
+  const user = c.get('user')
+
+  // Only satyanarayan.sahoo can access
+  if (user.email !== 'satyanarayan.sahoo@eshopbox.com') {
+    return c.json({ error: 'Unauthorized' }, 403)
+  }
+
+  const service = c.req.query('service')
+  const successFilter = c.req.query('success')
+  const limit = parseInt(c.req.query('limit') || '100')
+  const offset = parseInt(c.req.query('offset') || '0')
+  const dateFrom = c.req.query('dateFrom')
+  const dateTo = c.req.query('dateTo')
+
+  let query = `SELECT * FROM api_log WHERE 1=1`
+  const params = []
+
+  if (service && service !== 'all') {
+    query += ` AND service = ?`
+    params.push(service)
+  }
+  if (successFilter === 'false') {
+    query += ` AND success = 0`
+  } else if (successFilter === 'true') {
+    query += ` AND success = 1`
+  }
+  if (dateFrom) {
+    query += ` AND created_at >= ?`
+    params.push(dateFrom)
+  }
+  if (dateTo) {
+    query += ` AND created_at <= ?`
+    params.push(dateTo + 'T23:59:59')
+  }
+
+  query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`
+  params.push(limit, offset)
+
+  try {
+    const { results } = await c.env.DB.prepare(query)
+      .bind(...params).all()
+
+    // Summary by service for last 24 hours
+    const summary = await c.env.DB.prepare(`
+      SELECT
+        service,
+        COUNT(*) as total,
+        SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failures,
+        ROUND(AVG(duration_ms)) as avg_duration_ms,
+        MAX(CASE WHEN success = 0 THEN created_at END) as last_failure_at
+      FROM api_log
+      WHERE created_at > datetime('now', '-24 hours')
+      GROUP BY service
+      ORDER BY failures DESC
+    `).all()
+
+    return c.json({
+      logs: results,
+      summary: summary.results,
+      total: results.length
+    })
+  } catch (err) {
+    return c.json({ error: 'Failed to fetch API logs', details: err.message }, 500)
+  }
+})
 
 app.post('/api/admin/regenerate-drafts', requireAuth, async (c) => {
   try {
@@ -3806,6 +4004,7 @@ app.patch('/api/leads/:id/status', requireAuth, async (c) => {
     const previousStatus = currentLeadRes?.data?.[0]?.Lead_Status || ''
 
     // 1. Update Lead_Status in Zoho
+    const statusT0 = Date.now()
     const updateRes = await fetch(
       `https://www.zohoapis.com/crm/v2/Leads/${leadId}`,
       {
@@ -3819,6 +4018,19 @@ app.patch('/api/leads/:id/status', requireAuth, async (c) => {
         })
       }
     )
+    await logApiCall(c.env, {
+      service: 'zoho',
+      endpoint: `/crm/v2/Leads/${leadId}`,
+      method: 'PUT',
+      leadId,
+      actorEmail: user.email,
+      actorName: user.name,
+      requestSummary: 'Change status to ' + status,
+      responseStatus: updateRes.status,
+      success: updateRes.ok,
+      errorMessage: updateRes.ok ? null : 'Failed to update lead status in Zoho',
+      durationMs: Date.now() - statusT0
+    })
     if (!updateRes.ok) {
       throw new Error('Failed to update lead status in Zoho')
     }
@@ -3923,10 +4135,34 @@ app.post('/api/leads/:id/notes', requireAuth, async (c) => {
     await c.env.DB.prepare(
       'INSERT INTO deal_notes (id, deal_id, content, author_email, author_name, created_at) VALUES (?, ?, ?, ?, ?, ?)'
     ).bind(id, leadId, content, user.email, user.name, now).run()
+    const noteT0 = Date.now()
     try {
       await createLeadNote(c.env, leadId, content)
+      await logApiCall(c.env, {
+        service: 'zoho',
+        endpoint: '/Notes',
+        method: 'POST',
+        leadId,
+        actorEmail: user.email,
+        actorName: user.name,
+        requestSummary: 'Add note to lead',
+        success: true,
+        durationMs: Date.now() - noteT0
+      })
     } catch (zohoErr) {
       console.error('Zoho lead note sync failed (non-blocking):', zohoErr.message)
+      await logApiCall(c.env, {
+        service: 'zoho',
+        endpoint: '/Notes',
+        method: 'POST',
+        leadId,
+        actorEmail: user.email,
+        actorName: user.name,
+        requestSummary: 'Add note to lead',
+        success: false,
+        errorMessage: zohoErr.message,
+        durationMs: Date.now() - noteT0
+      })
     }
     await logLeadTimelineEvent(c.env, leadId, {
       eventType: 'note_added',
@@ -4047,14 +4283,17 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       }]
     }
 
-    const convertRes = await safeJson(await fetch(
+    const t0 = Date.now()
+    const convertFetchRes = await fetch(
       `https://www.zohoapis.com/crm/v2/Leads/${leadId}/actions/convert`,
       {
         method: 'POST',
         headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(convertPayload)
       }
-    ))
+    )
+    const convertDurationMs = Date.now() - t0
+    const convertRes = await safeJson(convertFetchRes)
 
     console.log('Zoho convert response:', JSON.stringify(convertRes))
 
@@ -4140,6 +4379,20 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
         success: false,
         error: 'Could not extract dealId from Zoho response'
       })
+      await logApiCall(c.env, {
+        service: 'zoho',
+        endpoint: `/crm/v2/Leads/${leadId}/actions/convert`,
+        method: 'POST',
+        leadId,
+        brandName: company || null,
+        actorEmail: user.email,
+        actorName: user.name,
+        requestSummary: 'Convert lead to deal',
+        responseStatus: convertFetchRes.status,
+        success: false,
+        errorMessage: JSON.stringify(convertRes),
+        durationMs: convertDurationMs
+      })
       return c.json({ error: 'Failed to convert lead', details: convertRes }, 400)
     }
 
@@ -4194,6 +4447,21 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       action: 'lead_converted',
       details: { pipeline, demoScheduled, dealName, demoScheduledDateTime: formattedDateTime },
       success: true
+    })
+
+    await logApiCall(c.env, {
+      service: 'zoho',
+      endpoint: `/crm/v2/Leads/${leadId}/actions/convert`,
+      method: 'POST',
+      leadId,
+      dealId,
+      brandName: company || dealName || null,
+      actorEmail: user.email,
+      actorName: user.name,
+      requestSummary: 'Convert lead to deal',
+      responseStatus: convertFetchRes.status,
+      success: true,
+      durationMs: convertDurationMs
     })
 
     // 12. Return success
@@ -4569,6 +4837,7 @@ app.post('/api/leads/:id/meeting', requireAuth, async (c) => {
     const leadId = c.req.param('id')
     const user = c.get('user')
     const body = await c.req.json()
+    const t0 = Date.now()
     const result = await zohoAPI(c.env, 'POST', '/Events', {
       data: [{
         Event_Title: body.title,
@@ -4580,7 +4849,21 @@ app.post('/api/leads/:id/meeting', requireAuth, async (c) => {
         '$se_module': 'Leads',
       }]
     })
-    if (!result || result.data?.[0]?.status === 'error') return c.json({ error: 'Zoho API error', details: result }, 500)
+    const durationMs = Date.now() - t0
+    const zohoFailed = !result || result.data?.[0]?.status === 'error'
+    await logApiCall(c.env, {
+      service: 'zoho',
+      endpoint: '/Events',
+      method: 'POST',
+      leadId,
+      actorEmail: user.email,
+      actorName: user.name,
+      requestSummary: 'Log meeting — ' + (body.title || ''),
+      success: !zohoFailed,
+      errorMessage: zohoFailed ? JSON.stringify(result) : null,
+      durationMs
+    })
+    if (zohoFailed) return c.json({ error: 'Zoho API error', details: result }, 500)
     await logLeadTimelineEvent(c.env, leadId, {
       eventType: 'meeting_created',
       description: `Meeting scheduled: ${body.title}`,
@@ -4622,6 +4905,7 @@ app.post('/api/leads/:id/log-call', requireAuth, async (c) => {
     const leadId = c.req.param('id')
     const user = c.get('user')
     const body = await c.req.json()
+    const t0 = Date.now()
     const result = await zohoAPI(c.env, 'POST', '/Calls', {
       data: [{
         Subject: `Call - ${body.callPurpose || 'Call'}`,
@@ -4637,7 +4921,21 @@ app.post('/api/leads/:id/log-call', requireAuth, async (c) => {
         '$se_module': 'Leads',
       }]
     })
-    if (!result || result.data?.[0]?.status === 'error') return c.json({ error: 'Zoho API error', details: result }, 500)
+    const durationMs = Date.now() - t0
+    const zohoFailed = !result || result.data?.[0]?.status === 'error'
+    await logApiCall(c.env, {
+      service: 'zoho',
+      endpoint: '/Calls',
+      method: 'POST',
+      leadId,
+      actorEmail: user.email,
+      actorName: user.name,
+      requestSummary: 'Log call — ' + (body.callPurpose || 'Call'),
+      success: !zohoFailed,
+      errorMessage: zohoFailed ? JSON.stringify(result) : null,
+      durationMs
+    })
+    if (zohoFailed) return c.json({ error: 'Zoho API error', details: result }, 500)
     await logLeadTimelineEvent(c.env, leadId, {
       eventType: 'call_logged',
       description: `Call logged: ${body.callPurpose}`,
@@ -4972,8 +5270,21 @@ app.patch('/api/leads/:id/reassign', requireAuth, async (c) => {
     const zohoUsers = await zohoAPI(c.env, 'GET', '/users?type=ActiveUsers')
     const zohoUser = zohoUsers?.users?.find(u => u.email === newOwnerEmail)
     if (!zohoUser) return c.json({ error: `No Zoho user found for ${newOwnerEmail}` }, 400)
-    await zohoAPI(c.env, 'PUT', `/Leads/${leadId}`, {
+    const reassignT0 = Date.now()
+    const reassignResult = await zohoAPI(c.env, 'PUT', `/Leads/${leadId}`, {
       data: [{ id: leadId, Owner: { id: zohoUser.id } }]
+    })
+    await logApiCall(c.env, {
+      service: 'zoho',
+      endpoint: `/Leads/${leadId}`,
+      method: 'PUT',
+      leadId,
+      actorEmail: user.email,
+      actorName: user.name,
+      requestSummary: 'Reassign lead',
+      success: !!reassignResult,
+      errorMessage: reassignResult ? null : 'Zoho API returned no result',
+      durationMs: Date.now() - reassignT0
     })
     await patchLeadInCache(c.env, leadId, {
       Owner: { id: zohoUser.id, name: newOwnerName, email: newOwnerEmail }

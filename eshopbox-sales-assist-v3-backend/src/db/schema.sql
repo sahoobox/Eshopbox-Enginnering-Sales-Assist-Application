@@ -127,3 +127,33 @@ CREATE INDEX IF NOT EXISTS idx_al_actor
   ON action_log(actor_email);
 CREATE INDEX IF NOT EXISTS idx_al_created
   ON action_log(created_at);
+
+CREATE TABLE IF NOT EXISTS api_log (
+  id TEXT PRIMARY KEY,
+  service TEXT NOT NULL,
+  endpoint TEXT NOT NULL,
+  method TEXT NOT NULL,
+  lead_id TEXT,
+  deal_id TEXT,
+  brand_name TEXT,
+  actor_email TEXT,
+  actor_name TEXT,
+  request_summary TEXT,
+  response_status INTEGER,
+  success INTEGER DEFAULT 1,
+  error_message TEXT,
+  duration_ms INTEGER,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_apl_service
+  ON api_log(service);
+CREATE INDEX IF NOT EXISTS idx_apl_success
+  ON api_log(success);
+CREATE INDEX IF NOT EXISTS idx_apl_created
+  ON api_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_apl_lead
+  ON api_log(lead_id);
+CREATE INDEX IF NOT EXISTS idx_apl_deal
+  ON api_log(deal_id);
+CREATE INDEX IF NOT EXISTS idx_apl_brand
+  ON api_log(brand_name);

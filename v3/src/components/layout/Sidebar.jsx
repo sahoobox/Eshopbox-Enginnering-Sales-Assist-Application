@@ -96,6 +96,9 @@ export default function Sidebar({ counts = {} }) {
   const [showUserMenu, setShowUserMenu] = useState(false)
 
   const navItems = getNavItems(role, counts)
+  if (user?.email === 'satyanarayan.sahoo@eshopbox.com') {
+    navItems.push({ id: 'api-log', label: 'API Logs', path: '/admin/api-log', section: 'Admin' })
+  }
 
   // Group nav items by section
   const sections = []
