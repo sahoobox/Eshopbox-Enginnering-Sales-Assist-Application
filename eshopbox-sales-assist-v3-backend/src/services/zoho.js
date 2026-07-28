@@ -202,7 +202,7 @@ export async function createTask(env, dealId, taskData) {
 }
 
 export async function getDealActivities(env, dealId) {
-  return zohoAPI(env, 'GET', `/Deals/${dealId}/Activities_Events`);
+  return zohoAPI(env, 'GET', `/Deals/${dealId}/Activities_Chronological_View`);
 }
 
 function plainTextToHtml(text) {
@@ -418,7 +418,7 @@ export async function updateLead(env, leadId, data) {
 }
 
 export async function getLeadActivities(env, leadId) {
-  return zohoAPI(env, 'GET', `/Leads/${leadId}/Activities_Events`)
+  return zohoAPI(env, 'GET', `/Leads/${leadId}/Activities_Chronological_View`)
 }
 
 export async function createLeadActivity(env, leadId, activityData) {
