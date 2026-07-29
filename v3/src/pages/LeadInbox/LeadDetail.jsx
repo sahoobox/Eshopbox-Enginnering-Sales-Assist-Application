@@ -62,9 +62,10 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
   const [step, setStep] = useState('question')
   // 'question' | 'datetime' | 'blocked'
   const [dateTime, setDateTime] = useState('')
+  const [conversionMedium, setConversionMedium] = useState('')
   const [saving, setSaving] = useState(false)
 
-  async function doConvert(demoScheduled, demoDateTime) {
+  async function doConvert(demoScheduled, demoDateTime, medium) {
     setSaving(true)
     try {
       const res = await authFetch(
@@ -74,7 +75,8 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             demoScheduled,
-            demoScheduledDateTime: demoDateTime || null
+            demoScheduledDateTime: demoDateTime || null,
+            conversionMedium: medium
           })
         }
       )
@@ -195,6 +197,36 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
                   cursor: 'pointer'
                 }}
               />
+              <label style={{
+                display: 'block',
+                fontSize: 13,
+                fontWeight: 600,
+                color: 'var(--ink-2)',
+                marginTop: 16,
+                marginBottom: 6
+              }}>
+                How is this lead converting?
+              </label>
+              <select
+                value={conversionMedium}
+                onChange={e => setConversionMedium(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1.5px solid var(--line)',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  color: 'var(--ink)',
+                  background: 'var(--surface)',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">Select…</option>
+                <option value="WhatsApp Messaging">WhatsApp Messaging</option>
+                <option value="Phone Call">Phone Call</option>
+                <option value="Email">Email</option>
+              </select>
             </div>
             <div className="modal-foot">
               <button className="btn"
@@ -206,8 +238,8 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
               </button>
               <button
                 className="btn btn-primary"
-                disabled={saving || !dateTime}
-                onClick={() => doConvert(true, dateTime)}
+                disabled={saving || !dateTime || !conversionMedium}
+                onClick={() => doConvert(true, dateTime, conversionMedium)}
               >
                 {saving ? 'Converting...' : 'Convert →'}
               </button>

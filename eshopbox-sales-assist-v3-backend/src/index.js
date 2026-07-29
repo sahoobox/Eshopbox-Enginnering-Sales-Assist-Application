@@ -4237,7 +4237,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
     const user = c.get('user')
     const leadId = c.req.param('id')
     const body = await c.req.json().catch(() => ({}))
-    const { demoScheduled, demoScheduledDateTime } = body
+    const { demoScheduled, demoScheduledDateTime, conversionMedium } = body
 
     if (!demoScheduled) {
       return c.json({
@@ -4250,6 +4250,13 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       return c.json({
         error: 'Demo date and time is required',
         demoRequired: true
+      }, 400)
+    }
+
+    if (!conversionMedium) {
+      return c.json({
+        error: 'Conversion medium is required before converting a lead to a deal',
+        conversionMediumRequired: true
       }, 400)
     }
 
@@ -4327,6 +4334,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
           Lifecycle_Stage: 'Opportunity',
           CRM_Source: 'Zoho',
           Demo_Scheduled: demoScheduled ? 'Yes' : 'No',
+          Conversion_Medium: conversionMedium,
           ...(formattedDateTime ? { Demo_Scheduled_Date_Time: formattedDateTime } : {}),
           ...(volume ? { How_many_orders_do_you_ship_in_a_month: volume } : {}),
           ...(leadSource ? { Lead_Source: leadSource } : {}),
@@ -4478,9 +4486,10 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       return c.json({ error: 'Failed to convert lead', details: convertRes }, 400)
     }
 
-    // 7b. Demo_Scheduled safety net — Zoho can silently drop custom fields during
-    // convert, so re-assert them directly on the new deal. Non-blocking: a failure
-    // here must not fail the conversion response, since the deal already exists.
+    // 7b. Demo_Scheduled + Conversion_Medium safety net — Zoho can silently drop
+    // custom fields during convert, so re-assert them directly on the new deal.
+    // Non-blocking: a failure here must not fail the conversion response, since
+    // the deal already exists.
     try {
       const demoPatchT0 = Date.now()
       const demoPatchFetchRes = await fetch(
@@ -4491,6 +4500,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
           body: JSON.stringify({
             data: [{
               Demo_Scheduled: demoScheduled ? 'Yes' : 'No',
+              Conversion_Medium: conversionMedium,
               ...(formattedDateTime ? { Demo_Scheduled_Date_Time: formattedDateTime } : {})
             }]
           })
@@ -4508,7 +4518,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
         brandName: company || dealName || null,
         actorEmail: user.email,
         actorName: user.name,
-        requestSummary: 'Re-apply Demo_Scheduled fields after convert (safety net)',
+        requestSummary: 'Re-apply Demo_Scheduled + Conversion_Medium fields after convert (safety net)',
         responseStatus: demoPatchFetchRes.status,
         success: demoPatchResult.success,
         errorMessage: demoPatchResult.success ? null : demoPatchResult.code + ': ' + demoPatchResult.message,
@@ -4517,11 +4527,11 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       await logLeadTimelineEvent(c.env, leadId, {
         eventType: demoPatchResult.success ? 'demo_scheduled_patch_applied' : 'demo_scheduled_patch_failed',
         description: demoPatchResult.success
-          ? 'Demo_Scheduled fields re-applied on deal after convert'
-          : `Demo_Scheduled fields failed to apply on deal after convert: ${demoPatchResult.code}: ${demoPatchResult.message}`,
+          ? 'Demo_Scheduled + Conversion_Medium fields re-applied on deal after convert'
+          : `Demo_Scheduled + Conversion_Medium fields failed to apply on deal after convert: ${demoPatchResult.code}: ${demoPatchResult.message}`,
         actorName: user.name || user.email,
         actorEmail: user.email,
-        metadata: { dealId, demoScheduled, formattedDateTime, zohoCode: demoPatchResult.code }
+        metadata: { dealId, demoScheduled, formattedDateTime, conversionMedium, zohoCode: demoPatchResult.code }
       })
     } catch (demoPatchErr) {
       console.error('Demo_Scheduled safety-net PATCH failed:', demoPatchErr.message)
