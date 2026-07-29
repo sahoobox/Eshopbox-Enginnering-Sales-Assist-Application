@@ -321,7 +321,7 @@ export default function DealDetail({ dealId }) {
             ))}
           </div>
 
-          {tab === 'activity' && <TimelineTab dealId={deal.id} />}
+          {tab === 'activity' && <TimelineTab dealId={deal.id} deal={deal} onRefresh={refetchDeal} />}
           {tab === 'tasks' && <ActivitiesTab dealId={deal.id} deal={deal} onRefresh={refetchDeal} />}
           {tab === 'flags' && <FlagsTab deal={deal} />}
           {tab === 'demo' && <DemoInfoTab deal={deal} />}
@@ -463,10 +463,14 @@ export default function DealDetail({ dealId }) {
 
 // ── Tab components ─────────────────────────────────────────
 
-function TimelineTab({ dealId }) {
+function TimelineTab({ dealId, deal, onRefresh }) {
   const { authFetch } = useAuth()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
+  const [localCompleted, setLocalCompleted] = useState(new Set())
+  const [confirmModal, setConfirmModal] = useState(null)
+  const [activeChip, setActiveChip] = useState('All')
+  const todayStr = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
     authFetch(`/api/deals/${dealId}/timeline`)
@@ -519,27 +523,161 @@ function TimelineTab({ dealId }) {
     deal_reassigned:      '#7C3AED',
   }
 
-  if (loading) return (
-    <div style={{ padding: '4px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {[0, 1, 2, 3, 4].map(i => (
-        <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <div className="skeleton" style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0 }} />
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <SkeletonLine width={i % 2 === 0 ? '55%' : '40%'} height={13} />
-            <SkeletonLine width="30%" height={11} />
-          </div>
-        </div>
-      ))}
-    </div>
+  // ── Open items — built from deal.tasks/deal.meetings/deal.calls (already on the deal prop) ──
+  const openItems = [
+    ...(deal?.tasks || [])
+      .filter(t => t.Status !== 'Completed' && !localCompleted.has(`task-${t.id}`))
+      .map(t => ({
+        id: `task-${t.id}`, kind: 'task', recordId: t.id, type: 'task',
+        title: t.Subject || 'Task', dueDate: t.Due_Date || '',
+        priority: t.Priority || '', ownerName: t.Owner?.name || '',
+        description: t.Description || '',
+      })),
+    ...(deal?.meetings || [])
+      .filter(m => !(m.to && new Date(m.to) < new Date()) && !localCompleted.has(`meeting-${m.id}`))
+      .map(m => ({
+        id: `meeting-${m.id}`, kind: 'meeting', recordId: m.id, type: 'meeting',
+        title: m.title || 'Meeting', dueDate: m.from || '',
+        priority: '', ownerName: m.createdBy || '',
+        description: m.description || '',
+      })),
+    ...(deal?.calls || [])
+      .filter(c => (c.status === 'Scheduled' || c.status === 'scheduled' || c.status === '' || c.status == null) && !localCompleted.has(`call-${c.id}`))
+      .map(c => ({
+        id: `call-${c.id}`, kind: 'call', recordId: c.id, type: 'call',
+        title: c.subject || (c.purpose && c.purpose !== 'None' ? c.purpose : 'Call'),
+        dueDate: c.timing || '', priority: '', ownerName: c.createdBy || '',
+        description: [
+          c.agenda && `Agenda: ${c.agenda}`,
+          c.result && `Result: ${c.result}`,
+          c.description && `Notes: ${c.description}`
+        ].filter(Boolean).join('\n') || '',
+      })),
+  ].sort((a, b) => {
+    const av = a.dueDate ? new Date(a.dueDate).getTime() : Infinity
+    const bv = b.dueDate ? new Date(b.dueDate).getTime() : Infinity
+    return av - bv
+  })
+
+  function completeItem(item) {
+    setConfirmModal({
+      onConfirm: async () => {
+        setConfirmModal(null)
+        if (item.kind === 'task') {
+          await authFetch(`/api/tasks/${item.recordId}/complete`, { method: 'PATCH' })
+        } else if (item.kind === 'meeting') {
+          await authFetch(`/api/deals/${dealId}/meeting/${item.recordId}/complete`, { method: 'PATCH' })
+        } else {
+          await authFetch(`/api/deals/${dealId}/call/${item.recordId}/complete`, { method: 'PATCH' })
+        }
+        setLocalCompleted(prev => new Set([...prev, item.id]))
+        onRefresh?.()
+      }
+    })
+  }
+
+  function dueBadge(dueDate) {
+    if (!dueDate) return null
+    const dateOnly = dueDate.slice(0, 10)
+    if (dateOnly < todayStr) return <span style={{ fontSize: 11, fontWeight: 700, color: '#E5484D' }}>Overdue</span>
+    if (dateOnly === todayStr) return <span style={{ fontSize: 11, fontWeight: 700, color: '#C2410C' }}>Due today</span>
+    return <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{new Date(dueDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+  }
+
+  const TYPE_PILL_STYLE = {
+    task:    { background: '#F0F4FF', color: '#3B5BDB' },
+    meeting: { background: '#F0FFF4', color: '#2F9E44' },
+    call:    { background: '#FFF0F6', color: '#C2255C' },
+  }
+  const typePill = (type) => (
+    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, display: 'inline-block', textTransform: 'capitalize', ...(TYPE_PILL_STYLE[type] || {}) }}>{type}</span>
   )
 
-  if (events.length === 0) return (
-    <div style={{ padding: 24, color: 'var(--ink-3)', fontSize: 13 }}>No timeline events yet.</div>
-  )
+  // ── History chip filter — filters which array feeds the map, never touches the map body ──
+  function chipTypeForEvent(event) {
+    if (event.event_type === 'task_created' || event.event_type === 'task_completed') return 'Tasks'
+    if (event.event_type === 'call_scheduled' || event.event_type === 'call_logged' || event.event_type === 'call_completed') return 'Calls'
+    if (event.event_type === 'meeting_created' || event.event_type === 'meeting_completed') return 'Meetings'
+    if (event.event_type === 'note_added') return 'Notes'
+    return 'System'
+  }
+  const CHIPS = ['All', 'Tasks', 'Calls', 'Meetings', 'Notes', 'System']
+  const filteredEvents = activeChip === 'All' ? events : events.filter(e => chipTypeForEvent(e) === activeChip)
 
   return (
-    <div style={{ padding: '4px 0' }}>
-      {events.map((event, i) => {
+    <div>
+      {/* OPEN · NEXT STEPS */}
+      <div className="card card-pad" style={{ marginBottom: 14 }}>
+        <h4 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--ink-3)' }}>OPEN · NEXT STEPS</h4>
+        {openItems.length === 0 ? (
+          <div style={{ textAlign: 'center', color: 'var(--ink-3)', fontSize: 13, padding: '20px 0' }}>
+            No open tasks, meetings, or calls.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {openItems.map(item => (
+              <div key={item.id} style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <input type="checkbox" checked={false}
+                  onChange={() => completeItem(item)}
+                  style={{ cursor: 'pointer', width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600, fontSize: 13.5 }}>{item.title}</span>
+                    {typePill(item.type)}
+                    {dueBadge(item.dueDate)}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                    {[item.priority && `Priority: ${item.priority}`, item.ownerName && `Assigned: ${item.ownerName}`].filter(Boolean).join(' · ')}
+                  </div>
+                  {item.description && (
+                    <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--bg)', borderRadius: 8, borderLeft: '2.5px solid var(--info)', fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                      {item.description}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* HISTORY */}
+      <div className="card card-pad">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+          <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--ink-3)' }}>HISTORY</h4>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {CHIPS.map(chip => (
+              <button key={chip} onClick={() => setActiveChip(chip)}
+                style={{
+                  padding: '4px 12px', borderRadius: 20, fontSize: 12,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  background: activeChip === chip ? 'var(--ink)' : 'var(--surface-2)',
+                  color: activeChip === chip ? 'var(--surface)' : 'var(--ink-2)',
+                  border: activeChip === chip ? '0.5px solid var(--ink)' : '0.5px solid var(--line)',
+                  fontWeight: activeChip === chip ? 500 : 400,
+                }}
+              >{chip}</button>
+            ))}
+          </div>
+        </div>
+
+      {loading ? (
+        <div style={{ padding: '4px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {[0, 1, 2, 3, 4].map(i => (
+            <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div className="skeleton" style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0 }} />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <SkeletonLine width={i % 2 === 0 ? '55%' : '40%'} height={13} />
+                <SkeletonLine width="30%" height={11} />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredEvents.length === 0 ? (
+        <div style={{ padding: 24, color: 'var(--ink-3)', fontSize: 13 }}>No timeline events yet.</div>
+      ) : (
+      <div style={{ padding: '4px 0' }}>
+      {filteredEvents.map((event, i) => {
         const color = colorMap[event.event_type] || '#6B7280'
         const icon = iconMap[event.event_type] || <RefreshCw size={14} />
         const meta = (() => { try { return JSON.parse(event.metadata || '{}') } catch { return {} } })()
@@ -574,6 +712,22 @@ function TimelineTab({ dealId }) {
           </div>
         )
       })}
+      </div>
+      )}
+      </div>
+
+      {confirmModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-md)', padding: '28px 32px', maxWidth: 380, width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-1)', marginBottom: 8 }}>Mark as completed?</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 24 }}>This action cannot be undone.</div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmModal(null)} style={{ padding: '8px 18px', borderRadius: 8, border: '1.5px solid var(--line)', background: 'transparent', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: 'var(--ink-2)', fontFamily: 'inherit' }}>Cancel</button>
+              <button onClick={confirmModal.onConfirm} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#E5484D', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#FFFFFF', fontFamily: 'inherit' }}>Yes, mark complete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
