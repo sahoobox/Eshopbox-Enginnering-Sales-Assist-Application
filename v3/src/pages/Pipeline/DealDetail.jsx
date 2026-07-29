@@ -470,6 +470,10 @@ function TimelineTab({ dealId, deal, onRefresh }) {
   const [localCompleted, setLocalCompleted] = useState(new Set())
   const [confirmModal, setConfirmModal] = useState(null)
   const [activeChip, setActiveChip] = useState('All')
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [showTaskModal, setShowTaskModal] = useState(false)
+  const [showMeetingModal, setShowMeetingModal] = useState(false)
+  const [showCallModal, setShowCallModal] = useState(false)
   const todayStr = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
@@ -478,6 +482,15 @@ function TimelineTab({ dealId, deal, onRefresh }) {
       .then(d => setEvents(d.timeline || []))
       .finally(() => setLoading(false))
   }, [dealId])
+
+  useEffect(() => {
+    if (!showDropdown) return
+    const handler = (e) => {
+      if (!e.target.closest('[data-activity-dropdown]')) setShowDropdown(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showDropdown])
 
   const iconMap = {
     stage_changed:       <ArrowRight size={14} />,
@@ -606,6 +619,43 @@ function TimelineTab({ dealId, deal, onRefresh }) {
 
   return (
     <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <div data-activity-dropdown style={{ position: 'relative' }}>
+          <button className="btn btn-sm btn-primary" onClick={() => setShowDropdown(v => !v)}>
+            + New Activity ▾
+          </button>
+          {showDropdown && (
+            <div style={{
+              position: 'absolute', top: '100%', right: 0, zIndex: 200,
+              background: 'var(--surface)', border: '1px solid var(--line-2)',
+              borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-2)',
+              marginTop: 4, minWidth: 140, overflow: 'hidden'
+            }}>
+              {['Task', 'Meeting', 'Call'].map(item => (
+                <button key={item}
+                  onClick={() => {
+                    setShowDropdown(false)
+                    if (item === 'Task') setShowTaskModal(true)
+                    else if (item === 'Meeting') setShowMeetingModal(true)
+                    else setShowCallModal(true)
+                  }}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    padding: '10px 14px', border: 'none', background: 'none',
+                    fontSize: 13, cursor: 'pointer', color: 'var(--ink)',
+                    fontFamily: 'inherit'
+                  }}
+                  onMouseEnter={e => e.target.style.background = 'var(--surface-2)'}
+                  onMouseLeave={e => e.target.style.background = 'none'}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* OPEN · NEXT STEPS */}
       <div className="card card-pad" style={{ marginBottom: 14 }}>
         <h4 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--ink-3)' }}>OPEN · NEXT STEPS</h4>
@@ -708,6 +758,47 @@ function TimelineTab({ dealId, deal, onRefresh }) {
               <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
                 {new Date(event.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </div>
+              {event.event_type === 'task_completed' && (meta.priority || meta.dueDate || meta.ownerName || meta.description) && (
+                <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ink-3)' }}>
+                  <div>
+                    {[meta.priority && `Priority: ${meta.priority}`, meta.dueDate && `Due: ${meta.dueDate}`, meta.ownerName && `Assigned: ${meta.ownerName}`].filter(Boolean).join(' · ')}
+                  </div>
+                  {meta.description && (
+                    <div style={{ marginTop: 4, padding: '6px 8px', background: 'var(--surface-2)', borderRadius: 6, lineHeight: 1.5, whiteSpace: 'pre-line' }}>
+                      {meta.description}
+                    </div>
+                  )}
+                </div>
+              )}
+              {event.event_type === 'call_completed' && (meta.purpose || meta.agenda || meta.description) && (
+                <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ink-3)' }}>
+                  <div>
+                    {[meta.purpose && meta.purpose !== 'None' && `Purpose: ${meta.purpose}`].filter(Boolean).join(' · ')}
+                  </div>
+                  {meta.agenda && (
+                    <div style={{ marginTop: 4, padding: '6px 8px', background: 'var(--surface-2)', borderRadius: 6, lineHeight: 1.5, whiteSpace: 'pre-line' }}>
+                      Agenda: {meta.agenda}
+                    </div>
+                  )}
+                  {meta.description && (
+                    <div style={{ marginTop: 4, padding: '6px 8px', background: 'var(--surface-2)', borderRadius: 6, lineHeight: 1.5, whiteSpace: 'pre-line' }}>
+                      {meta.description}
+                    </div>
+                  )}
+                </div>
+              )}
+              {event.event_type === 'meeting_completed' && (meta.title || meta.venue || meta.description) && (
+                <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ink-3)' }}>
+                  <div>
+                    {[meta.title && `Title: ${meta.title}`, meta.venue && `Venue: ${meta.venue}`].filter(Boolean).join(' · ')}
+                  </div>
+                  {meta.description && (
+                    <div style={{ marginTop: 4, padding: '6px 8px', background: 'var(--surface-2)', borderRadius: 6, lineHeight: 1.5, whiteSpace: 'pre-line' }}>
+                      {meta.description}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )
@@ -715,6 +806,27 @@ function TimelineTab({ dealId, deal, onRefresh }) {
       </div>
       )}
       </div>
+
+      {showTaskModal && (
+        <TaskModal
+          dealId={dealId}
+          onClose={() => setShowTaskModal(false)}
+          onSubmit={async (data) => {
+            const res = await authFetch('/api/tasks', { method: 'POST', body: JSON.stringify(data) })
+            const json = await res.json()
+            if (json.success) { setShowTaskModal(false); onRefresh?.() }
+            else toast.error(json.error || 'Failed to create task')
+          }}
+        />
+      )}
+      {showMeetingModal && (
+        <MeetingModal dealId={dealId} onClose={() => setShowMeetingModal(false)}
+          onSuccess={() => { setShowMeetingModal(false); onRefresh?.() }} />
+      )}
+      {showCallModal && (
+        <CallModal dealId={dealId} onClose={() => setShowCallModal(false)}
+          onSuccess={() => { setShowCallModal(false); onRefresh?.() }} />
+      )}
 
       {confirmModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>

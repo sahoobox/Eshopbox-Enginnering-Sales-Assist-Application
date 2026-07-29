@@ -2412,6 +2412,8 @@ app.patch('/api/deals/:id/meeting/:meetingId/complete', requireAuth, async (c) =
     const dealId = c.req.param('id')
     const meetingId = c.req.param('meetingId')
     const user = c.get('user')
+    const meetingRes = await zohoAPI(c.env, 'GET', `/Events/${meetingId}?fields=Event_Title,Venue,Description`)
+    const meetingData = meetingRes?.data?.[0]
     function msToZohoIST(ms) {
       const d = new Date(ms + (5.5 * 60 * 60 * 1000))
       const pad = n => String(n).padStart(2, '0')
@@ -2425,7 +2427,12 @@ app.patch('/api/deals/:id/meeting/:meetingId/complete', requireAuth, async (c) =
       description: 'Meeting marked as completed',
       actorName: user.name,
       actorEmail: user.email,
-      metadata: { meetingId }
+      metadata: {
+        meetingId,
+        title: meetingData?.Event_Title || '',
+        venue: meetingData?.Venue || '',
+        description: meetingData?.Description || '',
+      }
     })
     return c.json({ success: true })
   } catch (err) {
@@ -2466,7 +2473,12 @@ app.patch('/api/deals/:id/call/:callId/complete', requireAuth, async (c) => {
       description: 'Call marked as completed',
       actorName: user.name,
       actorEmail: user.email,
-      metadata: { callId }
+      metadata: {
+        callId,
+        purpose: callData?.Call_Purpose || '',
+        agenda: callData?.Call_Agenda || '',
+        description: callData?.Description || '',
+      }
     })
     return c.json({ success: true })
   } catch (err) {
@@ -5316,7 +5328,13 @@ app.patch('/api/tasks/:id/complete', requireAuth, async (c) => {
         description: `Task completed: ${taskData.Subject || 'Task'}`,
         actorName: user.name,
         actorEmail: user.email,
-        metadata: { taskId }
+        metadata: {
+          taskId,
+          priority: taskData.Priority || '',
+          dueDate: taskData.Due_Date || '',
+          ownerName: taskData.Owner?.name || '',
+          description: taskData.Description || '',
+        }
       })
     }
     return c.json({ success: true })
