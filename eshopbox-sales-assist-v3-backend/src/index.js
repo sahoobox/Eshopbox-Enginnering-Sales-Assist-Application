@@ -4364,9 +4364,9 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
     }
 
     // Parse specific Zoho error codes for a helpful message
-    const zohoError = convertData?.data?.[0] || convertData
-    const zohoCode = zohoError?.code || convertData?.code
-    const zohoApiName = zohoError?.details?.api_name || ''
+    let zohoError = convertData?.data?.[0] || convertData
+    let zohoCode = zohoError?.code || convertData?.code
+    let zohoApiName = zohoError?.details?.api_name || ''
 
     if (zohoCode === 'INVALID_DATA' && zohoApiName === 'account') {
       // Account ID invalid — retry without account ID
@@ -4380,17 +4380,42 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
         }]
       }
 
-      const retryRes = await safeJson(await fetch(
+      const retryT0 = Date.now()
+      const retryFetchRes = await fetch(
         `https://www.zohoapis.com/crm/v2/Leads/${leadId}/actions/convert`,
         {
           method: 'POST',
           headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify(retryPayload)
         }
-      ))
+      )
+      const retryDurationMs = Date.now() - retryT0
+      const retryRes = await safeJson(retryFetchRes)
       console.log('Retry response:', JSON.stringify(retryRes))
 
       const retryData = retryRes?.data?.[0]
+
+      // Refresh the diagnostic variables from the RETRY's own response — a failed
+      // retry must never be reported using the original (now stale) account error.
+      zohoError = retryData?.data?.[0] || retryData
+      zohoCode = zohoError?.code || retryData?.code
+      zohoApiName = zohoError?.details?.api_name || ''
+
+      await logApiCall(c.env, {
+        service: 'zoho',
+        endpoint: `/crm/v2/Leads/${leadId}/actions/convert`,
+        method: 'POST',
+        leadId,
+        brandName: company || null,
+        actorEmail: user.email,
+        actorName: user.name,
+        requestSummary: 'Retry convert without account (account INVALID_DATA)',
+        responseStatus: retryFetchRes.status,
+        success: retryData?.code === 'SUCCESS',
+        errorMessage: retryData?.code === 'SUCCESS' ? null : (zohoCode + ': ' + (zohoError?.message || JSON.stringify(retryRes))),
+        durationMs: retryDurationMs
+      })
+
       if (retryData?.code === 'SUCCESS') {
         dealId = retryData.details?.Deals?.id || retryData.details?.Deals
         contactId = retryData.details?.Contacts?.id || retryData.details?.Contacts
