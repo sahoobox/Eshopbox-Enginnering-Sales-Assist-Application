@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowRight, Mail, FileText, Send, ClipboardList, StickyNote, Phone, Calendar, CheckSquare, XCircle, PauseCircle, RefreshCw, Star, UserCheck } from 'lucide-react'
+import { ArrowRight, Mail, FileText, Send, ClipboardList, StickyNote, Phone, Calendar, CheckSquare, XCircle, PauseCircle, RefreshCw, Star, UserCheck, Plus, Activity, Flag, Monitor, Sparkles, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import DOMPurify from 'dompurify'
 import { useDeal } from '../../hooks/useDeals'
@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext'
 import { Empty, Pill } from '../../components/ui'
 import { toast } from '../../components/ui/Toast'
 import { SkeletonCard, SkeletonLine } from '../../components/ui/Skeleton'
-import { MID_MARKET_STAGES, ENT_STAGES, getStagePill, stageColor, initials, formatDate, daysAgo } from '../../lib/stageConfig'
+import { MID_MARKET_STAGES, ENT_STAGES, StagePill, stageColor, initials, formatDate, daysAgo } from '../../lib/stageConfig'
 import { TaskModal } from '../Tasks'
 
 export default function DealDetail({ dealId }) {
@@ -115,7 +115,7 @@ export default function DealDetail({ dealId }) {
             {deal.orderVolume && deal.orderVolume}
           </div>
         </div>
-        <span className={`pill ${getStagePill(deal.stage)}`}>{deal.stage}</span>
+        <StagePill stage={deal.stage} />
         {deal.flags?.length > 0 && (
           <span className={`pill ${flagLevel === 'high' ? 'pill-danger' : 'pill-warn'}`}>
             {deal.flags.length} flag{deal.flags.length > 1 ? 's' : ''}
@@ -298,16 +298,16 @@ export default function DealDetail({ dealId }) {
         <div className="ws-main">
           <div className="tabs">
             {[
-              { id: 'activity', label: 'Activity', count: deal.activities?.length },
-              { id: 'flags', label: 'Flags', count: deal.flags?.length },
-              { id: 'demo', label: 'Demo Info' },
-              { id: 'sequence', label: 'Sequence' },
-              { id: 'coach', label: 'Coach' },
-              { id: 'notes', label: 'Notes' },
-              { id: 'contact', label: 'Contact' },
+              { id: 'activity', label: 'Activity', icon: Activity, count: deal.activities?.length },
+              { id: 'flags', label: 'Flags', icon: Flag, count: deal.flags?.length },
+              { id: 'demo', label: 'Demo Info', icon: Monitor },
+              { id: 'sequence', label: 'Sequence', icon: Mail },
+              { id: 'coach', label: 'Coach', icon: Sparkles },
+              { id: 'notes', label: 'Notes', icon: StickyNote },
+              { id: 'contact', label: 'Contact', icon: User },
             ].map(t => (
               <button key={t.id} className={`tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
-                {t.label}
+                <t.icon size={14} /> {t.label}
                 {t.count > 0 && <span className="count">{t.count}</span>}
               </button>
             ))}
@@ -613,7 +613,7 @@ function TimelineTab({ dealId, deal, onRefresh }) {
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
         <div data-activity-dropdown style={{ position: 'relative' }}>
           <button className="btn btn-sm btn-primary" onClick={() => setShowDropdown(v => !v)}>
-            + New Activity ▾
+            <Plus size={14} /> New Activity ▾
           </button>
           {showDropdown && (
             <div style={{
@@ -2947,7 +2947,7 @@ function CallModal({ dealId, onClose, onSuccess }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" onClick={e => e.stopPropagation()}>
-        <div className="modal-head"><h3>Log Call</h3><button className="btn-close" onClick={onClose}>✕</button></div>
+        <div className="modal-head"><h3><Phone size={16} /> Log Call</h3><button className="btn-close" onClick={onClose}>✕</button></div>
         <div className="modal-body">
           <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
             <button

@@ -1,4 +1,5 @@
 // Stage definitions matching the existing backend Zoho stages
+import { Calendar, CheckCircle2, XCircle, PauseCircle } from 'lucide-react'
 
 export const MID_MARKET_STAGES = [
   'Upcoming Demo',
@@ -68,6 +69,23 @@ export const ALL_PIPELINE_STAGES = [
 
 export function getStagePill(stage) {
   return STAGE_PILL[stage] || 'pill-neutral'
+}
+
+const STAGE_ICON = {
+  'Upcoming Demo': Calendar,
+  'Won/Payment Received': CheckCircle2,
+  'Lost/Dropped': XCircle,
+  'On Hold': PauseCircle,
+}
+
+export function StagePill({ stage, style }) {
+  const Icon = STAGE_ICON[stage]
+  return (
+    <span className={`pill ${getStagePill(stage)}`} style={style}>
+      {Icon && <Icon size={12} />}
+      {stage}
+    </span>
+  )
 }
 
 export function stageColor(stage) {

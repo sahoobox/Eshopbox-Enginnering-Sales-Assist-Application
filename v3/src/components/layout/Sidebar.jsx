@@ -1,6 +1,23 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth, ROLES, ROLE_LABELS } from '../../context/AuthContext'
+import {
+  Layers, AlertCircle, Inbox, Building2, CheckSquare, TrendingUp,
+  BarChart3, Users, Settings, Terminal, Plus,
+} from 'lucide-react'
+
+const NAV_ICON = {
+  pipeline: Layers,
+  'need-attention': AlertCircle,
+  'lead-inbox': Inbox,
+  accounts: Building2,
+  tasks: CheckSquare,
+  performance: TrendingUp,
+  reports: BarChart3,
+  'bulk-assign': Users,
+  settings: Settings,
+  'api-log': Terminal,
+}
 
 // Nav config per role
 function getNavItems(role, counts = {}) {
@@ -201,21 +218,24 @@ export default function Sidebar({ counts = {} }) {
             {section.label && (
               <div className="nav-section">{section.label}</div>
             )}
-            {section.items.map((item) => (
-              <button
-                key={item.id}
-                className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
-                onClick={() => navigate(item.path)}
-              >
-                <span className="nav-dot" />
-                {item.label}
-                {item.count != null && item.count > 0 && (
-                  <span className={`nav-count ${item.badge || ''}`}>
-                    {item.count}
-                  </span>
-                )}
-              </button>
-            ))}
+            {section.items.map((item) => {
+              const NavIcon = NAV_ICON[item.id]
+              return (
+                <button
+                  key={item.id}
+                  className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
+                  onClick={() => navigate(item.path)}
+                >
+                  {NavIcon && <NavIcon size={15} />}
+                  {item.label}
+                  {item.count != null && item.count > 0 && (
+                    <span className={`nav-count ${item.badge || ''}`}>
+                      {item.count}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         ))}
       </nav>
@@ -233,7 +253,7 @@ export default function Sidebar({ counts = {} }) {
           fontWeight: 600
         }}
       >
-        + Log demo
+        <Plus size={14} /> Log demo
       </button>
 
       {/* User card */}

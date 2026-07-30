@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { Topbar } from '../../components/ui'
 import { toast } from '../../components/ui/Toast'
+import { RefreshCw } from 'lucide-react'
 
 
 const FLAGS = [
@@ -305,7 +306,7 @@ function TeamTab() {
                         onClick={() => handleResendInvite(inv.id, inv.email)}
                         title="Resend invite"
                       >
-                        ↻ Resend
+                        <RefreshCw size={13} /> Resend
                       </button>
                       <button
                         className="btn btn-sm btn-danger"

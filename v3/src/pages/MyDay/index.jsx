@@ -4,7 +4,7 @@ import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
 import { useLeads } from '../../hooks/useLeads'
 import { Topbar, Loading } from '../../components/ui'
-import { getStagePill, daysAgo, formatDate } from '../../lib/stageConfig'
+import { StagePill, daysAgo, formatDate } from '../../lib/stageConfig'
 
 const MDE_EMAILS = [
   'sriya.komal@eshopbox.com',
@@ -183,7 +183,7 @@ function AttentionQueue({ deals, navigate }) {
                   <div className="desc" style={{ color: 'var(--danger)' }}>{topFlag?.title || 'High priority'}</div>
                 </div>
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span className={`pill ${getStagePill(deal.stage)}`} style={{ fontSize: 11 }}>{deal.stage}</span>
+                  <StagePill stage={deal.stage} style={{ fontSize: 11 }} />
                   <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{deal.repName}</span>
                   {deal.stageChangedOn && <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{daysAgo(deal.stageChangedOn)}d in stage</span>}
                 </div>
@@ -240,7 +240,7 @@ function StaleDealsQueue({ deals, navigate }) {
                   <div className="desc">{deal.repName}</div>
                 </div>
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span className={`pill ${getStagePill(deal.stage)}`} style={{ fontSize: 11 }}>{deal.stage}</span>
+                  <StagePill stage={deal.stage} style={{ fontSize: 11 }} />
                   {flag && <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{flag.desc}</span>}
                 </div>
               </div>
@@ -271,7 +271,7 @@ function ActivationQueue({ deals, navigate }) {
                   <div className="desc">{deal.repName}</div>
                 </div>
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span className={`pill ${getStagePill(deal.stage)}`} style={{ fontSize: 11 }}>{deal.stage}</span>
+                  <StagePill stage={deal.stage} style={{ fontSize: 11 }} />
                   {days != null && <span style={{ fontSize: 12, fontWeight: 600, color: daysColor }}>{days}d in stage</span>}
                 </div>
               </div>

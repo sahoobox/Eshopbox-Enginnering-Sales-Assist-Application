@@ -6,7 +6,7 @@ import { Loading } from '../../components/ui'
 import { toast } from '../../components/ui/Toast'
 import { SkeletonCard, SkeletonLine } from '../../components/ui/Skeleton'
 import { TaskModal } from '../Tasks'
-import { StickyNote, Phone, Calendar, CheckSquare, RefreshCw } from 'lucide-react'
+import { StickyNote, Phone, Calendar, CheckSquare, RefreshCw, Repeat } from 'lucide-react'
 
 function formatDate(d) {
   if (!d) return '—'
@@ -241,7 +241,7 @@ function ConvertLeadModal({ lead, onClose, onSuccess }) {
                 disabled={saving || !dateTime || !conversionMedium}
                 onClick={() => doConvert(true, dateTime, conversionMedium)}
               >
-                {saving ? 'Converting...' : 'Convert →'}
+                <Repeat size={13} /> {saving ? 'Converting...' : 'Convert'}
               </button>
             </div>
           </>
@@ -2077,7 +2077,7 @@ function LeadCallModal({ leadId, onClose, onSuccess }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" onClick={e => e.stopPropagation()}>
-        <div className="modal-head"><h3>Log Call</h3><button className="btn-close" onClick={onClose}>✕</button></div>
+        <div className="modal-head"><h3><Phone size={16} /> Log Call</h3><button className="btn-close" onClick={onClose}>✕</button></div>
         <div className="modal-body">
           <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
             <button

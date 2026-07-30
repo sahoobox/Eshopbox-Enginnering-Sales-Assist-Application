@@ -3,7 +3,7 @@ import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
 import { useLeads } from '../../hooks/useLeads'
 import { Topbar, Loading } from '../../components/ui'
-import { MID_MARKET_STAGES, ENT_STAGES, getStagePill, daysAgo } from '../../lib/stageConfig'
+import { MID_MARKET_STAGES, ENT_STAGES, StagePill, daysAgo } from '../../lib/stageConfig'
 
 const TERMINAL_STAGES = ['Won/Payment Received', 'Lost/Dropped', 'On Hold']
 const COMBINED_STAGES = [...new Set([...MID_MARKET_STAGES, ...ENT_STAGES])]
@@ -247,7 +247,7 @@ export default function Performance() {
                       return (
                         <tr key={deal.id}>
                           <td style={{ fontSize: 13 }}><b>{deal.brandName || deal.dealName}</b></td>
-                          <td><span className={`pill ${getStagePill(deal.stage)}`} style={{ fontSize: 11 }}>{deal.stage}</span></td>
+                          <td><StagePill stage={deal.stage} style={{ fontSize: 11 }} /></td>
                           <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{deal.repName}</td>
                           <td style={{ fontSize: 13, fontWeight: 600, color }}>{days != null ? `${days}d` : '—'}</td>
                         </tr>

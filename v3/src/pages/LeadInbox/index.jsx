@@ -4,6 +4,7 @@ import { useAuth, ROLES } from '../../context/AuthContext'
 import { useLeads } from '../../hooks/useLeads'
 import { Topbar } from '../../components/ui'
 import { SkeletonTable } from '../../components/ui/Skeleton'
+import { Repeat } from 'lucide-react'
 
 const MDE_EMAILS = [
   'sriya.komal@eshopbox.com',
@@ -716,7 +717,7 @@ export default function LeadInbox() {
                         style={!canConvert ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
                         onClick={e => e.stopPropagation()}
                       >
-                        Convert →
+                        <Repeat size={13} /> Convert
                       </button>
                     )}
                   </td>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { CheckCircle2, XCircle, AlertTriangle, Info } from 'lucide-react'
 
 // Global toast state
 let toastListeners = []
@@ -79,12 +80,13 @@ export function ToastContainer() {
           <span style={{
             fontSize: 15,
             flexShrink: 0,
-            lineHeight: 1
+            lineHeight: 1,
+            display: 'flex'
           }}>
-            {t.type === 'error' ? '✕'
-              : t.type === 'warn' ? '⚠'
-              : t.type === 'info' ? 'ℹ'
-              : '✓'}
+            {t.type === 'error' ? <XCircle size={15} />
+              : t.type === 'warn' ? <AlertTriangle size={15} />
+              : t.type === 'info' ? <Info size={15} />
+              : <CheckCircle2 size={15} />}
           </span>
 
           {/* Message */}

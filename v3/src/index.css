@@ -5,7 +5,7 @@
   --ink: #1D1D1D;
   --ink-2: #4A4A46;
   --ink-3: #8A8A85;
-  --bg: #FAFAF7;
+  --bg: #F5F8FA;
   --surface: #FFFFFF;
   --surface-2: #F4F2EC;
   --line: #EBE8E0;
@@ -28,11 +28,10 @@
   --sidebar-width: 216px;
 
   /* Transition tokens */
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease: cubic-bezier(0, 0, 0.2, 1);
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
   --duration-fast: 80ms;
   --duration-base: 140ms;
-  --duration-slow: 220ms;
 
   /* Type scale */
   --text-xs:   11px;
@@ -68,7 +67,7 @@
 html, body { margin: 0; padding: 0; height: 100%; }
 #root { height: 100%; }
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Lexend Deca', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--bg);
   color: var(--ink);
   font-size: var(--text-base);
@@ -169,14 +168,6 @@ main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: 
 }
 .nav-item:hover { background: var(--surface-2); color: var(--ink); }
 .nav-item.active { background: var(--surface-2); color: var(--ink); }
-.nav-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--ink-3);
-  flex-shrink: 0;
-}
-.nav-item.active .nav-dot { background: var(--brand); }
 .nav-count {
   margin-left: auto;
   font-size: 11px;
@@ -1027,6 +1018,7 @@ label,
   padding: 9px 14px; border: none; background: transparent;
   font-size: var(--text-sm); font-weight: 500; letter-spacing: 0.01em; color: var(--ink-3);
   border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
   transition:
     color var(--duration-fast) var(--ease),
     border-color var(--duration-fast) var(--ease);

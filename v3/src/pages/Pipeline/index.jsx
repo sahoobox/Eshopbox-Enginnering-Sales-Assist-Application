@@ -6,7 +6,7 @@ import { Topbar, Loading, Empty, ToggleGroup, Pill } from '../../components/ui'
 import DealCard from '../../components/ui/DealCard'
 import DealDetail from './DealDetail'
 import {
-  ALL_PIPELINE_STAGES, MID_MARKET_STAGES, ENT_STAGES, getStagePill, stageColor, initials, formatDate, daysAgo
+  ALL_PIPELINE_STAGES, MID_MARKET_STAGES, ENT_STAGES, StagePill, stageColor, initials, formatDate, daysAgo
 } from '../../lib/stageConfig'
 
 const AE_EMAILS = [
@@ -984,7 +984,7 @@ function ListView({ deals, onOpen, tableRef, theadRef }) {
               </td>
               <td>{deal.repName}</td>
               <td>
-                <span className={`pill ${getStagePill(deal.stage)}`}>{deal.stage}</span>
+                <StagePill stage={deal.stage} />
               </td>
               <td>{deal.solutionInterest || '—'}</td>
               <td>{deal.orderVolume || '—'}</td>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
 import { Topbar, Loading } from '../../components/ui'
-import { getStagePill, daysAgo } from '../../lib/stageConfig'
+import { StagePill, daysAgo } from '../../lib/stageConfig'
 
 const MDE_EMAILS = [
   'sriya.komal@eshopbox.com',
@@ -125,7 +125,7 @@ export default function Accounts() {
                 >
                   <td><b>{name}</b></td>
                   <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{pipeline(deal.repEmail)}</td>
-                  <td><span className={`pill ${getStagePill(deal.stage)}`}>{deal.stage}</span></td>
+                  <td><StagePill stage={deal.stage} /></td>
                   <td style={{ fontSize: 13 }}>{deal.repName || '—'}</td>
                   <td>
                     {deal.grade
