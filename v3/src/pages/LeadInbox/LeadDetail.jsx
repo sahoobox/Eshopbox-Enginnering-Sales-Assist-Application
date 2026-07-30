@@ -6,7 +6,7 @@ import { Loading } from '../../components/ui'
 import { toast } from '../../components/ui/Toast'
 import { SkeletonCard, SkeletonLine } from '../../components/ui/Skeleton'
 import { TaskModal } from '../Tasks'
-import { StickyNote, Phone, Calendar, CheckSquare, RefreshCw, Repeat } from 'lucide-react'
+import { StickyNote, Phone, Calendar, CheckSquare, RefreshCw, Repeat, Mail, ChevronRight, ChevronDown } from 'lucide-react'
 
 function formatDate(d) {
   if (!d) return '—'
@@ -1458,10 +1458,14 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
   const [meetings, setMeetings] = useState(cached?.meetings || [])
   const [calls, setCalls] = useState(cached?.calls || [])
   const [systemEvents, setSystemEvents] = useState(cached?.systemEvents || [])
+  const [emails, setEmails] = useState(cached?.emails || [])
   const [localCompleted, setLocalCompleted] = useState(cached?.localCompleted || new Set())
   const [confirmModal, setConfirmModal] = useState(null)
   const [activeChip, setActiveChip] = useState('All')
   const [expandedDesc, setExpandedDesc] = useState({})
+  const [expandedHistory, setExpandedHistory] = useState({})
+  const [emailBodies, setEmailBodies] = useState({})
+  const [emailBodyLoading, setEmailBodyLoading] = useState({})
   const [showDropdown, setShowDropdown] = useState(false)
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [showMeetingModal, setShowMeetingModal] = useState(false)
@@ -1471,24 +1475,27 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
   const fetchAll = useCallback(async (signal) => {
     setLoading(true)
     try {
-      const [tRes, mRes, cRes, evRes] = await Promise.all([
+      const [tRes, mRes, cRes, evRes, eRes] = await Promise.all([
         authFetch(`/api/leads/${leadId}/tasks`, { signal }).then(r => r.json()),
         authFetch(`/api/leads/${leadId}/meetings`, { signal }).then(r => r.json()),
         authFetch(`/api/leads/${leadId}/calls`, { signal }).then(r => r.json()),
         authFetch(`/api/leads/${leadId}/timeline`, { signal }).then(r => r.json()),
+        authFetch(`/api/leads/${leadId}/emails`, { signal }).then(r => r.json()),
       ])
       const newTasks = tRes.tasks || []
       const newMeetings = mRes.meetings || []
       const newCalls = cRes.calls || []
       const newEvents = evRes.events || []
+      const newEmails = eRes.mails || []
       setTasks(newTasks)
       setMeetings(newMeetings)
       setCalls(newCalls)
       setSystemEvents(newEvents)
+      setEmails(newEmails)
       if (tabDataCache) {
         tabDataCache.current.activity = {
           tasks: newTasks, meetings: newMeetings, calls: newCalls,
-          systemEvents: newEvents, localCompleted: new Set(),
+          systemEvents: newEvents, emails: newEmails, localCompleted: new Set(),
         }
       }
     } catch (err) {
@@ -1563,6 +1570,24 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
     })
   }
 
+  async function toggleHistoryItem(item) {
+    const wasExpanded = !!expandedHistory[item.id]
+    setExpandedHistory(prev => ({ ...prev, [item.id]: !wasExpanded }))
+    if (wasExpanded || item.type !== 'email') return
+    const emailId = item.raw.id
+    if (emailBodies[emailId] !== undefined || emailBodyLoading[emailId]) return
+    setEmailBodyLoading(prev => ({ ...prev, [emailId]: true }))
+    try {
+      const res = await authFetch(`/api/leads/${leadId}/emails/${emailId}`)
+      const data = await res.json()
+      setEmailBodies(prev => ({ ...prev, [emailId]: data.content || '' }))
+    } catch (err) {
+      setEmailBodies(prev => ({ ...prev, [emailId]: '' }))
+    } finally {
+      setEmailBodyLoading(prev => ({ ...prev, [emailId]: false }))
+    }
+  }
+
   // Normalize tasks/meetings/calls/notes/system events into one shape
   const items = [
     ...tasks.map(t => ({
@@ -1606,6 +1631,12 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
       status: 'completed', dueDate: '', priority: '', ownerName: e.actor || 'System',
       createdAt: e.createdAt || '', raw: e,
     })),
+    ...emails.map(m => ({
+      id: `email-${m.id}`, type: 'email',
+      title: `${m.subject} from ${m.fromName || m.from} to ${m.to}`,
+      status: 'completed', ownerName: m.fromName || m.from,
+      createdAt: m.date, raw: m,
+    })),
   ]
 
   const openItems = items
@@ -1620,15 +1651,16 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
     .filter(i => i.status === 'completed' && i.createdAt)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
-  const CHIPS = ['All', 'Tasks', 'Calls', 'Meetings', 'Notes', 'System']
-  const CHIP_TYPE = { Tasks: 'task', Calls: 'call', Meetings: 'meeting', Notes: 'note', System: 'system' }
+  const CHIPS = ['All', 'Tasks', 'Calls', 'Meetings', 'Emails', 'Notes', 'System']
+  const CHIP_TYPE = { Tasks: 'task', Calls: 'call', Meetings: 'meeting', Emails: 'email', Notes: 'note', System: 'system' }
   const filteredHistory = activeChip === 'All' ? historyItems : historyItems.filter(i => i.type === CHIP_TYPE[activeChip])
 
   const TYPE_ICON = {
     task: <CheckSquare size={12} />, meeting: <Calendar size={12} />,
     call: <Phone size={12} />, note: <StickyNote size={12} />, system: <RefreshCw size={12} />,
+    email: <Mail size={12} />,
   }
-  const TYPE_COLOR = { task: '#2F9E44', call: '#C2410C', meeting: '#3B5BDB', note: '#9333EA', system: '#6B7280' }
+  const TYPE_COLOR = { task: '#2F9E44', call: '#C2410C', meeting: '#3B5BDB', note: '#9333EA', system: '#6B7280', email: '#0D9488' }
   const TYPE_PILL_STYLE = {
     task:    { background: '#F0F4FF', color: '#3B5BDB' },
     meeting: { background: '#F0FFF4', color: '#2F9E44' },
@@ -1784,29 +1816,65 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
           <div style={{ textAlign: 'center', color: 'var(--ink-3)', fontSize: 13, padding: '20px 0' }}>No history yet.</div>
         ) : (
           <div>
-            {filteredHistory.map((item, i) => (
-              <div key={item.id} style={{ display: 'flex', gap: 12, position: 'relative', paddingBottom: i === filteredHistory.length - 1 ? 0 : 16 }}>
-                {i !== filteredHistory.length - 1 && (
-                  <div style={{ position: 'absolute', left: 9, top: 20, bottom: 0, width: 2, background: 'var(--line)' }} />
-                )}
-                <div style={{
-                  width: 20, height: 20, borderRadius: '50%',
-                  background: (TYPE_COLOR[item.type] || '#6B7280') + '18',
-                  color: TYPE_COLOR[item.type] || '#6B7280',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0, zIndex: 1,
-                }}>
-                  {TYPE_ICON[item.type]}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-1)' }}>{item.title}</div>
-                  {renderDescription(item, { lines: 2, borderColor: 'var(--line-2)', background: 'var(--surface-2)', marginTop: 6, marginBottom: 4 })}
-                  <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
-                    {[item.ownerName, formatActivityDate(item.createdAt)].filter(Boolean).join(' · ')}
+            {filteredHistory.map((item, i) => {
+              const isExpanded = !!expandedHistory[item.id]
+              const isEmail = item.type === 'email'
+              const isLoadingBody = isEmail && !!emailBodyLoading[item.raw.id]
+              const bodyText = isEmail ? emailBodies[item.raw.id] : item.description
+              const hasBody = isLoadingBody || !!bodyText
+              return (
+                <div key={item.id} style={{ display: 'flex', gap: 10, position: 'relative', paddingBottom: i === filteredHistory.length - 1 ? 0 : 16 }}>
+                  {i !== filteredHistory.length - 1 && (
+                    <div style={{ position: 'absolute', left: 36, top: 20, bottom: 0, width: 2, background: 'var(--line)' }} />
+                  )}
+                  <button
+                    onClick={() => toggleHistoryItem(item)}
+                    aria-label={isExpanded ? 'Collapse' : 'Expand'}
+                    style={{
+                      width: 16, height: 20, padding: 0, margin: 0,
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'var(--ink-3)', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </button>
+                  <div style={{
+                    width: 20, height: 20, borderRadius: '50%',
+                    background: (TYPE_COLOR[item.type] || '#6B7280') + '18',
+                    color: TYPE_COLOR[item.type] || '#6B7280',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0, zIndex: 1, marginTop: 1,
+                  }}>
+                    {TYPE_ICON[item.type]}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => toggleHistoryItem(item)}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-1)' }}>{item.title}</div>
+                    {hasBody && (
+                      <div style={{
+                        marginTop: 6, marginBottom: 4,
+                        padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 8,
+                        borderLeft: '2.5px solid var(--line-2)',
+                        fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.6,
+                        maxHeight: isExpanded ? 2000 : 40,
+                        overflow: 'hidden',
+                        transition: 'max-height var(--duration-base) var(--ease)',
+                        ...(isEmail ? {} : { whiteSpace: 'pre-line' }),
+                      }}>
+                        {isLoadingBody
+                          ? 'Loading…'
+                          : isEmail
+                            ? <div dangerouslySetInnerHTML={{ __html: bodyText || '' }} />
+                            : bodyText}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
+                      {[item.ownerName, formatActivityDate(item.createdAt)].filter(Boolean).join(' · ')}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
