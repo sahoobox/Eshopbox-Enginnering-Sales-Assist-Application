@@ -371,6 +371,7 @@ score: (() => {
     f2fCount: d.SA_F2F_Count || 0,
     saLogged: d.SA_Logged || false,
     leadSource: d.Lead_Source || '',
+    conversionMedium: d.Conversion_Medium || '',
     contactId: d.Contact_Name?.id || null,
     contactName: d.Contact_Name?.name || d.Contact_Name || '',
     accountName: d.Account_Name?.name || d.Account_Name || '',

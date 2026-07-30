@@ -79,7 +79,7 @@ const DEAL_FIELDS = [
   'SA_Pricing_Raised', 'SA_F2F_Count', 'Lost_Reason',
   'Contact_Name', 'Amount', 'On_Hold_Reason', 'Pipeline', 'Lead_Source',
   'City', 'How_can_Eshopbox_support_your_business', 'What_type_of_products_do_you_sell',
-  'Demo_Scheduled', 'Demo_Scheduled_Date_Time'
+  'Demo_Scheduled', 'Demo_Scheduled_Date_Time', 'Conversion_Medium'
 ].join(',');
 
 const DEALS_2_LAYOUT_ID = '6483035000025962021';

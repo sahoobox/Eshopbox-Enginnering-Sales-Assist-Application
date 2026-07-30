@@ -1,4 +1,13 @@
 import { useNavigate } from 'react-router-dom'
+import { MessageCircle, Phone, Mail, Globe, Calendar } from 'lucide-react'
+
+const CONVERSION_MEDIUM_MAP = {
+  'WhatsApp Messaging': { icon: MessageCircle, label: 'WhatsApp' },
+  'Phone Call': { icon: Phone, label: 'Call' },
+  'Email': { icon: Mail, label: 'Email' },
+  'Workspace Signup': { icon: Globe, label: 'Signup' },
+  'Cal.com': { icon: Calendar, label: 'Cal.com' },
+}
 
 function formatDate(dateStr) {
   if (!dateStr) return ''
@@ -32,6 +41,8 @@ export default function DealCard({ deal }) {
     : '?'
 
   const days = daysSince(deal.demoDate || deal.modifiedTime)
+
+  const conversionMedium = deal.conversionMedium ? CONVERSION_MEDIUM_MAP[deal.conversionMedium] : null
 
   // Build sub line: volume · source · interest
   const subParts = [
@@ -69,6 +80,23 @@ export default function DealCard({ deal }) {
           {flagCount > 0 && (
             <span className={`kc-pill ${hasCritical ? 'kc-pill-danger' : 'kc-pill-warn'}`}>
               {flagCount} flag{flagCount > 1 ? 's' : ''}
+            </span>
+          )}
+          {conversionMedium && (
+            <span className="kc-pill" style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 3,
+              fontSize: 10,
+              background: 'var(--surface-2)',
+              color: 'var(--text-secondary)',
+              padding: '2px 6px',
+              borderRadius: 4,
+              fontWeight: 500,
+              whiteSpace: 'nowrap'
+            }}>
+              <conversionMedium.icon size={10} />
+              {conversionMedium.label}
             </span>
           )}
           {deal.demoScheduledDateTime && (
