@@ -3511,8 +3511,8 @@ async function runRepReminders(env) {
     headers: { Authorization: `Zoho-oauthtoken ${orgToken}` },
   });
   const accountsData = await accountsRes.json();
-  console.log('Accounts raw response:', JSON.stringify(accountsRes || 'null').substring(0, 500));
-  const accounts = accountsData?.data || [];
+  console.log('Accounts raw response:', JSON.stringify(accountsData || 'null').substring(0, 500));
+  const accounts = Array.isArray(accountsData?.data) ? accountsData.data : [];
   const mailAccount = accounts.find(a =>
     a.mailboxAddress === 'care@eshopbox.com' ||
     (a.emailAddress || []).some(e => e.mailId === 'care@eshopbox.com')
