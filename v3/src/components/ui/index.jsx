@@ -67,12 +67,23 @@ export function Empty({ icon = '—', title = 'Nothing here', body }) {
 
 // ── Toggle group ─────────────────────────────────────────
 export function ToggleGroup({ options, value, onChange }) {
+  const activeIndex = Math.max(0, options.findIndex(o => o.value === value))
+  const active = options[activeIndex] || options[0]
   return (
     <div className="toggle-group">
+      <div
+        className="toggle-thumb"
+        style={{
+          width: `${100 / options.length}%`,
+          transform: `translateX(${activeIndex * 100}%)`,
+          background: active?.activeBg || 'var(--ink)',
+        }}
+      />
       {options.map((opt) => (
         <button
           key={opt.value}
           className={`toggle-btn ${value === opt.value ? 'active' : ''}`}
+          style={{ color: value === opt.value ? (opt.activeColor || '#fff') : undefined }}
           onClick={() => onChange(opt.value)}
         >
           {opt.label}

@@ -291,16 +291,16 @@ export default function DealDetail({ dealId }) {
         <div className="ws-main">
           <div className="tabs">
             {[
-              { id: 'activity', label: 'Activity', icon: Activity, count: deal.activities?.length },
-              { id: 'flags', label: 'Flags', icon: Flag, count: deal.flags?.length },
-              { id: 'demo', label: 'Demo Info', icon: Monitor },
-              { id: 'sequence', label: 'Sequence', icon: Mail },
-              { id: 'coach', label: 'Coach', icon: Sparkles },
-              { id: 'notes', label: 'Notes', icon: StickyNote },
-              { id: 'contact', label: 'Contact', icon: User },
+              { id: 'activity', label: 'Activity', icon: Activity, iconColor: 'var(--info)', count: deal.activities?.length },
+              { id: 'flags', label: 'Flags', icon: Flag, iconColor: 'var(--danger)', count: deal.flags?.length },
+              { id: 'demo', label: 'Demo Info', icon: Monitor, iconColor: 'var(--teal)' },
+              { id: 'sequence', label: 'Sequence', icon: Mail, iconColor: 'var(--indigo)' },
+              { id: 'coach', label: 'Coach', icon: Sparkles, iconColor: 'var(--purple)' },
+              { id: 'notes', label: 'Notes', icon: StickyNote, iconColor: 'var(--orange)' },
+              { id: 'contact', label: 'Contact', icon: User, iconColor: 'var(--green)' },
             ].map(t => (
               <button key={t.id} className={`tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
-                <t.icon size={14} /> {t.label}
+                <t.icon size={14} color={t.iconColor} /> {t.label}
                 {t.count > 0 && <span className="count">{t.count}</span>}
               </button>
             ))}

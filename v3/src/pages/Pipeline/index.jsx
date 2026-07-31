@@ -300,10 +300,14 @@ function PipelineList() {
             gap: 8,
             flexWrap: 'wrap'
           }}>
-            <div className="seg">
-              <button className={view === 'kanban' ? 'is-on' : ''} onClick={() => updateParams({ view: 'kanban' })}>Kanban</button>
-              <button className={view === 'list' ? 'is-on' : ''} onClick={() => updateParams({ view: 'list' })}>List</button>
-            </div>
+            <ToggleGroup
+              options={[
+                { value: 'kanban', label: 'Kanban' },
+                { value: 'list', label: 'List' },
+              ]}
+              value={view}
+              onChange={v => updateParams({ view: v })}
+            />
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{
@@ -313,24 +317,14 @@ function PipelineList() {
               }}>
                 Sort
               </span>
-              <div className="seg">
-                <button
-                  className={sortDir === 'desc' ? 'is-on' : ''}
-                  onClick={() => updateParams({
-                    sortBy: 'createdAt', sortDir: 'desc'
-                  })}
-                >
-                  Newest
-                </button>
-                <button
-                  className={sortDir === 'asc' ? 'is-on' : ''}
-                  onClick={() => updateParams({
-                    sortBy: 'createdAt', sortDir: 'asc'
-                  })}
-                >
-                  Oldest
-                </button>
-              </div>
+              <ToggleGroup
+                options={[
+                  { value: 'desc', label: 'Newest' },
+                  { value: 'asc', label: 'Oldest' },
+                ]}
+                value={sortDir}
+                onChange={v => updateParams({ sortBy: 'createdAt', sortDir: v })}
+              />
             </div>
 
             <div data-legend style={{ position: 'relative' }}>
@@ -528,9 +522,15 @@ function PipelineList() {
         />
 
         {showPipelineToggle && (
-          <div className="seg" style={{ flexShrink: 0 }}>
-            <button className={pipelineFilter === 'midmarket' ? 'is-on' : ''} onClick={() => updateParams({ pipeline: 'midmarket' })}>Mid-Market</button>
-            <button className={pipelineFilter === 'enterprise' ? 'is-on' : ''} onClick={() => updateParams({ pipeline: 'enterprise' })}>Enterprise</button>
+          <div style={{ flexShrink: 0 }}>
+            <ToggleGroup
+              options={[
+                { value: 'midmarket', label: 'Mid-Market', activeBg: 'var(--info-bg)', activeColor: 'var(--info)' },
+                { value: 'enterprise', label: 'Enterprise', activeBg: 'var(--purple-bg)', activeColor: 'var(--purple)' },
+              ]}
+              value={pipelineFilter}
+              onChange={v => updateParams({ pipeline: v })}
+            />
           </div>
         )}
       </div>
@@ -963,7 +963,6 @@ function ListView({ deals, onOpen, tableRef, theadRef }) {
             <th style={{ background: 'white' }}>Brand</th>
             <th style={{ background: 'white' }}>Owner</th>
             <th style={{ background: 'white' }}>Stage</th>
-            <th style={{ background: 'white' }}>Solution</th>
             <th style={{ background: 'white' }}>Volume</th>
             <th style={{ background: 'white' }}>Grade</th>
             <th style={{ background: 'white' }}>Flags</th>
@@ -972,7 +971,7 @@ function ListView({ deals, onOpen, tableRef, theadRef }) {
         </thead>
         <tbody>
           {deals.length === 0 && (
-            <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>No deals found</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>No deals found</td></tr>
           )}
           {deals.map(deal => (
             <tr key={deal.id} className="clickable" onClick={() => onOpen(deal.id)}>
@@ -986,7 +985,6 @@ function ListView({ deals, onOpen, tableRef, theadRef }) {
               <td>
                 <StagePill stage={deal.stage} />
               </td>
-              <td>{deal.solutionInterest || '—'}</td>
               <td>{deal.orderVolume || '—'}</td>
               <td>
                 {deal.grade ? (

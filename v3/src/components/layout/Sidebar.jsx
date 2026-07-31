@@ -19,6 +19,19 @@ const NAV_ICON = {
   'api-log': Terminal,
 }
 
+const NAV_ICON_COLOR = {
+  pipeline: 'var(--info)',
+  'need-attention': 'var(--danger)',
+  'lead-inbox': 'var(--teal)',
+  accounts: 'var(--indigo)',
+  tasks: 'var(--green)',
+  performance: 'var(--orange)',
+  reports: 'var(--purple)',
+  'bulk-assign': 'var(--cyan)',
+  settings: 'var(--slate)',
+  'api-log': 'var(--rose)',
+}
+
 // Nav config per role
 function getNavItems(role, counts = {}) {
   const base = []
@@ -226,7 +239,7 @@ export default function Sidebar({ counts = {} }) {
                   className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
                   onClick={() => navigate(item.path)}
                 >
-                  {NavIcon && <NavIcon size={15} />}
+                  {NavIcon && <NavIcon size={15} color={NAV_ICON_COLOR[item.id]} />}
                   {item.label}
                   {item.count != null && item.count > 0 && (
                     <span className={`nav-count ${item.badge || ''}`}>
