@@ -272,11 +272,11 @@ main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: 
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 14px;
-  height: 100%;
-  border: none;
-  border-right: 1px solid var(--line-2);
-  background: transparent;
+  padding: 8px 14px;
+  height: 40px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
   font-size: 13px;
   font-weight: 500;
   color: var(--ink-2);
@@ -287,6 +287,7 @@ main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: 
 .pipeline-filter-trigger:hover {
   background: var(--surface-2);
   color: var(--ink);
+  border-color: var(--ink-3);
 }
 .pipeline-searchbar-input {
   flex: 1;
@@ -398,6 +399,7 @@ main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: 
   align-items: center;
   gap: 6px;
   cursor: pointer;
+  white-space: nowrap;
 }
 .btn:hover { border-color: var(--ink-3); background: var(--surface-2); box-shadow: 0 1px 4px rgba(29,29,29,0.1); }
 .btn:active { transform: scale(0.97); }
@@ -405,7 +407,7 @@ main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: 
 .btn-primary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
 .btn-ghost { background: transparent; border-color: transparent; color: var(--ink-2); }
 .btn-ghost:hover { background: var(--surface-2); }
-.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-sm { padding: 4px 10px; font-size: 12px; white-space: nowrap; }
 .btn-danger { background: var(--danger-bg); color: var(--danger); border-color: transparent; }
 .btn-danger:hover { background: #f9d5d5; }
 .btn-ok { background: var(--ok); border-color: var(--ok); color: #fff; }
@@ -840,11 +842,12 @@ label,
   border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--surface-2);
+  padding: 3px;
 }
 .toggle-thumb {
   position: absolute;
-  top: 0; left: 0; bottom: 0;
-  border-radius: var(--radius-sm);
+  top: 3px; left: 3px; bottom: 3px;
+  border-radius: 4px;
   box-shadow: var(--shadow-1);
   transition: transform var(--duration-base) var(--ease), background var(--duration-base) var(--ease);
   z-index: 0;

@@ -74,7 +74,7 @@ export function ToggleGroup({ options, value, onChange }) {
       <div
         className="toggle-thumb"
         style={{
-          width: `${100 / options.length}%`,
+          width: `calc((100% - 6px) / ${options.length})`,
           transform: `translateX(${activeIndex * 100}%)`,
           background: active?.activeBg || 'var(--ink)',
         }}

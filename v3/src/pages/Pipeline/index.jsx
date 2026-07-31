@@ -5,6 +5,7 @@ import { useDeals } from '../../hooks/useDeals'
 import { Topbar, Loading, Empty, ToggleGroup, Pill } from '../../components/ui'
 import DealCard from '../../components/ui/DealCard'
 import DealDetail from './DealDetail'
+import { SkeletonLine } from '../../components/ui/Skeleton'
 import {
   ALL_PIPELINE_STAGES, MID_MARKET_STAGES, ENT_STAGES, StagePill, stageColor, initials, formatDate, daysAgo
 } from '../../lib/stageConfig'
@@ -280,7 +281,11 @@ function PipelineList() {
     return () => document.removeEventListener('mousedown', handler)
   }, [showLegend])
 
-  if (loading) return <div className="main"><Loading text="Fetching deals from Zoho CRM…" /></div>
+  if (loading) return (
+    <div className="main">
+      {view === 'kanban' ? <KanbanViewSkeleton pipelineFilter={pipelineFilter} /> : <ListViewSkeleton />}
+    </div>
+  )
   if (error) return (
     <div className="main">
       <Topbar title="Pipeline" />
@@ -911,6 +916,61 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
 })
 
 // ── Kanban view ───────────────────────────────────────────
+function KanbanCardSkeleton() {
+  return (
+    <div className="kcard" style={{ minHeight: 160, display: 'flex', flexDirection: 'column', cursor: 'default' }}>
+      <div className="kc-labels">
+        <div className="kc-label" style={{ background: 'var(--line)' }} />
+      </div>
+      <div className="kc-body" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div className="kc-title-row">
+          <SkeletonLine width="70%" height={14} />
+          <SkeletonLine width={22} height={22} style={{ borderRadius: 5, flexShrink: 0 }} />
+        </div>
+        <div style={{ marginTop: 6 }}>
+          <SkeletonLine width="50%" height={11} />
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginTop: 8, minHeight: 22 }}>
+          <SkeletonLine width={50} height={18} style={{ borderRadius: 4 }} />
+          <SkeletonLine width={40} height={18} style={{ borderRadius: 4 }} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto', paddingTop: 10 }}>
+          <SkeletonLine width={20} height={20} style={{ borderRadius: '50%' }} />
+          <SkeletonLine width={60} height={11} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function KanbanViewSkeleton({ pipelineFilter }) {
+  const { isMDE, isAE } = useAuth()
+  const stages = isMDE ? MID_MARKET_STAGES
+    : isAE ? ENT_STAGES
+    : pipelineFilter === 'enterprise' ? ENT_STAGES
+    : MID_MARKET_STAGES
+
+  return (
+    <div className="kanban-wrap" style={{ overflowX: 'auto' }}>
+      <div className="kanban">
+        {stages.map(stage => (
+          <div key={stage} className="kcol" style={{ overflow: 'visible', background: '#f5f5f5' }}>
+            <div className="kcol-head" style={{ paddingTop: 12, paddingBottom: 8 }}>
+              <div className="kch-top">
+                <span className="kdot" style={{ background: stageDotColor(stage) }} />
+                <span className="kname">{stage}</span>
+              </div>
+            </div>
+            <div className="kcol-body">
+              {Array.from({ length: 2 }).map((_, i) => <KanbanCardSkeleton key={i} />)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function KanbanView({ deals, pipelineFilter }) {
   const { isMDE, isAE } = useAuth()
   const stages = isMDE ? MID_MARKET_STAGES
@@ -949,6 +1009,39 @@ function KanbanView({ deals, pipelineFilter }) {
           )
         })}
       </div>
+    </div>
+  )
+}
+
+function ListViewSkeleton() {
+  return (
+    <div className="table-wrap" style={{ width: '100%' }}>
+      <table className="t">
+        <thead>
+          <tr>
+            <th style={{ background: 'white' }}>Brand</th>
+            <th style={{ background: 'white' }}>Owner</th>
+            <th style={{ background: 'white' }}>Stage</th>
+            <th style={{ background: 'white' }}>Volume</th>
+            <th style={{ background: 'white' }}>Grade</th>
+            <th style={{ background: 'white' }}>Flags</th>
+            <th style={{ background: 'white' }}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <tr key={i}>
+              <td><SkeletonLine width="70%" height={13} /></td>
+              <td><SkeletonLine width="60%" height={13} /></td>
+              <td><SkeletonLine width={80} height={20} style={{ borderRadius: 999 }} /></td>
+              <td><SkeletonLine width="50%" height={13} /></td>
+              <td><SkeletonLine width={22} height={22} style={{ borderRadius: 5 }} /></td>
+              <td><SkeletonLine width={40} height={20} style={{ borderRadius: 999 }} /></td>
+              <td style={{ textAlign: 'right' }}><SkeletonLine width={70} height={26} style={{ borderRadius: 6, marginLeft: 'auto' }} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -994,7 +1087,7 @@ function ListView({ deals, onOpen, tableRef, theadRef }) {
               <td>
                 {deal.flags?.length > 0
                   ? <span className={`pill ${deal.attentionLevel === 'high' ? 'pill-danger' : 'pill-warn'}`}>{deal.flags.length}</span>
-                  : <span style={{ color: 'var(--ink-3)' }}>—</span>
+                  : <span className="pill pill-ok">None</span>
                 }
               </td>
               <td style={{ textAlign: 'right' }}>
