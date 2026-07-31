@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { MessageCircle, Phone, Mail, Globe, Calendar } from 'lucide-react'
+import { leadSourcePill, conversionMediumPill } from '../../lib/fieldColors'
 
 const CONVERSION_MEDIUM_MAP = {
   'WhatsApp Messaging': { icon: MessageCircle, label: 'WhatsApp' },
@@ -44,10 +45,9 @@ export default function DealCard({ deal }) {
 
   const conversionMedium = deal.conversionMedium ? CONVERSION_MEDIUM_MAP[deal.conversionMedium] : null
 
-  // Build sub line: volume · source · interest
+  // Build sub line: volume · interest (source moved to its own pill below)
   const subParts = [
     deal.orderVolume,
-    deal.leadSource,
     deal.solutionInterest
   ].filter(Boolean)
 
@@ -82,14 +82,19 @@ export default function DealCard({ deal }) {
               {flagCount} flag{flagCount > 1 ? 's' : ''}
             </span>
           )}
+          {deal.leadSource && (
+            <span className={`kc-pill ${leadSourcePill(deal.leadSource)}`} style={{
+              fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 500, whiteSpace: 'nowrap'
+            }}>
+              {deal.leadSource}
+            </span>
+          )}
           {conversionMedium && (
-            <span className="kc-pill" style={{
+            <span className={`kc-pill ${conversionMediumPill(deal.conversionMedium)}`} style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 3,
               fontSize: 10,
-              background: 'var(--surface-2)',
-              color: 'var(--text-secondary)',
               padding: '2px 6px',
               borderRadius: 4,
               fontWeight: 500,

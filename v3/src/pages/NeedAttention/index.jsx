@@ -4,6 +4,7 @@ import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
 import { Topbar } from '../../components/ui'
 import { SkeletonTable } from '../../components/ui/Skeleton'
+import { pipelinePillClass, pipelineLabel } from '../../lib/fieldColors'
 
 const RESOLVE_INSTRUCTIONS = {
   r1:  "Recap email not sent after demo. Send the Day 1 recap email from the Sequence tab to keep the prospect engaged while the demo is fresh.",
@@ -275,8 +276,8 @@ export default function NeedAttention() {
                       {f.repName}
                     </td>
                     <td style={{ padding: '10px 12px' }}>
-                      <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: f.pipeline === 'Enterprise 2.0' ? '#EEEDFE' : '#EEF2FF', color: f.pipeline === 'Enterprise 2.0' ? '#3C3489' : '#3B5BDB' }}>
-                        {f.pipeline === 'Enterprise 2.0' ? 'Enterprise' : 'Mid-Market'}
+                      <span className={`pill ${pipelinePillClass(f.pipeline)}`} style={{ fontSize: 11 }}>
+                        {pipelineLabel(f.pipeline)}
                       </span>
                     </td>
                     <td style={{ padding: '10px 12px', color: 'var(--ink-2)', fontSize: 12 }}>

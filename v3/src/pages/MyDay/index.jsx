@@ -5,6 +5,7 @@ import { useDeals } from '../../hooks/useDeals'
 import { useLeads } from '../../hooks/useLeads'
 import { Topbar, Loading } from '../../components/ui'
 import { StagePill, daysAgo, formatDate } from '../../lib/stageConfig'
+import { leadSourcePill } from '../../lib/fieldColors'
 
 const MDE_EMAILS = [
   'sriya.komal@eshopbox.com',
@@ -152,7 +153,7 @@ function LeadsQueue({ leads, navigate }) {
                   <div className="desc">{lead.fullName}{lead.orderVolume ? ` · ${lead.orderVolume} orders/mo` : ''}</div>
                 </div>
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {lead.leadSource && <span className="pill pill-neutral" style={{ fontSize: 11 }}>{lead.leadSource}</span>}
+                  {lead.leadSource && <span className={`pill ${leadSourcePill(lead.leadSource)}`} style={{ fontSize: 11 }}>{lead.leadSource}</span>}
                   {lead.leadStatus === 'New' && <span className="pill pill-warn" style={{ fontSize: 11 }}>today by 6pm</span>}
                   <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{time}</span>
                   <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{lead.ownerName}</span>

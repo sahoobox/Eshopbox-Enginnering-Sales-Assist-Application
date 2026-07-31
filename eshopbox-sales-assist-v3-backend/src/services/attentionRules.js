@@ -45,7 +45,10 @@ export default function getAttentionFlags(deal) {
     deal.stage === 'Demo Done'
   ) {
     if (daysAgoDemo >= 1 && deal.emailStatuses?.day1?.status === 'draft') {
-      flags.push({ id: 'r1', title: 'Recap email not sent', severity: 'high', daysCount: daysAgoDemo })
+      flags.push({
+        id: 'r1', title: 'Recap email not sent', severity: 'high', daysCount: daysAgoDemo,
+        desc: `${daysAgoDemo} day${daysAgoDemo === 1 ? '' : 's'} since demo`,
+      })
     }
   }
 
@@ -55,7 +58,10 @@ export default function getAttentionFlags(deal) {
     deal.stage === 'Demo Done'
   ) {
     if (daysAgoDemo >= 3 && deal.emailStatuses?.day2?.status !== 'sent') {
-      flags.push({ id: 'r2', title: 'Pricing proposal not sent', severity: 'high', daysCount: daysAgoDemo ?? 0 })
+      flags.push({
+        id: 'r2', title: 'Pricing proposal not sent', severity: 'high', daysCount: daysAgoDemo ?? 0,
+        desc: `${daysAgoDemo ?? 0} days since demo`,
+      })
     }
   }
 
@@ -65,7 +71,10 @@ export default function getAttentionFlags(deal) {
     if (day3 && day3.status !== 'sent' && day3.scheduledFor) {
       const day3DaysOverdue = Math.floor((today - new Date(day3.scheduledFor)) / 86400000)
       if (day3DaysOverdue >= 2) {
-        flags.push({ id: 'r3', title: 'ROI value email not sent', severity: 'medium', daysCount: day3DaysOverdue })
+        flags.push({
+          id: 'r3', title: 'ROI value email not sent', severity: 'medium', daysCount: day3DaysOverdue,
+          desc: `${day3DaysOverdue} days overdue`,
+        })
       }
     }
   }
@@ -76,21 +85,30 @@ export default function getAttentionFlags(deal) {
     deal.stage === 'Demo Done'
   ) {
     if (daysAgoDemo >= 2 && !deal.followupMeetingDate) {
-      flags.push({ id: 'r4', title: 'No follow-up meeting booked', severity: 'high', daysCount: daysAgoDemo ?? 0 })
+      flags.push({
+        id: 'r4', title: 'No follow-up meeting booked', severity: 'high', daysCount: daysAgoDemo ?? 0,
+        desc: `${daysAgoDemo ?? 0} days since demo, no meeting booked`,
+      })
     }
   }
 
   // R5 — Follow-up meeting passed, stage not updated
   if (isEnterprise && !isTerminal && meetingDate) {
     if (meetingDate < today && deal.stage === 'Proposal Sent') {
-      flags.push({ id: 'r5', title: 'Follow-up meeting passed — stage not updated', severity: 'high', daysCount: daysAgoStage })
+      flags.push({
+        id: 'r5', title: 'Follow-up meeting passed — stage not updated', severity: 'high', daysCount: daysAgoStage,
+        desc: `${daysAgoStage} days since meeting passed, stage unchanged`,
+      })
     }
   }
 
   // R6 — Stuck in same stage 7+ days
   if (!isTerminal && deal.stage !== 'Upcoming Demo') {
     if (isOpen && daysAgoStage >= 7) {
-      flags.push({ id: 'r6', title: `Stuck in "${deal.stage}" for ${daysAgoStage} days`, severity: 'medium', daysCount: daysAgoStage })
+      flags.push({
+        id: 'r6', title: `Stuck in "${deal.stage}" for ${daysAgoStage} days`, severity: 'medium', daysCount: daysAgoStage,
+        desc: `No stage movement in ${daysAgoStage} days`,
+      })
     }
   }
 
@@ -100,7 +118,11 @@ export default function getAttentionFlags(deal) {
       deal.stage === 'Follow up Meeting Done' &&
       daysSinceActivity >= 5 && daysSinceActivity < 500
     ) {
-      flags.push({ id: 'r7', title: 'Follow-up meeting done — deal going quiet', severity: 'medium', daysCount: daysSinceActivity < 999 ? daysSinceActivity : daysAgoStage })
+      flags.push({
+        id: 'r7', title: 'Follow-up meeting done — deal going quiet', severity: 'medium',
+        daysCount: daysSinceActivity < 999 ? daysSinceActivity : daysAgoStage,
+        desc: `${daysSinceActivity < 999 ? daysSinceActivity : daysAgoStage} days since last activity`,
+      })
     }
   }
 
@@ -110,7 +132,10 @@ export default function getAttentionFlags(deal) {
     if (isOpen && nudge?.status === 'sent' && nudge?.sentAt) {
       const nudgeDays = Math.floor((today - new Date(nudge.sentAt)) / 86400000)
       if (nudgeDays >= 1) {
-        flags.push({ id: 'r8', title: 'Nudge email sent — no response yet', severity: 'medium', daysCount: nudgeDays })
+        flags.push({
+          id: 'r8', title: 'Nudge email sent — no response yet', severity: 'medium', daysCount: nudgeDays,
+          desc: `${nudgeDays} days since nudge email sent`,
+        })
       }
     }
   }
@@ -121,57 +146,84 @@ export default function getAttentionFlags(deal) {
       deal.grade === 'A' && daysAgoDemo >= 5 &&
       (!deal.meetings || !deal.meetings.some(m => m.venue === 'In-office' || m.venue === 'Client location'))
     ) {
-      flags.push({ id: 'r9', title: 'Grade A deal — no in-person meeting yet', severity: 'medium', daysCount: daysAgoDemo ?? 0 })
+      flags.push({
+        id: 'r9', title: 'Grade A deal — no in-person meeting yet', severity: 'medium', daysCount: daysAgoDemo ?? 0,
+        desc: `${daysAgoDemo ?? 0} days since demo, no in-person meeting`,
+      })
     }
   }
 
   // R10 — Lost deal, no reason logged
   if (deal.stage === 'Lost/Dropped') {
     if (!deal.lostReason || deal.lostReason.trim() === '') {
-      flags.push({ id: 'r10', title: 'Lost deal — no reason logged', severity: 'medium', daysCount: daysAgoStage })
+      flags.push({
+        id: 'r10', title: 'Lost deal — no reason logged', severity: 'medium', daysCount: daysAgoStage,
+        desc: `Lost ${daysAgoStage} days ago, no reason on file`,
+      })
     }
   }
 
   // R11 — Upcoming Demo 10+ days, no demo scheduled
   if (!deal.demoDate) {
     if (deal.stage === 'Upcoming Demo' && daysAgoStage >= 10) {
-      flags.push({ id: 'r11', title: 'Upcoming demo overdue — no demo scheduled', severity: 'high', daysCount: daysAgoStage })
+      flags.push({
+        id: 'r11', title: 'Upcoming demo overdue — no demo scheduled', severity: 'high', daysCount: daysAgoStage,
+        desc: `${daysAgoStage} days in Upcoming Demo, no date set`,
+      })
     }
   }
 
   // R12 — Demo Done but form not logged in Sales Assist
   if (!isTerminal && !deal.saLogged) {
     if (deal.stage === 'Demo Done') {
-      flags.push({ id: 'r12', title: 'Demo done — form not logged in Sales Assist', severity: 'high', daysCount: daysAgoDemo ?? 0 })
+      flags.push({
+        id: 'r12', title: 'Demo done — form not logged in Sales Assist', severity: 'high', daysCount: daysAgoDemo ?? 0,
+        desc: `${daysAgoDemo ?? 0} days since demo, not yet logged`,
+      })
     }
   }
 
   // R13 — Account Setup in Progress 14+ days
   if (isMidMarket && !isTerminal) {
     if (deal.stage === 'Account Setup in Progress' && daysAgoStage >= 14) {
-      flags.push({ id: 'r13', title: 'Account setup taking too long', severity: 'medium', daysCount: daysAgoStage })
+      flags.push({
+        id: 'r13', title: 'Account setup taking too long', severity: 'medium', daysCount: daysAgoStage,
+        desc: `${daysAgoStage} days in Account Setup in Progress`,
+      })
     }
   }
 
   // R14 — Awaiting First Shipment 21+ days
   if (isMidMarket && !isTerminal) {
     if (deal.stage === 'Awaiting First Shipment' && daysAgoStage >= 21) {
-      flags.push({ id: 'r14', title: 'Awaiting first shipment for 21+ days', severity: 'medium', daysCount: daysAgoStage })
+      flags.push({
+        id: 'r14', title: 'Awaiting first shipment for 21+ days', severity: 'medium', daysCount: daysAgoStage,
+        desc: `${daysAgoStage} days awaiting first shipment`,
+      })
     }
   }
 
   // R15 — First Shipment Done 14+ days, not activated
   if (isMidMarket && !isTerminal) {
     if (deal.stage === 'First Shipment Done' && daysAgoStage >= 14) {
-      flags.push({ id: 'r15', title: 'First shipment done — deal not activated yet', severity: 'medium', daysCount: daysAgoStage })
+      flags.push({
+        id: 'r15', title: 'First shipment done — deal not activated yet', severity: 'medium', daysCount: daysAgoStage,
+        desc: `${daysAgoStage} days since first shipment, not activated`,
+      })
     }
   }
 
   // R16 — Deal owned by an MDE/AE rep but sitting in the wrong pipeline
   if (!isTerminal && deal.repEmail && MDE_REPS.includes(deal.repEmail) && deal.pipeline !== 'Mid-market') {
-    flags.push({ id: 'r16', title: 'Deal in wrong pipeline', severity: 'high', daysCount: daysAgoStage })
+    flags.push({
+      id: 'r16', title: 'Deal in wrong pipeline', severity: 'high', daysCount: daysAgoStage,
+      desc: `In ${deal.stage} for ${daysAgoStage} days — rep role doesn't match pipeline`,
+    })
   } else if (!isTerminal && deal.repEmail && AE_REPS.includes(deal.repEmail) && deal.pipeline !== 'Enterprise 2.0') {
-    flags.push({ id: 'r16', title: 'Deal in wrong pipeline', severity: 'high', daysCount: daysAgoStage })
+    flags.push({
+      id: 'r16', title: 'Deal in wrong pipeline', severity: 'high', daysCount: daysAgoStage,
+      desc: `In ${deal.stage} for ${daysAgoStage} days — rep role doesn't match pipeline`,
+    })
   }
 
   return flags

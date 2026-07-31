@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { Topbar } from '../../components/ui'
+import { pipelinePillClass, pipelineLabel } from '../../lib/fieldColors'
 
 function daysAgo(dateStr) {
   if (!dateStr) return null
@@ -356,12 +357,8 @@ function DealsTab({ deals, searchQuery, setSearchQuery, selectedIds, setSelected
                   <td>{deal.repName || '—'}</td>
                   <td><span style={{ fontSize: 12 }}>{deal.stage || '—'}</span></td>
                   <td>
-                    <span style={{
-                      fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 10,
-                      background: deal.pipeline === 'Enterprise 2.0' ? '#EEE5FF' : '#E5F0FF',
-                      color: deal.pipeline === 'Enterprise 2.0' ? '#7C3AED' : '#1D4ED8',
-                    }}>
-                      {deal.pipeline === 'Enterprise 2.0' ? 'Enterprise' : 'Mid-Market'}
+                    <span className={`pill ${pipelinePillClass(deal.pipeline)}`}>
+                      {pipelineLabel(deal.pipeline)}
                     </span>
                   </td>
                   <td>

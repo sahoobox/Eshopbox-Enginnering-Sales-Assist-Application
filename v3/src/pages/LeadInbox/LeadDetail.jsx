@@ -7,6 +7,7 @@ import { toast } from '../../components/ui/Toast'
 import { SkeletonCard, SkeletonLine } from '../../components/ui/Skeleton'
 import { TaskModal } from '../Tasks'
 import { StickyNote, Phone, Calendar, CheckSquare, RefreshCw, Repeat, Mail, ChevronRight, ChevronDown } from 'lucide-react'
+import { leadStatusStyle, leadSourcePill } from '../../lib/fieldColors'
 
 function formatDate(d) {
   if (!d) return '—'
@@ -520,8 +521,8 @@ export default function LeadDetail() {
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
               {needsSameDay && <span className="pill pill-warn">Same-day · today by 6pm</span>}
-              {lead.leadStatus && <span className="pill pill-neutral">{lead.leadStatus}</span>}
-              {lead.leadSource && <span className="pill pill-info">{lead.leadSource}</span>}
+              {lead.leadStatus && <span className="pill" style={leadStatusStyle(lead.leadStatus)}>{lead.leadStatus}</span>}
+              {lead.leadSource && <span className={`pill ${leadSourcePill(lead.leadSource)}`}>{lead.leadSource}</span>}
               {lead.converted && (
                 <span style={{
                   display: 'inline-flex', alignItems: 'center',
@@ -740,8 +741,8 @@ export default function LeadDetail() {
                   { k: 'Lead Name', v: lead.fullName || '—' },
                   { k: 'Lead Owner', v: lead.ownerName || '—' },
                   { k: 'Created On', v: lead.createdAt ? formatDateTime(lead.createdAt) : '—' },
-                  { k: 'Lead Status', v: lead.leadStatus ? <span className="pill pill-neutral">{lead.leadStatus}</span> : '—' },
-                  { k: 'Lead Source', v: lead.leadSource || '—' },
+                  { k: 'Lead Status', v: lead.leadStatus ? <span className="pill" style={leadStatusStyle(lead.leadStatus)}>{lead.leadStatus}</span> : '—' },
+                  { k: 'Lead Source', v: lead.leadSource ? <span className={`pill ${leadSourcePill(lead.leadSource)}`}>{lead.leadSource}</span> : '—' },
                 ].map((row, i) => (
                   <div key={i} className="ws-side-row">
                     <span className="k">{row.k}</span>

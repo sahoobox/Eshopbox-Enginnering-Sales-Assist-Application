@@ -9,6 +9,7 @@ import { toast } from '../../components/ui/Toast'
 import { SkeletonCard, SkeletonLine } from '../../components/ui/Skeleton'
 import { MID_MARKET_STAGES, ENT_STAGES, StagePill, stageColor, initials, formatDate, daysAgo } from '../../lib/stageConfig'
 import { TaskModal } from '../Tasks'
+import { leadSourcePill, pipelinePillClass, pipelineLabel } from '../../lib/fieldColors'
 
 export default function DealDetail({ dealId }) {
   const navigate = useNavigate()
@@ -122,15 +123,7 @@ export default function DealDetail({ dealId }) {
           </span>
         )}
         {deal.leadSource && (
-          <span style={{
-            fontSize: 11,
-            background: 'var(--surface-2)',
-            color: 'var(--ink-2)',
-            padding: '2px 8px',
-            borderRadius: 4,
-            fontWeight: 500,
-            border: '1px solid var(--line)'
-          }}>
+          <span className={`pill ${leadSourcePill(deal.leadSource)}`} style={{ fontSize: 11 }}>
             {deal.leadSource}
           </span>
         )}
@@ -333,7 +326,7 @@ export default function DealDetail({ dealId }) {
         <div className="ws-side">
           {deal.dealSummary && (
             <div className="card">
-              <div className="ws-side-head"><h4>Brand Summary</h4></div>
+              <div className="ws-side-head"><h4 className="section-label accent-info">Brand Summary</h4></div>
               <div className="ws-side-body" style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--ink-2)' }}>
                 {deal.dealSummary}
               </div>
@@ -341,7 +334,7 @@ export default function DealDetail({ dealId }) {
           )}
 
           <div className="card">
-            <div className="ws-side-head"><h4>Deal fields</h4></div>
+            <div className="ws-side-head"><h4 className="section-label accent-purple">Deal fields</h4></div>
             <div className="ws-side-body">
               <div className="ws-side-row">
                 <span className="k">Owner</span>
@@ -349,37 +342,16 @@ export default function DealDetail({ dealId }) {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
                 <span style={{ color: 'var(--ink-3)', fontSize: 13 }}>Pipeline</span>
-                <span style={{
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: deal.pipeline === 'Enterprise 2.0' ? '#3B5BDB' : '#2F9E44',
-                  background: deal.pipeline === 'Enterprise 2.0' ? '#EEF2FF' : '#F0FFF4',
-                  padding: '2px 10px',
-                  borderRadius: 20
-                }}>
-                  {deal.pipeline === 'Enterprise 2.0' ? 'Enterprise' : 'Mid-market'}
+                <span className={`pill ${pipelinePillClass(deal.pipeline)}`}>
+                  {pipelineLabel(deal.pipeline)}
                 </span>
               </div>
               {deal.leadSource && (
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '8px 0',
-                  borderBottom: '1px solid var(--line)'
-                }}>
-                  <span style={{
-                    fontSize: 12,
-                    color: 'var(--ink-3)',
-                    fontWeight: 500
-                  }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                  <span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 500 }}>
                     Lead Source
                   </span>
-                  <span style={{
-                    fontSize: 12,
-                    color: 'var(--ink)',
-                    fontWeight: 500
-                  }}>
+                  <span className={`pill ${leadSourcePill(deal.leadSource)}`} style={{ fontSize: 11 }}>
                     {deal.leadSource}
                   </span>
                 </div>
@@ -650,7 +622,7 @@ function TimelineTab({ dealId, deal, onRefresh }) {
 
       {/* OPEN · NEXT STEPS */}
       <div className="card card-pad" style={{ marginBottom: 14 }}>
-        <h4 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--ink-3)' }}>OPEN · NEXT STEPS</h4>
+        <h4 className="section-label accent-warn" style={{ marginBottom: 12 }}>OPEN · NEXT STEPS</h4>
         {openItems.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--ink-3)', fontSize: 13, padding: '20px 0' }}>
             No open tasks, meetings, or calls.
@@ -686,7 +658,7 @@ function TimelineTab({ dealId, deal, onRefresh }) {
       {/* HISTORY */}
       <div className="card card-pad">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-          <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--ink-3)' }}>HISTORY</h4>
+          <h4 className="section-label accent-neutral">HISTORY</h4>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {CHIPS.map(chip => (
               <button key={chip} onClick={() => setActiveChip(chip)}

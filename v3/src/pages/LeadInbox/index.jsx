@@ -5,6 +5,7 @@ import { useLeads } from '../../hooks/useLeads'
 import { Topbar } from '../../components/ui'
 import { SkeletonTable } from '../../components/ui/Skeleton'
 import { Repeat } from 'lucide-react'
+import { leadStatusStyle, leadSourcePill } from '../../lib/fieldColors'
 
 const MDE_EMAILS = [
   'sriya.komal@eshopbox.com',
@@ -667,12 +668,7 @@ export default function LeadInbox() {
               const createdTime = lead.createdAt
                 ? new Date(lead.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
                 : ''
-              const STATUS_STYLE = {
-                'Connected':   { background: '#F0FFF4', color: '#2F9E44' },
-                'Connecting':  { background: '#F0F4FF', color: '#3B5BDB' },
-                'Bad Timing':  { background: '#FFF7ED', color: '#C2410C' },
-              }
-              const statusStyle = STATUS_STYLE[lead.leadStatus] || { background: 'var(--surface-2)', color: 'var(--ink-3)' }
+              const statusStyle = leadStatusStyle(lead.leadStatus)
 
               return (
                 <tr key={lead.id} onClick={() => window.open(`/leads/${lead.id}`, '_blank')} style={{ cursor: 'pointer' }}>
@@ -702,7 +698,7 @@ export default function LeadInbox() {
                   <td style={{ fontSize: 13, padding: '14px 16px' }}>{lead.orderVolume || '—'}</td>
                   <td style={{ padding: '14px 16px' }}>
                     {lead.leadSource
-                      ? <span className="pill pill-neutral">{lead.leadSource}</span>
+                      ? <span className={`pill ${leadSourcePill(lead.leadSource)}`}>{lead.leadSource}</span>
                       : <span style={{ color: 'var(--ink-3)' }}>—</span>
                     }
                   </td>

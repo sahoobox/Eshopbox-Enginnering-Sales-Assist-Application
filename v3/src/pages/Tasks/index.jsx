@@ -14,7 +14,7 @@ function taskType(subject = '') {
   return 'Follow-up'
 }
 
-const typePill = { Email: 'pill-info', Call: 'pill-warn', Meeting: 'pill-ok', 'Follow-up': 'pill-neutral' }
+const typePill = { Email: 'pill-info', Call: 'pill-warn', Meeting: 'pill-ok', 'Follow-up': 'pill-purple' }
 
 export default function Tasks() {
   const { role, isMDE, isAE, user } = useAuth()

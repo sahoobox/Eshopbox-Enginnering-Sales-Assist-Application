@@ -49,6 +49,15 @@ export const STAGE_PILL = {
   'Lost/Dropped':         'pill-danger',
   'On Hold':              'pill-warn',
   'Active':               'pill-ok',
+  'Upcoming Demo':              'pill-info',
+  'Demo Done':                  'pill-teal',
+  'Proposal Sent':              'pill-indigo',
+  'Account Setup in Progress':  'pill-warn',
+  'Awaiting First Shipment':    'pill-orange',
+  'First Shipment Done':        'pill-green',
+  'Follow up Meeting Done':     'pill-purple',
+  'Demo Approved':              'pill-cyan',
+  'Deal Approved':              'pill-darkgreen',
 }
 
 export const ALL_PIPELINE_STAGES = [
