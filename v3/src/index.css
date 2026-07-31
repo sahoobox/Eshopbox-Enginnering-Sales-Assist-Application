@@ -2,6 +2,7 @@
 :root {
   --brand: #F95253;
   --brand-dark: #D63E3F;
+  --navy: #1E3A5F;
   --ink: #1D1D1D;
   --ink-2: #4A4A46;
   --ink-3: #8A8A85;
@@ -856,9 +857,10 @@ label,
   position: relative;
   z-index: 1;
   flex: 1;
-  padding: 5px 14px;
-  font-size: 13px;
+  padding: 5px 12px;
+  font-size: 12px;
   font-weight: 500;
+  white-space: nowrap;
   border: none;
   background: transparent;
   color: var(--ink-2);

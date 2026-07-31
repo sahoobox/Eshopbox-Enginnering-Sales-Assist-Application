@@ -95,7 +95,7 @@ export function ToggleGroup({ options, value, onChange }) {
         style={{
           left: thumbRect.left,
           width: thumbRect.width,
-          background: active?.activeBg || 'var(--ink)',
+          background: active?.activeBg || 'var(--navy)',
         }}
       />
       {options.map((opt, i) => (
