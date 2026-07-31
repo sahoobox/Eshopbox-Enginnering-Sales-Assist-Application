@@ -18,16 +18,6 @@ function formatDateTime(dt) {
   try { return new Date(dt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) } catch { return dt }
 }
 
-function formatSentDate(dateStr) {
-  if (!dateStr) return '—'
-  try {
-    return new Date(dateStr).toLocaleString('en-GB', {
-      day: '2-digit', month: 'short', year: '2-digit',
-      hour: '2-digit', minute: '2-digit', hour12: true
-    })
-  } catch { return dateStr }
-}
-
 function formatActivityDate(dateStr) {
   if (!dateStr) return '—'
   try {
@@ -35,15 +25,6 @@ function formatActivityDate(dateStr) {
       day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
     })
   } catch { return dateStr }
-}
-
-const DAY_LABELS = ['Day 1', 'Day 2', 'Day 4', 'Day 7']
-
-const DAY_HEADINGS = {
-  'Day 1': 'Welcome & Introduction',
-  'Day 2': 'Shipping Benefits',
-  'Day 4': 'Fulfilment & Delivery',
-  'Day 7': 'Final Follow-up',
 }
 
 const CALL_PURPOSE_OPTIONS = [
@@ -415,10 +396,6 @@ export default function LeadDetail() {
   const [mergeConfirm, setMergeConfirm] = useState(null)
   const [mergeError, setMergeError] = useState(null)
   const [showReassign, setShowReassign] = useState(false)
-  const [leadEmails, setLeadEmails] = useState({ mails: [], drafts: [], scheduled: [] })
-  const [leadEmailsLoading, setLeadEmailsLoading] = useState(false)
-  const [expandedEmails, setExpandedEmails] = useState({})
-  const [emailBodies, setEmailBodies] = useState({})
   const [editingFields, setEditingFields] = useState(false)
   const [fieldsForm, setFieldsForm] = useState({ phone: '', email: '', company: '', city: '', website: '' })
   const [savingFields, setSavingFields] = useState(false)
@@ -469,42 +446,11 @@ export default function LeadDetail() {
   }, [leadId])
 
   useEffect(() => {
-    if (tab !== 'emails' || !lead?.id) return
-    setLeadEmailsLoading(true)
-    authFetch(`/api/leads/${lead.id}/emails`)
-      .then(r => r.json())
-      .then(d => {
-        setLeadEmails(d)
-        ;(d.mails || []).forEach(e => {
-          if (!emailBodies[e.id]) handleExpand(e.id)
-        })
-      })
-      .catch(() => setLeadEmails({ mails: [], drafts: [], scheduled: [] }))
-      .finally(() => setLeadEmailsLoading(false))
-  }, [tab, lead?.id])
-
-  useEffect(() => {
     if (!showStatusDropdown) return
     const handler = () => setShowStatusDropdown(false)
     document.addEventListener('click', handler)
     return () => document.removeEventListener('click', handler)
   }, [showStatusDropdown])
-
-  async function handleExpand(emailId) {
-    const isCurrentlyExpanded = expandedEmails[emailId]
-    setExpandedEmails(prev => ({ ...prev, [emailId]: !isCurrentlyExpanded }))
-
-    if (!isCurrentlyExpanded && !emailBodies[emailId]) {
-      try {
-        const res = await authFetch(`/api/leads/${lead.id}/emails/${emailId}`)
-        const data = await res.json()
-        setEmailBodies(prev => ({ ...prev, [emailId]: data.content || data.subject || '' }))
-      } catch (err) {
-        console.error('Failed to fetch email body', err)
-        toast.error('Failed to load email content')
-      }
-    }
-  }
 
   async function handleDisqualify() {
     if (!disqualifyReason) return toast.warn('Please select a reason')
@@ -755,7 +701,6 @@ export default function LeadDetail() {
             {[
               { id: 'leadfields', label: 'Lead Fields' },
               { id: 'activity', label: 'Activity' },
-              { id: 'emails', label: 'Sequence' },
               { id: 'notes', label: 'Notes' },
               { id: 'utm', label: 'UTM & Tracking' },
             ].map(t => (
@@ -767,126 +712,6 @@ export default function LeadDetail() {
 
           {tab === 'activity' && (
             <ActivityTab leadId={leadId} lead={lead} tabDataCache={tabDataCache} />
-          )}
-
-          {tab === 'emails' && (
-            <div>
-              {leadEmailsLoading ? (
-                <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>Loading emails...</div>
-              ) : (() => {
-                const sentMails = [...(leadEmails.mails || [])]
-                  .sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0))
-                if (sentMails.length === 0) return (
-                  <div style={{
-                    textAlign: 'center',
-                    padding: '48px 24px',
-                    color: 'var(--ink-3)',
-                    fontSize: 16,
-                    fontStyle: 'italic'
-                  }}>
-                    No emails sent yet from cadence
-                  </div>
-                )
-                return sentMails.map((e, i) => {
-                  const dayLabel = DAY_LABELS[i] || `Day ${i + 1}`
-                  const dayHeading = DAY_HEADINGS[dayLabel] || ''
-                  const dayCircle = dayLabel.replace('Day ', 'D')
-                  const isExpanded = expandedEmails[e.id] !== false
-
-                  return (
-                    <div key={e.id} style={{
-                      border: '1.5px solid var(--line)',
-                      borderRadius: 12,
-                      background: '#F0FFF4',
-                      marginBottom: 12,
-                      overflow: 'hidden'
-                    }}>
-                      {/* Header */}
-                      <div style={{
-                        background: '#E6F9ED',
-                        padding: '14px 20px',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        justifyContent: 'space-between',
-                        gap: 12
-                      }}>
-                        {/* Left — circle + title + subject + date */}
-                        <div style={{
-                          display: 'flex',
-                          gap: 12,
-                          alignItems: 'flex-start'
-                        }}>
-                          <div style={{
-                            width: 40, height: 40, borderRadius: '50%',
-                            background: '#2F9E44', color: '#fff',
-                            display: 'flex', alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 700, fontSize: 13, flexShrink: 0
-                          }}>
-                            {dayCircle}
-                          </div>
-                          <div>
-                            <div style={{
-                              fontWeight: 600, fontSize: 15,
-                              color: 'var(--ink-1)'
-                            }}>
-                              {dayLabel} · {dayHeading}
-                            </div>
-                            <div style={{
-                              fontSize: 13, color: 'var(--ink-3)',
-                              marginTop: 3
-                            }}>
-                              {e.subject}
-                            </div>
-                            <div style={{
-                              fontSize: 12, color: 'var(--ink-3)',
-                              marginTop: 4
-                            }}>
-                              Sent on {formatSentDate(e.date)}
-                            </div>
-                          </div>
-                        </div>
-                        {/* Right — Sent badge */}
-                        <div style={{
-                          background: '#2F9E44', color: '#fff',
-                          padding: '4px 12px', borderRadius: 20,
-                          fontSize: 13, fontWeight: 500, flexShrink: 0
-                        }}>
-                          ✓ Sent
-                        </div>
-                      </div>
-
-                      {/* Body expand area */}
-                      <div style={{ padding: '0 20px 16px' }}>
-                        <div style={{
-                          maxHeight: isExpanded ? 'none' : 72,
-                          overflow: 'hidden',
-                          marginTop: 12,
-                          fontSize: 14,
-                          color: 'var(--ink-2)',
-                          lineHeight: 1.6
-                        }}
-                          dangerouslySetInnerHTML={{
-                            __html: emailBodies[e.id] || e.subject
-                          }}
-                        />
-                        <button
-                          onClick={() => handleExpand(e.id)}
-                          style={{
-                            marginTop: 8, background: 'none',
-                            border: 'none', cursor: 'pointer',
-                            color: 'var(--accent)', fontSize: 13,
-                            padding: 0
-                          }}
-                        >
-                          {isExpanded ? '▲ Collapse' : '▼ Expand'}
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })
-              })()}
-            </div>
           )}
 
           {tab === 'notes' && (
