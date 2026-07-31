@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
-import { Topbar } from '../../components/ui'
+import { Topbar, ToggleGroup } from '../../components/ui'
 import { SkeletonTable } from '../../components/ui/Skeleton'
 import { pipelinePillClass, pipelineLabel } from '../../lib/fieldColors'
 
@@ -212,16 +212,16 @@ export default function NeedAttention() {
               ))}
             </select>
             {isAdmin && (
-              <div className="seg" style={{ flexShrink: 0 }}>
-                {['all', 'Mid-Market', 'Enterprise'].map(p => (
-                  <button
-                    key={p}
-                    className={activePipeline === p ? 'is-on' : ''}
-                    onClick={() => updateParams({ pipeline: p === 'all' ? null : p })}
-                  >
-                    {p === 'all' ? 'All' : p}
-                  </button>
-                ))}
+              <div style={{ flexShrink: 0 }}>
+                <ToggleGroup
+                  options={[
+                    { value: 'all', label: 'All' },
+                    { value: 'Mid-Market', label: 'Mid-Market' },
+                    { value: 'Enterprise', label: 'Enterprise' },
+                  ]}
+                  value={activePipeline}
+                  onChange={v => updateParams({ pipeline: v === 'all' ? null : v })}
+                />
               </div>
             )}
             {(searchQuery || filterFlag !== 'all' || filterRep !== 'all' || filterSeverity !== 'all') && (

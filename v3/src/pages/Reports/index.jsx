@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
 import { useLeads } from '../../hooks/useLeads'
-import { Topbar, Loading } from '../../components/ui'
+import { Topbar, Loading, ToggleGroup } from '../../components/ui'
 import { MID_MARKET_STAGES, ENT_STAGES, daysAgo } from '../../lib/stageConfig'
 import { useState } from 'react'
 
@@ -96,16 +96,24 @@ export default function Reports() {
         subtitle="Pipeline analytics · conversion · deal health"
         actions={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <div className="seg">
-              <button className={dateFilter === 'month' ? 'is-on' : ''} onClick={() => setDateFilter('month')}>This month</button>
-              <button className={dateFilter === 'quarter' ? 'is-on' : ''} onClick={() => setDateFilter('quarter')}>This quarter</button>
-              <button className={dateFilter === 'all' ? 'is-on' : ''} onClick={() => setDateFilter('all')}>All time</button>
-            </div>
+            <ToggleGroup
+              options={[
+                { value: 'month', label: 'This month' },
+                { value: 'quarter', label: 'This quarter' },
+                { value: 'all', label: 'All time' },
+              ]}
+              value={dateFilter}
+              onChange={setDateFilter}
+            />
             {showToggle && (
-              <div className="seg">
-                <button className={pipelineFilter === 'midmarket' ? 'is-on' : ''} onClick={() => setPipelineFilter('midmarket')}>Mid-Market</button>
-                <button className={pipelineFilter === 'enterprise' ? 'is-on' : ''} onClick={() => setPipelineFilter('enterprise')}>Enterprise</button>
-              </div>
+              <ToggleGroup
+                options={[
+                  { value: 'midmarket', label: 'Mid-Market' },
+                  { value: 'enterprise', label: 'Enterprise' },
+                ]}
+                value={pipelineFilter}
+                onChange={setPipelineFilter}
+              />
             )}
           </div>
         }

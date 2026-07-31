@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth, ROLES } from '../../context/AuthContext'
-import { Topbar } from '../../components/ui'
+import { Topbar, ToggleGroup } from '../../components/ui'
 import { toast } from '../../components/ui/Toast'
 import { RefreshCw } from 'lucide-react'
 
@@ -46,10 +46,12 @@ export default function Settings() {
         </div>
       ) : (
         <>
-          <div className="seg" style={{ marginBottom: 20 }}>
-            {TABS.map(t => (
-              <button key={t} className={tab === t ? 'is-on' : ''} onClick={() => setTab(t)}>{t}</button>
-            ))}
+          <div style={{ marginBottom: 20, width: 'fit-content' }}>
+            <ToggleGroup
+              options={TABS.map(t => ({ value: t, label: t }))}
+              value={tab}
+              onChange={setTab}
+            />
           </div>
 
           {tab === 'Team'         && <TeamTab />}

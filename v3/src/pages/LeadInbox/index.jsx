@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useRef, useCallback, forwardRef, useImper
 import { useSearchParams } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useLeads } from '../../hooks/useLeads'
-import { Topbar } from '../../components/ui'
+import { Topbar, ToggleGroup } from '../../components/ui'
 import { SkeletonTable } from '../../components/ui/Skeleton'
 import { Repeat } from 'lucide-react'
 import { leadStatusStyle, leadSourcePill } from '../../lib/fieldColors'
@@ -564,13 +564,16 @@ export default function LeadInbox() {
           onChange={e => setLocalSearch(e.target.value)}
         />
         {isAdmin && (
-          <div className="seg" style={{ flexShrink: 0 }}>
-            {['all', 'Mid-Market', 'Enterprise'].map(p => (
-              <button key={p}
-                className={activePipeline === p ? 'is-on' : ''}
-                onClick={() => updateParams({ pipeline: p === 'all' ? null : p })}
-              >{p === 'all' ? 'All' : p}</button>
-            ))}
+          <div style={{ flexShrink: 0 }}>
+            <ToggleGroup
+              options={[
+                { value: 'all', label: 'All' },
+                { value: 'Mid-Market', label: 'Mid-Market' },
+                { value: 'Enterprise', label: 'Enterprise' },
+              ]}
+              value={activePipeline}
+              onChange={v => updateParams({ pipeline: v === 'all' ? null : v })}
+            />
           </div>
         )}
       </div>

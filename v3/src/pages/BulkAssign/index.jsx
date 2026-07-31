@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth, ROLES } from '../../context/AuthContext'
-import { Topbar } from '../../components/ui'
+import { Topbar, ToggleGroup } from '../../components/ui'
 import { pipelinePillClass, pipelineLabel } from '../../lib/fieldColors'
 
 function daysAgo(dateStr) {
@@ -15,6 +15,23 @@ function fmtDate(dateStr) {
 }
 
 const SELECT_LIMIT = 100
+
+// ── Shared pipeline filter toggle (Deals + Leads tabs) ────
+function PipelineFilterToggle({ pipeline, setPipeline }) {
+  const { role } = useAuth()
+  if (role !== ROLES.ADMIN) return null
+  return (
+    <ToggleGroup
+      options={[
+        { value: 'all', label: 'All' },
+        { value: 'midmarket', label: 'Mid-Market' },
+        { value: 'enterprise', label: 'Enterprise' },
+      ]}
+      value={pipeline}
+      onChange={setPipeline}
+    />
+  )
+}
 
 // ── Confirmation Modal ────────────────────────────────────
 function ConfirmModal({ title, message, onConfirm, onCancel }) {
@@ -266,13 +283,7 @@ function DealsTab({ deals, searchQuery, setSearchQuery, selectedIds, setSelected
             background: 'var(--surface)', color: 'var(--ink-1)'
           }}
         />
-        {role === ROLES.ADMIN && (
-          <div className="seg">
-            {[['all','All'],['midmarket','Mid-Market'],['enterprise','Enterprise']].map(([v,l]) => (
-              <button key={v} className={pipeline === v ? 'is-on' : ''} onClick={() => setPipeline(v)}>{l}</button>
-            ))}
-          </div>
-        )}
+        <PipelineFilterToggle pipeline={pipeline} setPipeline={setPipeline} />
         <select
           value={stageFilter}
           onChange={e => setStageFilter(e.target.value)}
@@ -457,13 +468,7 @@ function LeadsTab({ leads, searchQuery, setSearchQuery, selectedIds, setSelected
             background: 'var(--surface)', color: 'var(--ink-1)'
           }}
         />
-        {role === ROLES.ADMIN && (
-          <div className="seg">
-            {[['all','All'],['midmarket','Mid-Market'],['enterprise','Enterprise']].map(([v,l]) => (
-              <button key={v} className={pipeline === v ? 'is-on' : ''} onClick={() => setPipeline(v)}>{l}</button>
-            ))}
-          </div>
-        )}
+        <PipelineFilterToggle pipeline={pipeline} setPipeline={setPipeline} />
         <select
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
@@ -760,10 +765,16 @@ export default function BulkAssign() {
       )}
 
       {/* Module tabs */}
-      <div className="seg" style={{ marginBottom: 20, width: 'fit-content' }}>
-        <button className={activeModule === 'deals' ? 'is-on' : ''} onClick={() => setActiveModule('deals')}>Deals</button>
-        <button className={activeModule === 'leads' ? 'is-on' : ''} onClick={() => setActiveModule('leads')}>Leads</button>
-        <button className={activeModule === 'history' ? 'is-on' : ''} onClick={() => setActiveModule('history')}>History</button>
+      <div style={{ marginBottom: 20, width: 'fit-content' }}>
+        <ToggleGroup
+          options={[
+            { value: 'deals', label: 'Deals' },
+            { value: 'leads', label: 'Leads' },
+            { value: 'history', label: 'History' },
+          ]}
+          value={activeModule}
+          onChange={setActiveModule}
+        />
       </div>
 
       {/* Tab content */}
