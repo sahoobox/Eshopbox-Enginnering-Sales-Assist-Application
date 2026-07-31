@@ -376,6 +376,7 @@ score: (() => {
     contactName: d.Contact_Name?.name || d.Contact_Name || '',
     accountName: d.Account_Name?.name || d.Account_Name || '',
     lostReason: d.Lost_Reason || '',
+    onHoldReason: d.On_Hold_Reason || '',
     city: d.City || '',
     supportNeeded: d.How_can_Eshopbox_support_your_business || '',
     productType: Array.isArray(d.What_type_of_products_do_you_sell)

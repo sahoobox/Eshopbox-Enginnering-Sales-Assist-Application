@@ -423,7 +423,8 @@ export default function DealDetail({ dealId }) {
                 { k: 'Follow-up mtg', v: formatDate(deal.followupMeetingDate) },
                 { k: 'Days in stage', v: daysAgo(deal.stageChangedOn) != null ? `${daysAgo(deal.stageChangedOn)}d` : '—' },
                 { k: 'Demo logged', v: deal.saLogged ? <span className="pill pill-ok">✓ Yes</span> : <span className="pill pill-neutral">No</span> },
-                { k: 'Lost reason', v: deal.lostReason || '—' },
+                ...(deal.stage === 'Lost/Dropped' ? [{ k: 'Lost reason', v: deal.lostReason || '—' }] : []),
+                ...(deal.stage === 'On Hold' ? [{ k: 'On Hold reason', v: deal.onHoldReason || '—' }] : []),
               ].map(row => (
                 <div key={row.k} className="ws-side-row">
                   <span className="k">{row.k}</span>
