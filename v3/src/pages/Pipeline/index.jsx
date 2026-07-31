@@ -530,8 +530,8 @@ function PipelineList() {
           <div style={{ flexShrink: 0 }}>
             <ToggleGroup
               options={[
-                { value: 'midmarket', label: 'Mid-Market', activeBg: 'var(--info-bg)', activeColor: 'var(--info)' },
-                { value: 'enterprise', label: 'Enterprise', activeBg: 'var(--purple-bg)', activeColor: 'var(--purple)' },
+                { value: 'midmarket', label: 'Mid-Market' },
+                { value: 'enterprise', label: 'Enterprise' },
               ]}
               value={pipelineFilter}
               onChange={v => updateParams({ pipeline: v })}

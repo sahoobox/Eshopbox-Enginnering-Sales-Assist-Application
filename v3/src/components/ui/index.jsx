@@ -1,3 +1,5 @@
+import { useState, useRef, useLayoutEffect } from 'react'
+
 // ── Topbar ──────────────────────────────────────────────
 export function Topbar({ title, subtitle, actions }) {
   return (
@@ -67,21 +69,39 @@ export function Empty({ icon = '—', title = 'Nothing here', body }) {
 
 // ── Toggle group ─────────────────────────────────────────
 export function ToggleGroup({ options, value, onChange }) {
+  const containerRef = useRef(null)
+  const btnRefs = useRef([])
+  const [thumbRect, setThumbRect] = useState({ left: 3, width: 0 })
   const activeIndex = Math.max(0, options.findIndex(o => o.value === value))
   const active = options[activeIndex] || options[0]
+
+  useLayoutEffect(() => {
+    const btn = btnRefs.current[activeIndex]
+    const container = containerRef.current
+    if (btn && container) {
+      const btnRect = btn.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
+      setThumbRect({
+        left: btnRect.left - containerRect.left,
+        width: btnRect.width,
+      })
+    }
+  }, [value, activeIndex, options.length])
+
   return (
-    <div className="toggle-group">
+    <div className="toggle-group" ref={containerRef}>
       <div
         className="toggle-thumb"
         style={{
-          width: `calc((100% - 6px) / ${options.length})`,
-          transform: `translateX(${activeIndex * 100}%)`,
+          left: thumbRect.left,
+          width: thumbRect.width,
           background: active?.activeBg || 'var(--ink)',
         }}
       />
-      {options.map((opt) => (
+      {options.map((opt, i) => (
         <button
           key={opt.value}
+          ref={el => btnRefs.current[i] = el}
           className={`toggle-btn ${value === opt.value ? 'active' : ''}`}
           style={{ color: value === opt.value ? (opt.activeColor || '#fff') : undefined }}
           onClick={() => onChange(opt.value)}

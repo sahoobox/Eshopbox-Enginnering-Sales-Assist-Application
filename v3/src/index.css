@@ -846,10 +846,10 @@ label,
 }
 .toggle-thumb {
   position: absolute;
-  top: 3px; left: 3px; bottom: 3px;
+  top: 3px; bottom: 3px;
   border-radius: 4px;
   box-shadow: var(--shadow-1);
-  transition: transform var(--duration-base) var(--ease), background var(--duration-base) var(--ease);
+  transition: left var(--duration-base) var(--ease), width var(--duration-base) var(--ease), background var(--duration-base) var(--ease);
   z-index: 0;
 }
 .toggle-btn {
