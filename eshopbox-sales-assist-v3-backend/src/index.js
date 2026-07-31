@@ -1070,16 +1070,14 @@ app.get('/api/deals/:id', requireAuth, async (c) => {
         if (viewAsUser) effectiveUser = viewAsUser;
       }
     }
-    const [dealRes, tasksRes, activitiesRes, notesRes, meetingsRes, callsRes] = await Promise.all([
+    const [dealRes, tasksRes, notesRes, meetingsRes, callsRes] = await Promise.all([
       getDeal(c.env, dealId),
       getDealTasks(c.env, dealId),
-      getDealActivities(c.env, dealId),
       getDealNotes(c.env, dealId),
       getDealMeetings(c.env, dealId),
       getDealCalls(c.env, dealId),
     ]);
     const tasks = tasksRes?.data || [];
-    const activities = activitiesRes?.data || [];
     if (!dealRes?.data?.[0]) return c.json({ error: 'Deal not found' }, 404);
 const deal = mapZohoDeal(dealRes.data[0]);
 deal.tasks = tasks;
@@ -1214,13 +1212,7 @@ if (!dealSummary) {
   }
 }
 
-deal.activities = activities.map(a => ({
-      id: a.id,
-      type: a.Activity_Type || 'Note',
-      date: a.Created_Time,
-      description: a.Description || a.Subject || '',
-    }));
-    deal.notes = (notesRes?.data || []).map(n => ({
+deal.notes = (notesRes?.data || []).map(n => ({
       id: n.id,
       type: 'Note',
       date: n.Created_Time,
