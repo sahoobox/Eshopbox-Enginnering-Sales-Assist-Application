@@ -1112,6 +1112,23 @@ label,
 }
 .tl-row .act { color: var(--ink); }
 
+/* Scoped container for raw email HTML injected via dangerouslySetInnerHTML —
+   Zoho email bodies bring their own inline styles/tables/images, so this
+   forces a hard width ceiling on every descendant and gives a horizontal-
+   scroll safety net instead of letting wide content break the layout. */
+.email-body-content {
+  overflow-x: auto;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  word-break: break-word;
+}
+.email-body-content * {
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
 /* Callout */
 .callout {
   padding: 12px 14px; border-radius: var(--radius-sm);

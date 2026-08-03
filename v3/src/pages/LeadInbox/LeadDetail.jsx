@@ -1408,7 +1408,7 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
     try {
       const res = await authFetch(`/api/leads/${leadId}/emails/${emailId}`)
       const data = await res.json()
-      setEmailBodies(prev => ({ ...prev, [emailId]: data.content || '' }))
+      setEmailBodies(prev => ({ ...prev, [emailId]: DOMPurify.sanitize(data.content || '') }))
     } catch (err) {
       setEmailBodies(prev => ({ ...prev, [emailId]: '' }))
     } finally {
@@ -1443,17 +1443,18 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
       ].filter(Boolean).join('\n') || '',
       createdAt: c.timing || '', raw: c,
     })),
-    ...(lead?.notes || []).map((n, i) => ({
-      id: `note-${n.id || i}`, type: 'note',
-      title: (() => {
-        const raw = n.Note_Content || n.content || ''
-        const stripped = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-        return stripped.slice(0, 120) || 'Note added'
-      })(),
-      status: 'completed', dueDate: '', priority: '',
-      ownerName: n.Created_By?.name || n.createdBy || '',
-      createdAt: n.Created_Time || n.date || '', raw: n,
-    })),
+    ...(lead?.notes || []).map((n, i) => {
+      const raw = n.Note_Content || n.content || ''
+      const stripped = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+      return {
+        id: `note-${n.id || i}`, type: 'note',
+        title: stripped.slice(0, 120) || 'Note added',
+        description: stripped,
+        status: 'completed', dueDate: '', priority: '',
+        ownerName: n.Created_By?.name || n.createdBy || '',
+        createdAt: n.Created_Time || n.date || '', raw: n,
+      }
+    }),
     ...systemEvents.map(e => ({
       id: `system-${e.id}`, type: 'system', title: e.description || 'Update',
       status: 'completed', dueDate: '', priority: '', ownerName: e.actor || 'System',
@@ -1650,23 +1651,28 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
               const isLoadingBody = isEmail && !!emailBodyLoading[item.raw.id]
               const bodyText = isEmail ? emailBodies[item.raw.id] : item.description
               const hasBody = isLoadingBody || !!bodyText
+              const canExpand = isEmail || hasBody
               return (
                 <div key={item.id} style={{ display: 'flex', gap: 10, position: 'relative', paddingBottom: i === filteredHistory.length - 1 ? 0 : 16 }}>
                   {i !== filteredHistory.length - 1 && (
                     <div style={{ position: 'absolute', left: 36, top: 20, bottom: 0, width: 2, background: 'var(--line)' }} />
                   )}
-                  <button
-                    onClick={() => toggleHistoryItem(item)}
-                    aria-label={isExpanded ? 'Collapse' : 'Expand'}
-                    style={{
-                      width: 16, height: 20, padding: 0, margin: 0,
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: 'var(--ink-3)', flexShrink: 0,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >
-                    {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  </button>
+                  {canExpand ? (
+                    <button
+                      onClick={() => toggleHistoryItem(item)}
+                      aria-label={isExpanded ? 'Collapse' : 'Expand'}
+                      style={{
+                        width: 16, height: 20, padding: 0, margin: 0,
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: 'var(--ink-3)', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </button>
+                  ) : (
+                    <div style={{ width: 16, height: 20, flexShrink: 0 }} />
+                  )}
                   <div style={{
                     width: 20, height: 20, borderRadius: '50%',
                     background: (TYPE_COLOR[item.type] || '#6B7280') + '18',
@@ -1676,7 +1682,10 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
                   }}>
                     {TYPE_ICON[item.type]}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => toggleHistoryItem(item)}>
+                  <div
+                    style={{ flex: 1, minWidth: 0, cursor: canExpand ? 'pointer' : 'default' }}
+                    onClick={canExpand ? () => toggleHistoryItem(item) : undefined}
+                  >
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-1)' }}>{item.title}</div>
                     {hasBody && (
                       <div style={{
@@ -1692,7 +1701,7 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
                         {isLoadingBody
                           ? 'Loading…'
                           : isEmail
-                            ? <div dangerouslySetInnerHTML={{ __html: bodyText || '' }} />
+                            ? <div className="email-body-content" dangerouslySetInnerHTML={{ __html: bodyText || '' }} />
                             : bodyText}
                       </div>
                     )}
