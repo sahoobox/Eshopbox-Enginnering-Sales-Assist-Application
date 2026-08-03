@@ -4443,6 +4443,61 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       }
     }
 
+    if (zohoCode === 'INVALID_DATA' && zohoApiName === 'contact') {
+      // Contact ID invalid — retry without contact ID
+      console.log('Contact ID invalid, retrying without contact...')
+
+      const contactRetryPayload = {
+        ...convertPayload,
+        data: [{
+          ...convertPayload.data[0],
+          Contacts: undefined
+        }]
+      }
+
+      const contactRetryT0 = Date.now()
+      const contactRetryFetchRes = await fetch(
+        `https://www.zohoapis.com/crm/v2/Leads/${leadId}/actions/convert`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(contactRetryPayload)
+        }
+      )
+      const contactRetryDurationMs = Date.now() - contactRetryT0
+      const contactRetryRes = await safeJson(contactRetryFetchRes)
+      console.log('Contact retry response:', JSON.stringify(contactRetryRes))
+
+      const contactRetryData = contactRetryRes?.data?.[0]
+
+      // Refresh the diagnostic variables from the RETRY's own response — a failed
+      // retry must never be reported using the original (now stale) contact error.
+      zohoError = contactRetryData?.data?.[0] || contactRetryData
+      zohoCode = zohoError?.code || contactRetryData?.code
+      zohoApiName = zohoError?.details?.api_name || ''
+
+      await logApiCall(c.env, {
+        service: 'zoho',
+        endpoint: `/crm/v2/Leads/${leadId}/actions/convert`,
+        method: 'POST',
+        leadId,
+        brandName: company || null,
+        actorEmail: user.email,
+        actorName: user.name,
+        requestSummary: 'Retry convert without contact (contact INVALID_DATA)',
+        responseStatus: contactRetryFetchRes.status,
+        success: contactRetryData?.code === 'SUCCESS',
+        errorMessage: contactRetryData?.code === 'SUCCESS' ? null : (zohoCode + ': ' + (zohoError?.message || JSON.stringify(contactRetryRes))),
+        durationMs: contactRetryDurationMs
+      })
+
+      if (contactRetryData?.code === 'SUCCESS') {
+        dealId = contactRetryData.details?.Deals?.id || contactRetryData.details?.Deals
+        contactId = contactRetryData.details?.Contacts?.id || contactRetryData.details?.Contacts
+        accountId = contactRetryData.details?.Accounts?.id || contactRetryData.details?.Accounts
+      }
+    }
+
     if (!dealId && zohoCode === 'DUPLICATE_DATA') {
       return c.json({
         error: 'A deal already exists for this lead. Please check the Deals section.',
