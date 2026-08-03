@@ -30,6 +30,24 @@ function formatActivityDate(dateStr) {
   } catch { return dateStr }
 }
 
+function htmlToPlainText(html) {
+  if (!html) return ''
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 const CALL_PURPOSE_OPTIONS = [
   'None', 'Intro/first contact', 'Discovery call', 'Request for demo',
   'Follow-up Call', 'Pricing Discussion', 'Proposal Review',
@@ -1409,7 +1427,7 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
     try {
       const res = await authFetch(`/api/leads/${leadId}/emails/${emailId}`)
       const data = await res.json()
-      setEmailBodies(prev => ({ ...prev, [emailId]: DOMPurify.sanitize(data.content || '') }))
+      setEmailBodies(prev => ({ ...prev, [emailId]: htmlToPlainText(data.content || '') }))
     } catch (err) {
       setEmailBodies(prev => ({ ...prev, [emailId]: '' }))
     } finally {
@@ -1653,6 +1671,7 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
               const bodyText = isEmail ? emailBodies[item.raw.id] : item.description
               const hasBody = isLoadingBody || !!bodyText
               const canExpand = isEmail || hasBody
+              const showBody = isEmail ? (hasBody && isExpanded) : hasBody
               return (
                 <div key={item.id} style={{ display: 'flex', gap: 10, position: 'relative', paddingBottom: i === filteredHistory.length - 1 ? 0 : 16 }}>
                   {i !== filteredHistory.length - 1 && (
@@ -1688,7 +1707,7 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
                     onClick={canExpand ? () => toggleHistoryItem(item) : undefined}
                   >
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-1)' }}>{item.title}</div>
-                    {hasBody && (
+                    {showBody && (
                       <div style={{
                         marginTop: 6, marginBottom: 4,
                         padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 8,
@@ -1697,13 +1716,9 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
                         maxHeight: isExpanded ? 2000 : 40,
                         overflow: 'hidden',
                         transition: 'max-height var(--duration-base) var(--ease)',
-                        ...(isEmail ? {} : { whiteSpace: 'pre-line' }),
+                        whiteSpace: 'pre-line',
                       }}>
-                        {isLoadingBody
-                          ? 'Loading…'
-                          : isEmail
-                            ? <div className="email-body-content" dangerouslySetInnerHTML={{ __html: bodyText || '' }} />
-                            : bodyText}
+                        {isLoadingBody ? 'Loading…' : bodyText}
                       </div>
                     )}
                     <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
