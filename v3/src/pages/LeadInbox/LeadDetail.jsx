@@ -1695,10 +1695,22 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
                         padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 8,
                         borderLeft: '2.5px solid var(--line-2)',
                         fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.6,
-                        maxHeight: isExpanded ? 2000 : 40,
-                        overflow: 'hidden',
-                        transition: 'max-height var(--duration-base) var(--ease)',
-                        ...(isEmail ? {} : { whiteSpace: 'pre-line' }),
+                        ...(isEmail
+                          ? {
+                              maxHeight: isExpanded ? 2000 : 40,
+                              overflow: 'hidden',
+                              transition: 'max-height var(--duration-base) var(--ease)',
+                            }
+                          : isExpanded
+                            ? { whiteSpace: 'pre-line' }
+                            : {
+                                display: '-webkit-box',
+                                WebkitLineClamp: 1,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                                whiteSpace: 'normal',
+                              }
+                        ),
                       }}>
                         {isLoadingBody
                           ? 'Loading…'
