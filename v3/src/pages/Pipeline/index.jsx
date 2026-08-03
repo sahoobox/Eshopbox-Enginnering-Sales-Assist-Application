@@ -6,6 +6,7 @@ import { Topbar, Loading, Empty, ToggleGroup, Pill } from '../../components/ui'
 import DealCard from '../../components/ui/DealCard'
 import DealDetail from './DealDetail'
 import { SkeletonLine } from '../../components/ui/Skeleton'
+import { usePageTitle } from '../../hooks/usePageTitle'
 import {
   ALL_PIPELINE_STAGES, MID_MARKET_STAGES, ENT_STAGES, StagePill, stageColor, initials, formatDate, daysAgo
 } from '../../lib/stageConfig'
@@ -108,6 +109,7 @@ function matchFilters(deal, filters) {
 function PipelineList() {
   const { role, isMDE, isAE, isAdmin, isMidMarketLead, isEnterpriseLead } = useAuth()
   const { deals, loading, error, refetch } = useDeals()
+  usePageTitle('All Deals')
   const [searchParams, setSearchParams] = useSearchParams()
   const defaultPipeline = isAE ? 'enterprise' : 'midmarket'
   const activeTile = searchParams.get('tile') || 'inbox'

@@ -3,12 +3,14 @@ import { useAuth, ROLES } from '../../context/AuthContext'
 import { Topbar, ToggleGroup, Loading } from '../../components/ui'
 import { toast } from '../../components/ui/Toast'
 import { RefreshCw } from 'lucide-react'
+import { usePageTitle } from '../../hooks/usePageTitle'
 
 const TABS = ['Team', 'Flags', 'Integrations']
 
 export default function Settings() {
   const { isAdmin, role } = useAuth()
   const [tab, setTab] = useState('Team')
+  usePageTitle('Settings')
 
   const canAccessSettings = isAdmin ||
     role === 'Sales Lead Mid-Market' ||

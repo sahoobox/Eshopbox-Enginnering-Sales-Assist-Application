@@ -6,6 +6,7 @@ import { useLeads } from '../../hooks/useLeads'
 import { Topbar, Loading } from '../../components/ui'
 import { StagePill, daysAgo, formatDate } from '../../lib/stageConfig'
 import { leadSourcePill } from '../../lib/fieldColors'
+import { usePageTitle } from '../../hooks/usePageTitle'
 
 const MDE_EMAILS = [
   'sriya.komal@eshopbox.com',
@@ -35,6 +36,7 @@ export default function MyDay() {
   const { user, role, isMDE, isAE, isAdmin } = useAuth()
   const { deals, loading: dealsLoading } = useDeals()
   const { leads, loading: leadsLoading } = useLeads()
+  usePageTitle('My Day')
   const navigate = useNavigate()
 
   const firstName = user?.name?.split(' ')[0] || 'there'

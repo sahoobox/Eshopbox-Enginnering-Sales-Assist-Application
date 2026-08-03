@@ -4,6 +4,7 @@ import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
 import { Topbar, Loading } from '../../components/ui'
 import { StagePill, daysAgo } from '../../lib/stageConfig'
+import { usePageTitle } from '../../hooks/usePageTitle'
 
 const MDE_EMAILS = [
   'sriya.komal@eshopbox.com',
@@ -32,6 +33,7 @@ export default function Accounts() {
   const { role, user, isMDE, isAE } = useAuth()
   const { deals, loading, error } = useDeals()
   const navigate = useNavigate()
+  usePageTitle('Accounts')
   const [search, setSearch] = useState('')
 
   const scopedDeals = useMemo(() => {

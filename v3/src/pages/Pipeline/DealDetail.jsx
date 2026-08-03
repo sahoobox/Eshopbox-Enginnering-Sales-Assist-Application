@@ -10,11 +10,13 @@ import { SkeletonCard, SkeletonLine } from '../../components/ui/Skeleton'
 import { MID_MARKET_STAGES, ENT_STAGES, StagePill, stageColor, initials, formatDate, daysAgo } from '../../lib/stageConfig'
 import { TaskModal } from '../Tasks'
 import { leadSourcePill, pipelinePillClass, pipelineLabel } from '../../lib/fieldColors'
+import { usePageTitle } from '../../hooks/usePageTitle'
 
 export default function DealDetail({ dealId }) {
   const navigate = useNavigate()
   const { deal, emails, loading, error, refetch: refetchDeal } = useDeal(dealId)
   const { authFetch, isAdmin, isSalesLead } = useAuth()
+  usePageTitle(deal ? `Deal Detail: ${deal.brandName || deal.dealName}` : 'Deal Detail')
   const [tab, setTab] = useState('activity')
   const [showF2FForm, setShowF2FForm] = useState(false)
   const [showMarkLost, setShowMarkLost] = useState(false)

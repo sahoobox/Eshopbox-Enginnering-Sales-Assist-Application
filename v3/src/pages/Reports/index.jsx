@@ -5,6 +5,7 @@ import { useLeads } from '../../hooks/useLeads'
 import { Topbar, Loading, ToggleGroup } from '../../components/ui'
 import { MID_MARKET_STAGES, ENT_STAGES, daysAgo } from '../../lib/stageConfig'
 import { useState } from 'react'
+import { usePageTitle } from '../../hooks/usePageTitle'
 
 const TERMINAL_STAGES = ['Won/Payment Received', 'Lost/Dropped', 'On Hold']
 
@@ -12,6 +13,7 @@ export default function Reports() {
   const { role, user } = useAuth()
   const { deals, loading: dealsLoading } = useDeals()
   const { leads, loading: leadsLoading } = useLeads()
+  usePageTitle('Reports')
   const [pipelineFilter, setPipelineFilter] = useState(
     (role === ROLES.SALES_LEAD_ENTERPRISE || role === ROLES.AE) ? 'enterprise' : 'midmarket'
   )

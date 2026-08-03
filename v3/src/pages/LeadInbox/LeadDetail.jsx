@@ -8,6 +8,7 @@ import { SkeletonCard, SkeletonLine } from '../../components/ui/Skeleton'
 import { TaskModal } from '../Tasks'
 import { StickyNote, Phone, Calendar, CheckSquare, RefreshCw, Repeat, Mail, ChevronRight, ChevronDown } from 'lucide-react'
 import { leadStatusStyle, leadSourcePill } from '../../lib/fieldColors'
+import { usePageTitle } from '../../hooks/usePageTitle'
 
 function formatDate(d) {
   if (!d) return '—'
@@ -378,6 +379,7 @@ export default function LeadDetail() {
   const [lead, setLead] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  usePageTitle(lead ? `Lead Detail: ${lead.company || lead.fullName}` : 'Lead Detail')
   const [tab, setTab] = useState('leadfields')
   const tabDataCache = useRef({})
   const [disqualifying, setDisqualifying] = useState(false)

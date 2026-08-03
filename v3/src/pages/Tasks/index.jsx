@@ -5,6 +5,7 @@ import { Topbar } from '../../components/ui'
 import { toast } from '../../components/ui/Toast'
 import { SkeletonCard } from '../../components/ui/Skeleton'
 import { formatDate } from '../../lib/stageConfig'
+import { usePageTitle } from '../../hooks/usePageTitle'
 
 function taskType(subject = '') {
   const s = subject.toLowerCase()
@@ -19,6 +20,7 @@ const typePill = { Email: 'pill-info', Call: 'pill-warn', Meeting: 'pill-ok', 'F
 export default function Tasks() {
   const { role, isMDE, isAE, user } = useAuth()
   const { tasks, loading, error, refetch, completeTask, reopenTask, createTask } = useTasks()
+  usePageTitle('Tasks')
   const [showModal, setShowModal] = useState(false)
 
   const todayStr = new Date().toISOString().split('T')[0]

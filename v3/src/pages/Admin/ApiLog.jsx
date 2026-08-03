@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { usePageTitle } from '../../hooks/usePageTitle'
 
 const SATYA_EMAIL = 'satyanarayan.sahoo@eshopbox.com'
 
 export default function ApiLog() {
   const { user, authFetch } = useAuth()
   const navigate = useNavigate()
+  usePageTitle('API Logs')
   const [logs, setLogs] = useState([])
   const [summary, setSummary] = useState([])
   const [loading, setLoading] = useState(true)

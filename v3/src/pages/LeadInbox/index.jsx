@@ -6,6 +6,7 @@ import { Topbar, ToggleGroup } from '../../components/ui'
 import { SkeletonTable } from '../../components/ui/Skeleton'
 import { Repeat } from 'lucide-react'
 import { leadStatusStyle, leadSourcePill } from '../../lib/fieldColors'
+import { usePageTitle } from '../../hooks/usePageTitle'
 
 const MDE_EMAILS = [
   'sriya.komal@eshopbox.com',
@@ -279,6 +280,7 @@ export default function LeadInbox() {
   const { role, user } = useAuth()
   const isAdmin = role === ROLES.ADMIN
   const { leads, loading, error, refetch } = useLeads()
+  usePageTitle('Lead Inbox')
   const [searchParams, setSearchParams] = useSearchParams()
   const searchQuery = searchParams.get('q') || ''
   const [localSearch, setLocalSearch] = useState(

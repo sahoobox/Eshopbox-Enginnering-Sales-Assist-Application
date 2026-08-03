@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { Topbar, ToggleGroup } from '../../components/ui'
 import { pipelinePillClass, pipelineLabel } from '../../lib/fieldColors'
+import { usePageTitle } from '../../hooks/usePageTitle'
 
 function daysAgo(dateStr) {
   if (!dateStr) return null
@@ -624,6 +625,7 @@ function HistorySection({ history, loadingHistory }) {
 // ── Main page ─────────────────────────────────────────────
 export default function BulkAssign() {
   const { role, authFetch } = useAuth()
+  usePageTitle('Bulk Assign')
 
   const [activeModule, setActiveModule] = useState('deals')
   const [deals, setDeals] = useState([])

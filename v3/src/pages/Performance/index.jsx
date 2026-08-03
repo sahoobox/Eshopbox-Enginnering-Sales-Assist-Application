@@ -4,6 +4,7 @@ import { useDeals } from '../../hooks/useDeals'
 import { useLeads } from '../../hooks/useLeads'
 import { Topbar, Loading, ToggleGroup } from '../../components/ui'
 import { MID_MARKET_STAGES, ENT_STAGES, StagePill, daysAgo } from '../../lib/stageConfig'
+import { usePageTitle } from '../../hooks/usePageTitle'
 
 const TERMINAL_STAGES = ['Won/Payment Received', 'Lost/Dropped', 'On Hold']
 const COMBINED_STAGES = [...new Set([...MID_MARKET_STAGES, ...ENT_STAGES])]
@@ -12,6 +13,7 @@ export default function Performance() {
   const { role, user, isMDE, isAE, isAdmin, isSalesLead } = useAuth()
   const { deals, loading: dealsLoading } = useDeals()
   const { leads, loading: leadsLoading } = useLeads()
+  usePageTitle('Performance')
 
   const defaultFilter = (role === ROLES.SALES_LEAD_ENTERPRISE || role === ROLES.AE) ? 'enterprise' : 'midmarket'
   const [pipelineFilter, setPipelineFilter] = useState(defaultFilter)

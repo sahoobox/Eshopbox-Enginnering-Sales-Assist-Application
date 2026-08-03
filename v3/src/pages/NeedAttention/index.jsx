@@ -5,6 +5,7 @@ import { useDeals } from '../../hooks/useDeals'
 import { Topbar, ToggleGroup } from '../../components/ui'
 import { SkeletonTable } from '../../components/ui/Skeleton'
 import { pipelinePillClass, pipelineLabel } from '../../lib/fieldColors'
+import { usePageTitle } from '../../hooks/usePageTitle'
 
 const RESOLVE_INSTRUCTIONS = {
   r1:  "Recap email not sent after demo. Send the Day 1 recap email from the Sequence tab to keep the prospect engaged while the demo is fresh.",
@@ -69,6 +70,7 @@ export default function NeedAttention() {
   const navigate = useNavigate()
   const { authFetch, role, isAdmin } = useAuth()
   const { deals, loading, error, refetch } = useDeals()
+  usePageTitle('Need Attention')
   const [searchParams, setSearchParams] = useSearchParams()
 
   const defaultPipeline =
