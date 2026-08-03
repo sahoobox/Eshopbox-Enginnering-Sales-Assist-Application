@@ -10,6 +10,7 @@ import { SkeletonCard, SkeletonLine } from '../../components/ui/Skeleton'
 import { MID_MARKET_STAGES, ENT_STAGES, StagePill, stageColor, initials, formatDate, daysAgo } from '../../lib/stageConfig'
 import { TaskModal } from '../Tasks'
 import { leadSourcePill, pipelinePillClass, pipelineLabel } from '../../lib/fieldColors'
+import { truncateAtWord } from '../../lib/text'
 import { usePageTitle } from '../../hooks/usePageTitle'
 
 export default function DealDetail({ dealId }) {
@@ -841,7 +842,7 @@ function EmailsTab({ emails, deal }) {
           </div>
           <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 4 }}>{email.subject}</div>
           <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.5, maxHeight: 60, overflow: 'hidden' }}>
-            {email.body?.replace(/<[^>]+>/g, '').slice(0, 200)}…
+            {truncateAtWord(email.body?.replace(/<[^>]+>/g, '') || '', 200)}
           </div>
           {email.status === 'draft' && (
             <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>

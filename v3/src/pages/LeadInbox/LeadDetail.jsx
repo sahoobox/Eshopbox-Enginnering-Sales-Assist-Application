@@ -9,6 +9,7 @@ import { TaskModal } from '../Tasks'
 import { StickyNote, Phone, Calendar, CheckSquare, RefreshCw, Repeat, Mail, ChevronRight, ChevronDown } from 'lucide-react'
 import { leadStatusStyle, leadSourcePill } from '../../lib/fieldColors'
 import { usePageTitle } from '../../hooks/usePageTitle'
+import { truncateAtWord } from '../../lib/text'
 
 function formatDate(d) {
   if (!d) return '—'
@@ -1448,7 +1449,7 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
       const stripped = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
       return {
         id: `note-${n.id || i}`, type: 'note',
-        title: stripped.slice(0, 120) || 'Note added',
+        title: truncateAtWord(stripped, 120) || 'Note added',
         description: stripped,
         status: 'completed', dueDate: '', priority: '',
         ownerName: n.Created_By?.name || n.createdBy || '',
@@ -1456,7 +1457,7 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
       }
     }),
     ...systemEvents.map(e => ({
-      id: `system-${e.id}`, type: 'system', title: e.description || 'Update',
+      id: `system-${e.id}`, type: 'system', title: truncateAtWord(e.description, 120) || 'Update',
       status: 'completed', dueDate: '', priority: '', ownerName: e.actor || 'System',
       createdAt: e.createdAt || '', raw: e,
     })),

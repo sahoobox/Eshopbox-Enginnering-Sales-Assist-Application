@@ -1,5 +1,6 @@
 import { useAuth, ROLE_LABELS } from '../context/AuthContext'
 import { useState, useEffect } from 'react'
+import { truncateAtWord } from '../lib/text'
 
 export default function AccountSettings() {
   const { user, role, authFetch } = useAuth()
@@ -141,7 +142,7 @@ export default function AccountSettings() {
           {gmailSignature && (
             <div style={{ padding: '10px 12px', background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', fontSize: 12, color: 'var(--ink-2)', marginBottom: 14, lineHeight: 1.6 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Gmail signature detected</div>
-              {gmailSignature.slice(0, 120)}{gmailSignature.length > 120 ? '…' : ''}
+              {truncateAtWord(gmailSignature, 120)}
             </div>
           )}
           <div style={{ display: 'flex', gap: 8 }}>
