@@ -30,24 +30,6 @@ function formatActivityDate(dateStr) {
   } catch { return dateStr }
 }
 
-function htmlToPlainText(html) {
-  if (!html) return ''
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<\/div>/gi, '\n')
-    .replace(/<\/li>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
-}
-
 const CALL_PURPOSE_OPTIONS = [
   'None', 'Intro/first contact', 'Discovery call', 'Request for demo',
   'Follow-up Call', 'Pricing Discussion', 'Proposal Review',
@@ -1427,7 +1409,7 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
     try {
       const res = await authFetch(`/api/leads/${leadId}/emails/${emailId}`)
       const data = await res.json()
-      setEmailBodies(prev => ({ ...prev, [emailId]: htmlToPlainText(data.content || '') }))
+      setEmailBodies(prev => ({ ...prev, [emailId]: DOMPurify.sanitize(data.content || '') }))
     } catch (err) {
       setEmailBodies(prev => ({ ...prev, [emailId]: '' }))
     } finally {
@@ -1716,9 +1698,13 @@ function ActivityTab({ leadId, lead, tabDataCache }) {
                         maxHeight: isExpanded ? 2000 : 40,
                         overflow: 'hidden',
                         transition: 'max-height var(--duration-base) var(--ease)',
-                        whiteSpace: 'pre-line',
+                        ...(isEmail ? {} : { whiteSpace: 'pre-line' }),
                       }}>
-                        {isLoadingBody ? 'Loading…' : bodyText}
+                        {isLoadingBody
+                          ? 'Loading…'
+                          : isEmail
+                            ? <div className="email-body-content" dangerouslySetInnerHTML={{ __html: bodyText || '' }} />
+                            : bodyText}
                       </div>
                     )}
                     <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
