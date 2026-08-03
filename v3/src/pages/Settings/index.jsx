@@ -1,27 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useAuth, ROLES } from '../../context/AuthContext'
-import { Topbar, ToggleGroup } from '../../components/ui'
+import { Topbar, ToggleGroup, Loading } from '../../components/ui'
 import { toast } from '../../components/ui/Toast'
 import { RefreshCw } from 'lucide-react'
-
-
-const FLAGS = [
-  { id: 'R1',  description: 'Recap email not sent within 24hrs of demo',          pipeline: 'Both',        severity: 'high',   skip: 'Terminal stage, not SA logged, no demo date' },
-  { id: 'R2',  description: 'Day 2 pricing proposal not sent within 3 days',      pipeline: 'Both',        severity: 'high',   skip: 'Terminal stage, not SA logged, stage past Demo Done' },
-  { id: 'R3',  description: 'Day 3 ROI email overdue 2+ days',                    pipeline: 'Both',        severity: 'medium', skip: 'Terminal stage, not SA logged' },
-  { id: 'R4',  description: 'No follow-up meeting booked within 2 days of demo',  pipeline: 'Enterprise',  severity: 'high',   skip: 'Mid-Market, terminal stage' },
-  { id: 'R5',  description: 'Follow-up meeting passed, stage not updated',         pipeline: 'Enterprise',  severity: 'high',   skip: 'Mid-Market, terminal stage, no meeting date' },
-  { id: 'R6',  description: 'Stuck in same stage for 7+ days',                    pipeline: 'Both',        severity: 'medium', skip: 'Terminal stages, Upcoming Demo' },
-  { id: 'R7',  description: 'Follow up Meeting Done — deal going quiet 5+ days',  pipeline: 'Enterprise',  severity: 'medium', skip: 'Mid-Market, terminal stage' },
-  { id: 'R8',  description: 'Nudge (Day 9) email sent — no response after 1 day', pipeline: 'Both',        severity: 'medium', skip: 'Terminal stage, not SA logged' },
-  { id: 'R9',  description: 'Grade A deal — no in-person meeting after 5 days',   pipeline: 'Enterprise',  severity: 'medium', skip: 'Mid-Market, terminal stage' },
-  { id: 'R10', description: 'Lost deal — no reason logged',                        pipeline: 'Both',        severity: 'medium', skip: 'Only fires on Lost/Dropped' },
-  { id: 'R11', description: 'Upcoming Demo 10+ days — no demo scheduled',          pipeline: 'Both',        severity: 'high',   skip: 'Demo date already set' },
-  { id: 'R12', description: 'Demo Done but form not logged in Sales Assist',       pipeline: 'Both',        severity: 'high',   skip: 'Terminal stage, SA logged' },
-  { id: 'R13', description: 'Account Setup in Progress 14+ days',                  pipeline: 'Mid-Market',  severity: 'medium', skip: 'Enterprise, terminal stage' },
-  { id: 'R14', description: 'Awaiting First Shipment 21+ days',                    pipeline: 'Mid-Market',  severity: 'medium', skip: 'Enterprise, terminal stage' },
-  { id: 'R15', description: 'First Shipment Done 14+ days, not activated',         pipeline: 'Mid-Market',  severity: 'medium', skip: 'Enterprise, terminal stage' },
-]
 
 const TABS = ['Team', 'Flags', 'Integrations']
 
@@ -417,59 +398,82 @@ function TeamTab() {
 
 // ── Tab 2: Flags ─────────────────────────────────────────
 function FlagsTab() {
+  const { authFetch } = useAuth()
+  const [flags, setFlags] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => { fetchFlags() }, [])
+
+  async function fetchFlags() {
+    setLoading(true)
+    try {
+      const res = await authFetch('/api/settings/flags')
+      const data = await res.json()
+      setFlags(data.flags || [])
+    } catch {}
+    finally { setLoading(false) }
+  }
+
   return (
     <div className="card">
       <div className="ws-side-head">
         <div>
-          <h4>Attention Flags · R1–R15</h4>
+          <h4>Attention Flags · R1–R16</h4>
           <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink-3)' }}>
             These flags are automatically evaluated on every deal and surface in the Need Attention page.
             Contact the developer to modify rules.
           </p>
         </div>
       </div>
-      <div style={{ overflowX: 'auto' }}>
-        <table className="t" style={{ minWidth: 700 }}>
-          <thead>
-            <tr>
-              <th style={{ width: 52 }}>Rule</th>
-              <th>Description</th>
-              <th style={{ width: 120 }}>Pipeline</th>
-              <th style={{ width: 90 }}>Severity</th>
-              <th>Skip conditions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {FLAGS.map(f => (
-              <tr key={f.id}>
-                <td>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-1)' }}>{f.id}</span>
-                </td>
-                <td style={{ fontSize: 13, color: 'var(--ink-1)' }}>{f.description}</td>
-                <td>
-                  {f.pipeline === 'Both' && (
-                    <span className="pill pill-info" style={{ fontSize: 11 }}>Both</span>
-                  )}
-                  {f.pipeline === 'Mid-Market' && (
-                    <span className="pill pill-ok" style={{ fontSize: 11 }}>Mid-Market</span>
-                  )}
-                  {f.pipeline === 'Enterprise' && (
-                    <span className="pill pill-purple" style={{ fontSize: 11 }}>Enterprise</span>
-                  )}
-                </td>
-                <td>
-                  {f.severity === 'high' ? (
-                    <span className="pill pill-danger" style={{ fontSize: 11 }}>High</span>
-                  ) : (
-                    <span className="pill pill-warn" style={{ fontSize: 11 }}>Medium</span>
-                  )}
-                </td>
-                <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{f.skip}</td>
+      {loading ? (
+        <div style={{ padding: 24 }}><Loading text="Loading rules…" /></div>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table className="t" style={{ minWidth: 700 }}>
+            <thead>
+              <tr>
+                <th style={{ width: 52 }}>Rule</th>
+                <th>Description</th>
+                <th style={{ width: 120 }}>Pipeline</th>
+                <th style={{ width: 90 }}>Severity</th>
+                <th>Skip conditions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {flags.map(f => (
+                <tr key={f.id}>
+                  <td>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-1)' }}>{f.id}</span>
+                  </td>
+                  <td style={{ fontSize: 13, color: 'var(--ink-1)' }}>
+                    <div style={{ fontWeight: 600 }}>{f.title}</div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2, fontWeight: 400 }}>{f.description}</div>
+                  </td>
+                  <td>
+                    {f.pipeline === 'Both' && (
+                      <span className="pill pill-info" style={{ fontSize: 11 }}>Both</span>
+                    )}
+                    {f.pipeline === 'Mid-market' && (
+                      <span className="pill pill-ok" style={{ fontSize: 11 }}>Mid-Market</span>
+                    )}
+                    {f.pipeline === 'Enterprise' && (
+                      <span className="pill pill-purple" style={{ fontSize: 11 }}>Enterprise</span>
+                    )}
+                  </td>
+                  <td>
+                    {f.severity === 'high' ? (
+                      <span className="pill pill-danger" style={{ fontSize: 11 }}>High</span>
+                    ) : (
+                      <span className="pill pill-warn" style={{ fontSize: 11 }}>Medium</span>
+                    )}
+                  </td>
+                  <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{f.skipConditions}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

@@ -240,3 +240,89 @@ export function getAttentionLevel(flags) {
   if (flags.some(f => f.severity === 'medium')) return 'medium'
   return 'ok'
 }
+
+// ── Rule metadata — single source of truth for the Settings › Flags admin table ──
+// Kept in sync by hand against the logic above; update this whenever a rule's
+// condition, threshold, or exclusions change.
+export const RULE_META = [
+  {
+    id: 'R1', title: 'Recap email not sent', severity: 'high', pipeline: 'Both',
+    description: "Deal is open, demo was logged, the demo date is on/after 2026-04-15, stage is \"Demo Done,\" it's been 1+ day since the demo, and the Day 1 recap email is still a draft.",
+    skipConditions: 'Terminal stage, demo not logged, no demo date, demo before 2026-04-15, stage other than Demo Done, or Day 1 email not in draft status.',
+  },
+  {
+    id: 'R2', title: 'Pricing proposal not sent', severity: 'high', pipeline: 'Both',
+    description: 'Deal is open, demo logged, stage is "Demo Done," 3+ days since demo, and the Day 2 proposal email has not been sent.',
+    skipConditions: 'Terminal stage, demo not logged, no demo date, stage other than Demo Done, or Day 2 email already sent.',
+  },
+  {
+    id: 'R3', title: 'ROI value email not sent', severity: 'medium', pipeline: 'Both',
+    description: 'Deal is open, demo logged, a Day 3 email exists with a scheduled send date but has not been sent, and it is 2+ days past that scheduled date.',
+    skipConditions: 'Terminal stage, demo not logged, no demo date, no Day 3 email record, Day 3 already sent, or no scheduled date set.',
+  },
+  {
+    id: 'R4', title: 'No follow-up meeting booked', severity: 'high', pipeline: 'Enterprise',
+    description: 'Enterprise deal is open, demo logged, stage is "Demo Done," 2+ days since demo, and no follow-up meeting date has been set.',
+    skipConditions: 'Mid-market pipeline, terminal stage, demo not logged, no demo date, stage other than Demo Done, or a follow-up meeting date already exists.',
+  },
+  {
+    id: 'R5', title: 'Follow-up meeting passed — stage not updated', severity: 'high', pipeline: 'Enterprise',
+    description: 'Enterprise deal is open, has a follow-up meeting date that has already passed, and is still sitting in "Proposal Sent" (stage was not advanced after the meeting).',
+    skipConditions: 'Mid-market pipeline, terminal stage, no meeting date set, meeting date still in the future, or stage other than Proposal Sent.',
+  },
+  {
+    id: 'R6', title: 'Stuck in current stage for 7+ days', severity: 'medium', pipeline: 'Both',
+    description: 'Deal is open and has not changed stage in 7+ days, for any stage not already covered by a more specific stage-duration rule.',
+    skipConditions: 'Terminal stages, Upcoming Demo, Account Setup in Progress, Awaiting First Shipment, and First Shipment Done — these stages are excluded because R11/R13/R14/R15 already own them with their own dedicated thresholds.',
+  },
+  {
+    id: 'R7', title: 'Follow-up meeting done — deal going quiet', severity: 'medium', pipeline: 'Enterprise',
+    description: 'Enterprise deal is open, in stage "Follow up Meeting Done," with 5+ days (and fewer than 500) since the last logged activity.',
+    skipConditions: 'Mid-market pipeline, terminal stage, stage other than Follow up Meeting Done, or fewer than 5 (or 500+) days since last activity.',
+  },
+  {
+    id: 'R8', title: 'Nudge email sent — no response yet', severity: 'medium', pipeline: 'Both',
+    description: 'Deal is open, demo logged, a nudge (Day 9) email was sent, and at least 1 day has passed since it was sent.',
+    skipConditions: 'Terminal stage, demo not logged, no nudge email sent, or nudge sent less than 1 day ago.',
+  },
+  {
+    id: 'R9', title: 'Grade A deal — no in-person meeting yet', severity: 'medium', pipeline: 'Enterprise',
+    description: 'Enterprise deal is open, has a demo date, is graded "A," 5+ days have passed since the demo, and no in-office or client-location meeting has been logged.',
+    skipConditions: 'Mid-market pipeline, terminal stage, no demo date, grade other than A, fewer than 5 days since demo, or an in-person meeting already logged.',
+  },
+  {
+    id: 'R10', title: 'Lost deal — no reason logged', severity: 'medium', pipeline: 'Both',
+    description: 'Deal stage is "Lost/Dropped" and no lost reason (or a blank one) has been recorded.',
+    skipConditions: 'Only evaluated on Lost/Dropped deals; skipped if a lost reason is already on file.',
+  },
+  {
+    id: 'R11', title: 'Upcoming demo overdue — no demo scheduled', severity: 'high', pipeline: 'Both',
+    description: 'Deal has no demo date set, stage is "Upcoming Demo," and it has been 10+ days in that stage.',
+    skipConditions: 'A demo date is already set, or stage other than Upcoming Demo.',
+  },
+  {
+    id: 'R12', title: 'Demo done — form not logged in Sales Assist', severity: 'high', pipeline: 'Both',
+    description: 'Deal is open, the demo form has not been logged in Sales Assist, and stage is "Demo Done."',
+    skipConditions: 'Terminal stage, demo already logged, or stage other than Demo Done.',
+  },
+  {
+    id: 'R13', title: 'Account setup taking too long', severity: 'medium', pipeline: 'Mid-market',
+    description: 'Mid-market deal is open, in stage "Account Setup in Progress," for 14+ days.',
+    skipConditions: 'Enterprise pipeline, terminal stage, or stage other than Account Setup in Progress.',
+  },
+  {
+    id: 'R14', title: 'Awaiting first shipment for 21+ days', severity: 'medium', pipeline: 'Mid-market',
+    description: 'Mid-market deal is open, in stage "Awaiting First Shipment," for 21+ days.',
+    skipConditions: 'Enterprise pipeline, terminal stage, or stage other than Awaiting First Shipment.',
+  },
+  {
+    id: 'R15', title: 'First shipment done — deal not activated yet', severity: 'medium', pipeline: 'Mid-market',
+    description: 'Mid-market deal is open, in stage "First Shipment Done," for 14+ days (not yet moved to Active).',
+    skipConditions: 'Enterprise pipeline, terminal stage, or stage other than First Shipment Done.',
+  },
+  {
+    id: 'R16', title: 'Deal in wrong pipeline', severity: 'high', pipeline: 'Both',
+    description: "Deal is open and owned by a rep on the MDE list but sitting outside the Mid-market pipeline, or owned by a rep on the AE list but sitting outside the Enterprise 2.0 pipeline.",
+    skipConditions: "Terminal stage, no rep email on the deal, or the rep's list membership already matches the deal's pipeline.",
+  },
+]

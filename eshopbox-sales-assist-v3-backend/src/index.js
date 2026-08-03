@@ -6,7 +6,7 @@ import { getUserByEmail, createUser, createInvite, getInviteByToken, markInviteA
 import { calculateGrade, scoreToGrade } from './services/grading.js';
 import { zohoAPI, createDeal, createTask, getDeals, getAllDeals, getDeal, getDealTasks, getDealActivities, updateDeal, searchDeals, sendDealEmail, createDealEmailDraft, getAllowedFromAddresses, getAccessTokenForUser, getAccessToken, getDealSentEmails, getEmailContent, getTask, getLeads, getAllLeads, getLead, updateLead, getLeadActivities, createLeadActivity, getLeadNotes, createLeadNote, getTasks, createGenericTask, updateTaskStatus, getDealNotes, createZohoEvent, createZohoCall, getDealMeetings, getDealCalls } from './services/zoho.js';
 import { generateEmailDrafts, generateReengagement, generateDealAnalysis, generateDealSummary } from './services/claude.js';
-import getAttentionFlags, { getAttentionLevel } from './services/attentionRules.js';
+import getAttentionFlags, { getAttentionLevel, RULE_META } from './services/attentionRules.js';
 import { logTimelineEvent } from './services/timeline.js';
 import { logLeadTimelineEvent } from './services/leadTimeline.js';
 import { sendGmailEmail, sendGmailEmailWithToken, createGmailDraft, checkDraftSent, getRealMessageId } from './services/gmail.js';
@@ -646,6 +646,12 @@ app.get('/auth/team', requireAuth, async (c) => {
   } catch (err) {
     return c.json({ error: 'Failed to fetch team', details: err.message }, 500);
   }
+});
+
+app.get('/api/settings/flags', requireAuth, async (c) => {
+  const user = c.get('user');
+  if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403);
+  return c.json({ flags: RULE_META });
 });
 
 app.put('/auth/team/:id/role', requireAuth, async (c) => {
