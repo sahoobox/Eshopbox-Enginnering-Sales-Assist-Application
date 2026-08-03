@@ -103,7 +103,13 @@ export default function getAttentionFlags(deal) {
   }
 
   // R6 — Stuck in same stage 7+ days
-  if (!isTerminal && deal.stage !== 'Upcoming Demo') {
+  const R6_EXCLUDED_STAGES = [
+    'Upcoming Demo',
+    'Account Setup in Progress',
+    'Awaiting First Shipment',
+    'First Shipment Done',
+  ]
+  if (!isTerminal && !R6_EXCLUDED_STAGES.includes(deal.stage)) {
     if (isOpen && daysAgoStage >= 7) {
       flags.push({
         id: 'r6', title: `Stuck in "${deal.stage}" for ${daysAgoStage} days`, severity: 'medium', daysCount: daysAgoStage,
