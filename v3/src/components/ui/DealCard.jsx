@@ -104,7 +104,7 @@ export default function DealCard({ deal }) {
               {conversionMedium.label}
             </span>
           )}
-          {deal.accountSlug && (
+          {deal.workspaceAccountSlug && (
             <span className="kc-pill pill-slate" style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -116,7 +116,7 @@ export default function DealCard({ deal }) {
               whiteSpace: 'nowrap'
             }}>
               <Building2 size={10} />
-              {deal.accountSlug}
+              {deal.workspaceAccountSlug}
             </span>
           )}
           {deal.demoScheduledDateTime && (

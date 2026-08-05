@@ -130,10 +130,10 @@ export default function DealDetail({ dealId }) {
             {deal.leadSource}
           </span>
         )}
-        {deal.accountSlug && (
+        {deal.workspaceAccountSlug && (
           <span className="pill pill-slate" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             <Building2 size={11} />
-            Workspace: {deal.accountSlug}
+            Workspace: {deal.workspaceAccountSlug}
           </span>
         )}
         <div className="hdr-meta">

@@ -1099,15 +1099,15 @@ deal.contactPhone = contactData?.Phone || ''
 
 // Workspace tag — account_slug/account_name from billing service, cached in account_slug_cache
 if (deal.contactEmail) {
-  let accountSlug = null
-  let accountName = null
+  let workspaceAccountSlug = null
+  let workspaceAccountName = null
   const slugCacheRow = await c.env.DB.prepare(
     `SELECT account_slug, account_name FROM account_slug_cache WHERE email = ?`
   ).bind(deal.contactEmail).first()
 
   if (slugCacheRow && slugCacheRow.account_slug) {
-    accountSlug = slugCacheRow.account_slug
-    accountName = slugCacheRow.account_name
+    workspaceAccountSlug = slugCacheRow.account_slug
+    workspaceAccountName = slugCacheRow.account_name
   } else {
     try {
       const billingRes = await fetch(
@@ -1115,8 +1115,8 @@ if (deal.contactEmail) {
       )
       if (billingRes.ok) {
         const billingData = await billingRes.json()
-        accountSlug = billingData?.accountSlug || null
-        accountName = billingData?.accountName || null
+        workspaceAccountSlug = billingData?.accountSlug || null
+        workspaceAccountName = billingData?.accountName || null
       } else {
         console.error('Billing API error:', billingRes.status)
       }
@@ -1131,11 +1131,11 @@ if (deal.contactEmail) {
          account_slug = excluded.account_slug,
          account_name = excluded.account_name,
          updated_at = excluded.updated_at`
-    ).bind(deal.contactEmail, accountSlug, accountName, new Date().toISOString()).run()
+    ).bind(deal.contactEmail, workspaceAccountSlug, workspaceAccountName, new Date().toISOString()).run()
   }
 
-  deal.accountSlug = accountSlug
-  deal.accountName = accountName
+  deal.workspaceAccountSlug = workspaceAccountSlug
+  deal.workspaceAccountName = workspaceAccountName
 }
 
 // Check if we have lead mapping
