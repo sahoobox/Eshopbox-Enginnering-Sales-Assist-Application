@@ -107,6 +107,13 @@ CREATE INDEX IF NOT EXISTS idx_ldm_lead_id
 CREATE INDEX IF NOT EXISTS idx_ldm_email
   ON lead_deal_mapping(contact_email);
 
+CREATE TABLE IF NOT EXISTS account_slug_cache (
+  email TEXT PRIMARY KEY,
+  account_slug TEXT,
+  account_name TEXT,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS action_log (
   id TEXT PRIMARY KEY,
   lead_id TEXT,
