@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { MessageCircle, Phone, Mail, Globe, Calendar } from 'lucide-react'
+import { MessageCircle, Phone, Mail, Globe, Calendar, Building2 } from 'lucide-react'
 import { leadSourcePill, conversionMediumPill } from '../../lib/fieldColors'
 
 const CONVERSION_MEDIUM_MAP = {
@@ -102,6 +102,21 @@ export default function DealCard({ deal }) {
             }}>
               <conversionMedium.icon size={10} />
               {conversionMedium.label}
+            </span>
+          )}
+          {deal.accountSlug && (
+            <span className="kc-pill pill-slate" style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 3,
+              fontSize: 10,
+              padding: '2px 6px',
+              borderRadius: 4,
+              fontWeight: 500,
+              whiteSpace: 'nowrap'
+            }}>
+              <Building2 size={10} />
+              {deal.accountSlug}
             </span>
           )}
           {deal.demoScheduledDateTime && (

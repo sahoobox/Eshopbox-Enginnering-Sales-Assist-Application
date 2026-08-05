@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowRight, Mail, FileText, Send, ClipboardList, StickyNote, Phone, Calendar, CheckSquare, XCircle, PauseCircle, RefreshCw, Star, UserCheck, Plus, Activity, Flag, Monitor, Sparkles, User } from 'lucide-react'
+import { ArrowRight, Mail, FileText, Send, ClipboardList, StickyNote, Phone, Calendar, CheckSquare, XCircle, PauseCircle, RefreshCw, Star, UserCheck, Plus, Activity, Flag, Monitor, Sparkles, User, Building2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import DOMPurify from 'dompurify'
 import { useDeal } from '../../hooks/useDeals'
@@ -128,6 +128,12 @@ export default function DealDetail({ dealId }) {
         {deal.leadSource && (
           <span className={`pill ${leadSourcePill(deal.leadSource)}`} style={{ fontSize: 11 }}>
             {deal.leadSource}
+          </span>
+        )}
+        {deal.accountSlug && (
+          <span className="pill pill-slate" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <Building2 size={11} />
+            Workspace: {deal.accountSlug}
           </span>
         )}
         <div className="hdr-meta">
