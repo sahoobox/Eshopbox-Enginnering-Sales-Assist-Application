@@ -1111,7 +1111,7 @@ if (deal.contactEmail) {
   } else {
     try {
       const billingRes = await fetch(
-        `${c.env.BILLING_SERVICE_BASE_URL}/esb/api/v1/webhook/account-slug?email=${encodeURIComponent(deal.contactEmail)}`
+        `${c.env.BILLING_SERVICE_BASE_URL}/billing/api/v1/webhook/account-slug?email=${encodeURIComponent(deal.contactEmail)}`
       )
       if (billingRes.ok) {
         const billingData = await billingRes.json()
