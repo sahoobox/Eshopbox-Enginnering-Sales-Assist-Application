@@ -452,7 +452,22 @@ export async function createLeadActivity(env, leadId, activityData) {
 }
 
 export async function getLeadNotes(env, leadId) {
-  return zohoAPI(env, 'GET', `/Leads/${leadId}/Notes?converted=both`)
+  const notes = []
+  const seenIds = new Set()
+  let page = 1
+  while (page <= 200) {
+    const res = await zohoAPI(env, 'GET', `/Leads/${leadId}/Notes?converted=both&per_page=200&page=${page}`)
+    if (!res?.data?.length) break
+    for (const note of res.data) {
+      if (!seenIds.has(note.id)) {
+        seenIds.add(note.id)
+        notes.push(note)
+      }
+    }
+    if (!res.info?.more_records) break
+    page++
+  }
+  return { data: notes }
 }
 
 export async function createLeadNote(env, leadId, noteContent) {
@@ -494,7 +509,22 @@ export async function updateTaskStatus(env, taskId, status) {
 }
 
 export async function getDealNotes(env, dealId) {
-  return zohoAPI(env, 'GET', `/Notes/search?criteria=(Parent_Id:equals:${dealId})&fields=id,Note_Title,Note_Content,Created_Time,Created_By`)
+  const notes = []
+  const seenIds = new Set()
+  let page = 1
+  while (page <= 200) {
+    const res = await zohoAPI(env, 'GET', `/Notes/search?criteria=(Parent_Id:equals:${dealId})&fields=id,Note_Title,Note_Content,Created_Time,Created_By&per_page=200&page=${page}`)
+    if (!res?.data?.length) break
+    for (const note of res.data) {
+      if (!seenIds.has(note.id)) {
+        seenIds.add(note.id)
+        notes.push(note)
+      }
+    }
+    if (!res.info?.more_records) break
+    page++
+  }
+  return { data: notes }
 }
 
 export async function createZohoEvent(env, dealId, eventData) {

@@ -2000,7 +2000,8 @@ app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
 
     const [
       d1Events, dealRes, stageHistory, notesRes, callsRes, meetingsRes, tasksRes,
-      leadTimelineRes, leadCallsRes, leadMeetingsRes, leadTasksRes, leadNotesRes
+      leadTimelineRes, leadCallsRes, leadMeetingsRes, leadTasksRes, leadNotesRes,
+      dealNoteRowsRes, leadNoteRowsRes
     ] = await Promise.all([
       c.env.DB.prepare('SELECT * FROM deal_timeline WHERE deal_id = ? ORDER BY created_at DESC').bind(dealId).all(),
       getDeal(c.env, dealId),
@@ -2017,6 +2018,8 @@ app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
       leadId ? getDealMeetings(c.env, leadId) : Promise.resolve(null),
       leadId ? getDealTasks(c.env, leadId) : Promise.resolve(null),
       leadId ? getLeadNotes(c.env, leadId) : Promise.resolve(null),
+      c.env.DB.prepare('SELECT content, created_at FROM deal_notes WHERE deal_id = ?').bind(dealId).all(),
+      leadId ? c.env.DB.prepare('SELECT content, created_at FROM deal_notes WHERE deal_id = ?').bind(leadId).all() : Promise.resolve({ results: [] }),
     ])
 
     const zohoEvents = (stageHistory?.data || []).map(s => ({
@@ -2043,7 +2046,8 @@ app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
         actor_email: '',
         metadata: JSON.stringify({}),
         created_at: n.Created_Time,
-        source: 'zoho'
+        source: 'zoho',
+        rawContent: strippedNote,
       }
     })
 
@@ -2097,6 +2101,19 @@ app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
     const d1Fingerprints = new Set(
       d1Mapped.map(e => `${e.event_type}_${(e.created_at || '').slice(0, 16)}`)
     )
+    const dealNoteRows = dealNoteRowsRes.results || []
+
+    function normalizeNoteContent(str) {
+      return (str || '').toLowerCase().trim()
+    }
+    function isDuplicateNoteContent(rawContent, createdAt, noteRows) {
+      const norm = normalizeNoteContent(rawContent)
+      const t = new Date(createdAt).getTime()
+      return noteRows.some(r =>
+        normalizeNoteContent(r.content) === norm &&
+        Math.abs(new Date(r.created_at).getTime() - t) < 5 * 60 * 1000
+      )
+    }
 
     const zohoToD1Type = {
       'task_created':      ['task_created'],
@@ -2110,6 +2127,9 @@ app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
     }
 
     function isZohoDuplicate(zohoEvent) {
+      if (zohoEvent.event_type === 'note_added') {
+        return isDuplicateNoteContent(zohoEvent.rawContent, zohoEvent.created_at, dealNoteRows)
+      }
       const minute = (zohoEvent.created_at || '').slice(0, 16)
       const d1Types = zohoToD1Type[zohoEvent.event_type] || []
       return d1Types.some(t => d1Fingerprints.has(`${t}_${minute}`))
@@ -2167,15 +2187,20 @@ app.get('/api/deals/:id/timeline', requireAuth, async (c) => {
         actor_email: '',
         metadata: JSON.stringify({}),
         created_at: n.Created_Time,
-        source: 'lead'
+        source: 'lead',
+        rawContent: strippedNote,
       }
     })
 
     const leadFingerprints = new Set(
       leadTimelineMapped.map(e => `${e.event_type}_${(e.created_at || '').slice(0, 16)}`)
     )
+    const leadNoteRows = leadNoteRowsRes.results || []
 
     function isLeadZohoDuplicate(zohoEvent) {
+      if (zohoEvent.event_type === 'note_added') {
+        return isDuplicateNoteContent(zohoEvent.rawContent, zohoEvent.created_at, leadNoteRows)
+      }
       const minute = (zohoEvent.created_at || '').slice(0, 16)
       const d1Types = zohoToD1Type[zohoEvent.event_type] || []
       return d1Types.some(t => leadFingerprints.has(`${t}_${minute}`))

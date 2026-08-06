@@ -2021,10 +2021,15 @@ function NotesTab({ dealId, deal }) {
       .replace(/^sales assist note:?\s*/i, '')
       .replace(/^\[note\]\s*/i, '')
       .trim()
-      .slice(0, 80)
   }
-  const d1Contents = new Set(d1Notes.map(n => normalizeContent(n.content)))
-  const d1Times = new Set(d1Notes.map(n => (n.createdAt || '').slice(0, 16)))
+  function isDuplicateOfD1(content, date, d1NotesList) {
+    const norm = normalizeContent(content)
+    const t = new Date(date || 0).getTime()
+    return d1NotesList.some(n =>
+      normalizeContent(n.content) === norm &&
+      Math.abs(new Date(n.createdAt || 0).getTime() - t) < 5 * 60 * 1000
+    )
+  }
   const zohoNotes = (deal?.notes || []).map(n => ({
     id: n.id,
     content: n.description,
@@ -2032,11 +2037,7 @@ function NotesTab({ dealId, deal }) {
     date: n.date,
     source: 'zoho',
   }))
-  const dedupedZohoNotes = zohoNotes.filter(n => {
-    const minute = (n.date || '').slice(0, 16)
-    const contentMatch = d1Contents.has(normalizeContent(n.content))
-    return !d1Times.has(minute) && !contentMatch
-  })
+  const dedupedZohoNotes = zohoNotes.filter(n => !isDuplicateOfD1(n.content, n.date, d1Notes))
   const allNotes = [
     ...(d1Notes || []).map(n => ({
       id: n.id,
@@ -2050,7 +2051,7 @@ function NotesTab({ dealId, deal }) {
 
   // Lead notes already copied onto the deal at conversion time show up in
   // allNotes above — only show ones here that aren't already duplicated there.
-  const dedupedLeadNotes = (leadNotes || []).filter(n => !d1Contents.has(normalizeContent(n.content)))
+  const dedupedLeadNotes = (leadNotes || []).filter(n => !isDuplicateOfD1(n.content, n.createdAt, d1Notes))
 
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
