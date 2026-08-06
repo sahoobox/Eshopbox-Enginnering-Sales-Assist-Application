@@ -9,7 +9,8 @@ import { toast } from '../../components/ui/Toast'
 import { SkeletonCard, SkeletonLine } from '../../components/ui/Skeleton'
 import { MID_MARKET_STAGES, ENT_STAGES, StagePill, stageColor, initials, formatDate, daysAgo } from '../../lib/stageConfig'
 import { TaskModal } from '../Tasks'
-import { leadSourcePill, pipelinePillClass, pipelineLabel } from '../../lib/fieldColors'
+import { leadSourcePill, pipelinePillClass, pipelineLabel, conversionMediumPill } from '../../lib/fieldColors'
+import { CONVERSION_MEDIUM_MAP } from '../../components/ui/DealCard'
 import { truncateAtWord } from '../../lib/text'
 import { usePageTitle } from '../../hooks/usePageTitle'
 
@@ -69,6 +70,7 @@ export default function DealDetail({ dealId }) {
   const availableStages = moveableStages.filter(s => s !== deal.stage)
   const flagLevel = deal.attentionLevel || 'ok'
   const gradeColor = { A: 'ok', B: 'info', C: 'warn', D: 'danger' }[deal.grade] || 'neutral'
+  const conversionMedium = deal.conversionMedium ? CONVERSION_MEDIUM_MAP[deal.conversionMedium] : null
 
   const moveToStage = async (stage) => {
     if (stage === deal.stage || movingStage) return
@@ -128,12 +130,6 @@ export default function DealDetail({ dealId }) {
         {deal.leadSource && (
           <span className={`pill ${leadSourcePill(deal.leadSource)}`} style={{ fontSize: 11 }}>
             {deal.leadSource}
-          </span>
-        )}
-        {deal.workspaceAccountSlug && (
-          <span className="pill pill-slate" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <Building2 size={11} />
-            Workspace: {deal.workspaceAccountSlug}
           </span>
         )}
         <div className="hdr-meta">
@@ -362,6 +358,28 @@ export default function DealDetail({ dealId }) {
                   </span>
                   <span className={`pill ${leadSourcePill(deal.leadSource)}`} style={{ fontSize: 11 }}>
                     {deal.leadSource}
+                  </span>
+                </div>
+              )}
+              {conversionMedium && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                  <span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 500 }}>
+                    Conversion Medium
+                  </span>
+                  <span className={`pill ${conversionMediumPill(deal.conversionMedium)}`} style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <conversionMedium.icon size={11} />
+                    {conversionMedium.label}
+                  </span>
+                </div>
+              )}
+              {deal.workspaceAccountSlug && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                  <span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 500 }}>
+                    Account Slug
+                  </span>
+                  <span className="pill pill-slate" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <Building2 size={11} />
+                    {deal.workspaceAccountSlug}
                   </span>
                 </div>
               )}

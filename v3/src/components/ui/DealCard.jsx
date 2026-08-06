@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { MessageCircle, Phone, Mail, Globe, Calendar, Building2 } from 'lucide-react'
 import { leadSourcePill, conversionMediumPill } from '../../lib/fieldColors'
 
-const CONVERSION_MEDIUM_MAP = {
+export const CONVERSION_MEDIUM_MAP = {
   'WhatsApp Messaging': { icon: MessageCircle, label: 'WhatsApp' },
   'Phone Call': { icon: Phone, label: 'Call' },
   'Email': { icon: Mail, label: 'Email' },
