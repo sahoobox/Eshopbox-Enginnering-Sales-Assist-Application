@@ -1533,11 +1533,52 @@ app.post('/api/deals/:id/day2/mark-sent', requireAuth, async (c) => {
       const dealRes = await getDeal(c.env, dealId)
       const currentStage = dealRes?.data?.[0]?.Stage
       if (currentStage === 'Demo Done') {
-        await updateDeal(c.env, dealId, { Stage: 'Proposal Sent' })
+        const stageT0 = Date.now()
+        const stageResult = await updateDeal(c.env, dealId, { Stage: 'Proposal Sent' })
+        const stageZohoResult = checkZohoResponse(stageResult)
+        await logApiCall(c.env, {
+          service: 'zoho',
+          endpoint: `/Deals/${dealId}`,
+          method: 'PUT',
+          dealId,
+          actorEmail: user.email,
+          actorName: user.name,
+          requestSummary: 'Auto-advance stage to Proposal Sent (day2 mark-sent)',
+          success: stageZohoResult.success,
+          errorMessage: stageZohoResult.success ? null : `${stageZohoResult.code}: ${stageZohoResult.message}`,
+          durationMs: Date.now() - stageT0
+        })
+        if (!stageZohoResult.success) {
+          await logTimelineEvent(c.env, dealId, {
+            eventType: 'stage_advance_failed',
+            description: `Auto-advance to "Proposal Sent" failed after pricing proposal was marked sent — Zoho rejected the update (${stageZohoResult.code}: ${stageZohoResult.message}). Stage remains "Demo Done".`,
+            actorName: user.name,
+            actorEmail: user.email,
+            metadata: { emailType: 'day2', fromStage: currentStage, toStage: 'Proposal Sent', errorCode: stageZohoResult.code, errorMessage: stageZohoResult.message }
+          })
+        }
         await c.env.TOKEN_CACHE.delete('v3_deals_cache')
       }
     } catch (e) {
       console.error('Stage auto-advance failed:', e.message)
+      await logApiCall(c.env, {
+        service: 'zoho',
+        endpoint: `/Deals/${dealId}`,
+        method: 'PUT',
+        dealId,
+        actorEmail: user.email,
+        actorName: user.name,
+        requestSummary: 'Auto-advance stage to Proposal Sent (day2 mark-sent)',
+        success: false,
+        errorMessage: e.message
+      })
+      await logTimelineEvent(c.env, dealId, {
+        eventType: 'stage_advance_failed',
+        description: `Auto-advance to "Proposal Sent" failed after pricing proposal was marked sent — ${e.message}. Stage remains unchanged.`,
+        actorName: user.name,
+        actorEmail: user.email,
+        metadata: { emailType: 'day2', toStage: 'Proposal Sent', errorMessage: e.message }
+      })
     }
     await logTimelineEvent(c.env, dealId, {
       eventType: 'email_sent',
@@ -1970,6 +2011,65 @@ app.post('/api/deals/:id/stage', requireAuth, async (c) => {
     return c.json({ success: true, stage })
   } catch (err) {
     return c.json({ error: err.message }, 500)
+  }
+})
+
+// Admin-only recovery path: force a deal's stage directly, bypassing LOCKED_STAGES/
+// moveableStages restrictions. For cases where an auto-advance (e.g. day2/mark-sent)
+// silently failed and the deal is stuck on a stage the normal dropdown can't reach.
+app.post('/api/deals/:id/force-stage', requireAuth, async (c) => {
+  try {
+    const user = c.get('user')
+    if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403)
+
+    const dealId = c.req.param('id')
+    const { stage } = await c.req.json()
+    const VALID_STAGES = [
+      'Upcoming Demo', 'Demo Done', 'Proposal Sent',
+      'Account Setup in Progress', 'Awaiting First Shipment',
+      'First Shipment Done', 'Active', 'On Hold',
+      'Won/Payment Received', 'Lost/Dropped',
+      'Follow up Meeting Done', 'Demo Approved', 'Deal Approved'
+    ]
+    if (!VALID_STAGES.includes(stage)) return c.json({ error: 'Invalid stage' }, 400)
+
+    const dealRes = await getDeal(c.env, dealId)
+    const fromStage = dealRes?.data?.[0]?.Stage || 'unknown'
+
+    const t0 = Date.now()
+    const result = await updateDeal(c.env, dealId, { Stage: stage })
+    const zohoResult = checkZohoResponse(result)
+
+    await logApiCall(c.env, {
+      service: 'zoho',
+      endpoint: `/Deals/${dealId}`,
+      method: 'PUT',
+      dealId,
+      actorEmail: user.email,
+      actorName: user.name,
+      requestSummary: `Admin force-stage: ${fromStage} → ${stage}`,
+      success: zohoResult.success,
+      errorMessage: zohoResult.success ? null : `${zohoResult.code}: ${zohoResult.message}`,
+      durationMs: Date.now() - t0
+    })
+
+    if (!zohoResult.success) {
+      return c.json({ error: 'Zoho rejected the stage change', details: zohoResult.message }, 502)
+    }
+
+    await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+
+    await logTimelineEvent(c.env, dealId, {
+      eventType: 'stage_forced',
+      description: `Admin forced stage from "${fromStage}" to "${stage}"`,
+      actorName: user.name,
+      actorEmail: user.email,
+      metadata: { from: fromStage, to: stage, method: 'admin_force' }
+    })
+
+    return c.json({ success: true, stage })
+  } catch (err) {
+    return c.json({ error: 'Failed to force stage', details: err.message }, 500)
   }
 })
 

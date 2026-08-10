@@ -27,6 +27,8 @@ export default function DealDetail({ dealId }) {
   const [showDemoScheduled, setShowDemoScheduled] = useState(false)
   const [movingStage, setMovingStage] = useState(null)
   const [stageDropdown, setStageDropdown] = useState(false)
+  const [forceStageDropdown, setForceStageDropdown] = useState(false)
+  const [forcingStage, setForcingStage] = useState(null)
 
   useEffect(() => {
     if (!stageDropdown) return
@@ -36,6 +38,15 @@ export default function DealDetail({ dealId }) {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [stageDropdown])
+
+  useEffect(() => {
+    if (!forceStageDropdown) return
+    const handler = (e) => {
+      if (!e.target.closest('[data-force-stage-dropdown]')) setForceStageDropdown(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [forceStageDropdown])
 
   if (loading) return (
     <div className="main" style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 16 }}>
@@ -96,6 +107,26 @@ export default function DealDetail({ dealId }) {
       toast.error('Network error. Try again.')
     } finally {
       setMovingStage(null)
+    }
+  }
+
+  const forceStage = async (stage) => {
+    if (stage === deal.stage || forcingStage) return
+    if (!confirm(`Admin override: force stage from "${deal.stage}" to "${stage}"?\n\nThis bypasses normal stage-advance rules and writes directly to Zoho. Use only to recover a stuck deal.`)) return
+    setForcingStage(stage)
+    try {
+      const res = await authFetch(`/api/deals/${deal.id}/force-stage`, {
+        method: 'POST',
+        body: JSON.stringify({ stage })
+      })
+      const data = await res.json()
+      if (data.success) { toast.success(`Stage forced to ${stage}`); refetchDeal() }
+      else toast.error(data.error || 'Failed to force stage')
+    } catch {
+      toast.error('Network error. Try again.')
+    } finally {
+      setForcingStage(null)
+      setForceStageDropdown(false)
     }
   }
 
@@ -229,6 +260,45 @@ export default function DealDetail({ dealId }) {
             <h3 style={{ margin: 0, fontSize: 14 }}>Stage tracker</h3>
             <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>Pipeline · {mainStages.length} stages</div>
           </div>
+          {isAdmin && (
+            <div data-force-stage-dropdown style={{ position: 'relative' }}>
+              <button
+                className="btn btn-sm"
+                style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}
+                onClick={() => setForceStageDropdown(v => !v)}
+              >
+                ⚠ Force stage ▾
+              </button>
+              {forceStageDropdown && (
+                <div style={{
+                  position: 'absolute', top: '100%', right: 0, zIndex: 200,
+                  background: 'var(--surface)', border: '1px solid var(--danger)',
+                  borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-2)',
+                  marginTop: 4, minWidth: 240, overflow: 'hidden'
+                }}>
+                  <div style={{ padding: '8px 14px', fontSize: 11, color: 'var(--ink-3)', borderBottom: '1px solid var(--line)' }}>
+                    Admin override — bypasses normal rules
+                  </div>
+                  {stages.filter(s => s !== deal.stage).map(s => (
+                    <button key={s}
+                      onClick={() => forceStage(s)}
+                      disabled={forcingStage === s}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left',
+                        padding: '10px 14px', border: 'none', background: 'none',
+                        fontSize: 13, cursor: forcingStage === s ? 'not-allowed' : 'pointer',
+                        fontFamily: 'inherit', color: 'var(--ink)'
+                      }}
+                      onMouseEnter={e => e.target.style.background = 'var(--surface-2)'}
+                      onMouseLeave={e => e.target.style.background = 'none'}
+                    >
+                      {forcingStage === s ? 'Forcing…' : s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="stages">
           {(() => {
