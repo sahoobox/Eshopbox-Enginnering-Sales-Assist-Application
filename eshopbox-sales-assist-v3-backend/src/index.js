@@ -1978,6 +1978,50 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
           created_at = excluded.created_at,
           task_created = 0
       `).bind(dealId, followUpDate, reason.trim(), new Date().toISOString()).run()
+
+      try {
+        const onHoldDealRes = await getDeal(c.env, dealId)
+        const onHoldDealData = onHoldDealRes?.data?.[0]
+        const taskT0 = Date.now()
+        const taskResult = await createTask(c.env, dealId, {
+          Subject: `Follow up on On Hold deal: ${onHoldDealData?.Deal_Name || dealId}`,
+          Due_Date: followUpDate,
+          Status: 'Not Started',
+          Priority: 'High',
+          Description: reason.trim(),
+          Owner: onHoldDealData?.Owner ? { id: onHoldDealData.Owner.id } : undefined,
+        })
+        const taskZohoResult = checkZohoResponse(taskResult)
+        await logApiCall(c.env, {
+          service: 'zoho',
+          endpoint: '/Tasks',
+          method: 'POST',
+          dealId,
+          actorEmail: user.email,
+          actorName: user.name,
+          requestSummary: `Create On Hold follow-up task for ${onHoldDealData?.Deal_Name || dealId}`,
+          success: taskZohoResult.success,
+          errorMessage: taskZohoResult.success ? null : `${taskZohoResult.code}: ${taskZohoResult.message}`,
+          durationMs: Date.now() - taskT0
+        })
+        if (taskZohoResult.success) {
+          await c.env.DB.prepare('UPDATE on_hold_followups SET task_created = 1 WHERE deal_id = ?').bind(dealId).run()
+        }
+      } catch (taskErr) {
+        console.error('On Hold follow-up task creation failed:', taskErr.message)
+        await logApiCall(c.env, {
+          service: 'zoho',
+          endpoint: '/Tasks',
+          method: 'POST',
+          dealId,
+          actorEmail: user.email,
+          actorName: user.name,
+          requestSummary: 'Create On Hold follow-up task',
+          success: false,
+          errorMessage: taskErr.message,
+          durationMs: 0
+        })
+      }
     }
     await logAction(c.env, {
       dealId,
@@ -2064,6 +2108,50 @@ app.post('/api/deals/:id/stage', requireAuth, async (c) => {
           created_at = excluded.created_at,
           task_created = 0
       `).bind(dealId, followUpDate, reason.trim(), new Date().toISOString()).run()
+
+      try {
+        const onHoldDealRes = await getDeal(c.env, dealId)
+        const onHoldDealData = onHoldDealRes?.data?.[0]
+        const taskT0 = Date.now()
+        const taskResult = await createTask(c.env, dealId, {
+          Subject: `Follow up on On Hold deal: ${onHoldDealData?.Deal_Name || dealId}`,
+          Due_Date: followUpDate,
+          Status: 'Not Started',
+          Priority: 'High',
+          Description: reason.trim(),
+          Owner: onHoldDealData?.Owner ? { id: onHoldDealData.Owner.id } : undefined,
+        })
+        const taskZohoResult = checkZohoResponse(taskResult)
+        await logApiCall(c.env, {
+          service: 'zoho',
+          endpoint: '/Tasks',
+          method: 'POST',
+          dealId,
+          actorEmail: user?.email || null,
+          actorName: user?.name || null,
+          requestSummary: `Create On Hold follow-up task for ${onHoldDealData?.Deal_Name || dealId}`,
+          success: taskZohoResult.success,
+          errorMessage: taskZohoResult.success ? null : `${taskZohoResult.code}: ${taskZohoResult.message}`,
+          durationMs: Date.now() - taskT0
+        })
+        if (taskZohoResult.success) {
+          await c.env.DB.prepare('UPDATE on_hold_followups SET task_created = 1 WHERE deal_id = ?').bind(dealId).run()
+        }
+      } catch (taskErr) {
+        console.error('On Hold follow-up task creation failed:', taskErr.message)
+        await logApiCall(c.env, {
+          service: 'zoho',
+          endpoint: '/Tasks',
+          method: 'POST',
+          dealId,
+          actorEmail: user?.email || null,
+          actorName: user?.name || null,
+          requestSummary: 'Create On Hold follow-up task',
+          success: false,
+          errorMessage: taskErr.message,
+          durationMs: 0
+        })
+      }
     } else {
       await logTimelineEvent(c.env, dealId, {
         eventType: 'stage_changed',
@@ -2148,6 +2236,49 @@ app.post('/api/deals/:id/force-stage', requireAuth, async (c) => {
             created_at = excluded.created_at,
             task_created = 0
         `).bind(dealId, followUpDate, reason.trim(), new Date().toISOString()).run()
+
+        try {
+          const forceDealData = dealRes?.data?.[0]
+          const taskT0 = Date.now()
+          const taskResult = await createTask(c.env, dealId, {
+            Subject: `Follow up on On Hold deal: ${forceDealData?.Deal_Name || dealId}`,
+            Due_Date: followUpDate,
+            Status: 'Not Started',
+            Priority: 'High',
+            Description: reason.trim(),
+            Owner: forceDealData?.Owner ? { id: forceDealData.Owner.id } : undefined,
+          })
+          const taskZohoResult = checkZohoResponse(taskResult)
+          await logApiCall(c.env, {
+            service: 'zoho',
+            endpoint: '/Tasks',
+            method: 'POST',
+            dealId,
+            actorEmail: user.email,
+            actorName: user.name,
+            requestSummary: `Create On Hold follow-up task for ${forceDealData?.Deal_Name || dealId}`,
+            success: taskZohoResult.success,
+            errorMessage: taskZohoResult.success ? null : `${taskZohoResult.code}: ${taskZohoResult.message}`,
+            durationMs: Date.now() - taskT0
+          })
+          if (taskZohoResult.success) {
+            await c.env.DB.prepare('UPDATE on_hold_followups SET task_created = 1 WHERE deal_id = ?').bind(dealId).run()
+          }
+        } catch (taskErr) {
+          console.error('On Hold follow-up task creation failed:', taskErr.message)
+          await logApiCall(c.env, {
+            service: 'zoho',
+            endpoint: '/Tasks',
+            method: 'POST',
+            dealId,
+            actorEmail: user.email,
+            actorName: user.name,
+            requestSummary: 'Create On Hold follow-up task',
+            success: false,
+            errorMessage: taskErr.message,
+            durationMs: 0
+          })
+        }
       } else {
         await logTimelineEvent(c.env, dealId, {
           eventType: 'on_hold_gap',
@@ -3845,6 +3976,123 @@ async function runRepReminders(env) {
 
   } catch (err) {
     console.error('runRepReminders error:', err.message);
+  }
+}
+
+async function checkStaleOnHoldDeals(env) {
+  console.log('Checking stale On Hold deals...');
+  try {
+    const token = await getAccessToken(env);
+    const onHoldDeals = [];
+    let page = 1;
+    while (page <= 200) {
+      const res = await fetch(
+        `https://www.zohoapis.com/crm/v2/Deals/search?criteria=(Stage:equals:${encodeURIComponent('On Hold')})&fields=id,Deal_Name,Owner,Stage&per_page=200&page=${page}`,
+        { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
+      ).then(r => r.ok ? r.json() : null);
+      if (!res?.data?.length) break;
+      onHoldDeals.push(...res.data);
+      if (!res.info?.more_records) break;
+      page++;
+    }
+
+    if (!onHoldDeals.length) {
+      console.log('No deals currently On Hold');
+      return;
+    }
+    console.log(`Found ${onHoldDeals.length} deal(s) On Hold`);
+
+    const dealIds = onHoldDeals.map(d => d.id);
+    const placeholders = dealIds.map(() => '?').join(',');
+    const followupRows = await env.DB.prepare(
+      `SELECT deal_id, task_created FROM on_hold_followups WHERE deal_id IN (${placeholders})`
+    ).bind(...dealIds).all();
+    const followupMap = new Map((followupRows.results || []).map(r => [r.deal_id, r.task_created]));
+
+    const candidates = onHoldDeals.filter(d => followupMap.get(d.id) !== 1);
+    if (!candidates.length) {
+      console.log('All On Hold deals already have a follow-up task');
+      return;
+    }
+    console.log(`${candidates.length} candidate(s) need a 30-day check`);
+
+    const today = new Date();
+
+    for (const deal of candidates) {
+      try {
+        const historyRes = await fetch(
+          `https://www.zohoapis.com/crm/v2.1/Deals/${deal.id}/Stage_History`,
+          { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
+        ).then(r => r.ok ? r.json() : null);
+
+        // Stage_History logs one entry per transition, Modified_Time = when that
+        // stage started — the latest "On Hold" entry marks the current stint's start.
+        const onHoldEntries = (historyRes?.data || [])
+          .filter(s => s.Stage === 'On Hold')
+          .sort((a, b) => new Date(b.Modified_Time) - new Date(a.Modified_Time));
+        const latestOnHold = onHoldEntries[0];
+        if (!latestOnHold?.Modified_Time) {
+          console.log(`No Stage_History entry for On Hold on deal ${deal.id} — skipping`);
+          continue;
+        }
+
+        const enteredOnHoldAt = new Date(latestOnHold.Modified_Time);
+        const daysOnHold = Math.floor((today - enteredOnHoldAt) / 86400000);
+        if (daysOnHold < 30) continue;
+
+        console.log(`Deal ${deal.id} has been On Hold for ${daysOnHold} days — creating fallback task`);
+
+        const taskT0 = Date.now();
+        const taskResult = await createTask(env, deal.id, {
+          Subject: `Automated 30-day follow-up: ${deal.Deal_Name || deal.id} — On Hold`,
+          Due_Date: today.toISOString().split('T')[0],
+          Status: 'Not Started',
+          Priority: 'High',
+          Description: `This deal has been On Hold for ${daysOnHold}+ days with no follow-up task recorded. Auto-generated by the 30-day stale On Hold check.`,
+          Owner: deal.Owner ? { id: deal.Owner.id } : undefined,
+        });
+        const taskZohoResult = checkZohoResponse(taskResult);
+
+        await logApiCall(env, {
+          service: 'zoho',
+          endpoint: '/Tasks',
+          method: 'POST',
+          dealId: deal.id,
+          actorEmail: 'system@cron',
+          actorName: 'Stale On Hold Cron',
+          requestSummary: `30-day fallback task for On Hold deal ${deal.Deal_Name || deal.id}`,
+          success: taskZohoResult.success,
+          errorMessage: taskZohoResult.success ? null : `${taskZohoResult.code}: ${taskZohoResult.message}`,
+          durationMs: Date.now() - taskT0
+        });
+
+        if (!taskZohoResult.success) {
+          console.log(`Failed to create fallback task for deal ${deal.id}:`, taskZohoResult.message);
+          continue;
+        }
+
+        const now = new Date().toISOString();
+        if (followupMap.has(deal.id)) {
+          await env.DB.prepare(
+            'UPDATE on_hold_followups SET task_created = 1 WHERE deal_id = ?'
+          ).bind(deal.id).run();
+        } else {
+          await env.DB.prepare(`
+            INSERT INTO on_hold_followups (deal_id, follow_up_date, reason, created_at, task_created)
+            VALUES (?, ?, ?, ?, 1)
+          `).bind(
+            deal.id,
+            today.toISOString().split('T')[0],
+            '[Auto-generated 30-day follow-up — no reason/date was captured for this On Hold period]',
+            now
+          ).run();
+        }
+      } catch (err) {
+        console.error(`Error checking/creating fallback task for deal ${deal.id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('checkStaleOnHoldDeals error:', err.message);
   }
 }
 
@@ -6036,6 +6284,7 @@ export default {
       await Promise.all([
         runScheduledEmails(env),
         runRepReminders(env),
+        checkStaleOnHoldDeals(env),
       ])
     })());
   },
