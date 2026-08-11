@@ -212,6 +212,38 @@ app.get('/api/debug/pipelines', requireAuth, async (c) => {
   return c.json(res)
 })
 
+// TEMPORARY — smoke-testing Requirement 3's cron design (On Hold search criteria +
+// Stage_History semantics). Remove once verified.
+app.get('/api/debug/on-hold-search', requireAuth, async (c) => {
+  const user = c.get('user')
+  if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403)
+
+  const res = await zohoAPI(c.env, 'GET', `/Deals/search?criteria=(Stage:equals:${encodeURIComponent('On Hold')})`)
+  return c.json(res)
+})
+
+app.get('/api/debug/stage-history/:dealId', requireAuth, async (c) => {
+  const user = c.get('user')
+  if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403)
+
+  const dealId = c.req.param('dealId')
+  const token = await getAccessToken(c.env)
+  const res = await fetch(
+    `https://www.zohoapis.com/crm/v2.1/Deals/${dealId}/Stage_History`,
+    { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
+  ).then(r => r.json())
+  return c.json(res)
+})
+
+app.get('/api/debug/deal-fields/:dealId', requireAuth, async (c) => {
+  const user = c.get('user')
+  if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403)
+
+  const dealId = c.req.param('dealId')
+  const res = await zohoAPI(c.env, 'GET', `/Deals/${dealId}?fields=On_Hold_Reason,Reason_For_On_Hold,On_Hold_Next_Follow_up_Date`)
+  return c.json(res)
+})
+
 app.delete('/api/cache', requireAuth, async (c) => {
   await c.env.TOKEN_CACHE.delete('v3_deals_cache')
   await c.env.TOKEN_CACHE.delete('zoho_access_token')
@@ -376,7 +408,8 @@ score: (() => {
     contactName: d.Contact_Name?.name || d.Contact_Name || '',
     accountName: d.Account_Name?.name || d.Account_Name || '',
     lostReason: d.Lost_Reason || '',
-    onHoldReason: d.On_Hold_Reason || '',
+    onHoldReason: d.Reason_For_On_Hold || d.On_Hold_Reason || '',
+    onHoldFollowUpDate: d.On_Hold_Next_Follow_up_Date || '',
     city: d.City || '',
     supportNeeded: d.How_can_Eshopbox_support_your_business || '',
     productType: Array.isArray(d.What_type_of_products_do_you_sell)
@@ -1908,7 +1941,10 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
 
     const payload = { Stage: stage }
     if (stage === 'Lost/Dropped') payload.Lost_Reason = reason
-    if (stage === 'On Hold') payload.On_Hold_Reason = reason
+    if (stage === 'On Hold') {
+      payload.Reason_For_On_Hold = reason
+      payload.On_Hold_Next_Follow_up_Date = followUpDate
+    }
     const stageT0 = Date.now()
     const stageResult = await updateDeal(c.env, dealId, payload)
     const stageZohoResult = checkZohoResponse(stageResult)
@@ -2000,7 +2036,10 @@ app.post('/api/deals/:id/stage', requireAuth, async (c) => {
     const stageT0 = Date.now()
     const payload = { Stage: stage }
     if (stage === 'Lost/Dropped') payload.Lost_Reason = reason
-    if (stage === 'On Hold') payload.On_Hold_Reason = reason
+    if (stage === 'On Hold') {
+      payload.Reason_For_On_Hold = reason
+      payload.On_Hold_Next_Follow_up_Date = followUpDate
+    }
     const stageResult = await updateDeal(c.env, dealId, payload)
     const stageZohoResult = checkZohoResponse(stageResult)
     await logApiCall(c.env, {
@@ -2079,7 +2118,10 @@ app.post('/api/deals/:id/force-stage', requireAuth, async (c) => {
 
     const t0 = Date.now()
     const forcePayload = { Stage: stage }
-    if (stage === 'On Hold' && reason?.trim()) forcePayload.On_Hold_Reason = reason
+    if (stage === 'On Hold' && reason?.trim() && followUpDate) {
+      forcePayload.Reason_For_On_Hold = reason
+      forcePayload.On_Hold_Next_Follow_up_Date = followUpDate
+    }
     const result = await updateDeal(c.env, dealId, forcePayload)
     const zohoResult = checkZohoResponse(result)
 
