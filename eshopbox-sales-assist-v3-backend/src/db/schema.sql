@@ -164,3 +164,13 @@ CREATE INDEX IF NOT EXISTS idx_apl_deal
   ON api_log(deal_id);
 CREATE INDEX IF NOT EXISTS idx_apl_brand
   ON api_log(brand_name);
+
+-- Documentation only — this table was already created live in D1 via console.
+-- Do not re-run this as a migration.
+CREATE TABLE IF NOT EXISTS on_hold_followups (
+  deal_id TEXT PRIMARY KEY,
+  follow_up_date TEXT NOT NULL,
+  reason TEXT,
+  created_at TEXT NOT NULL,
+  task_created INTEGER DEFAULT 0
+);

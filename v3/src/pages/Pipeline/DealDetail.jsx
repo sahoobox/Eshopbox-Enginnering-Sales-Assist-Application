@@ -2648,15 +2648,17 @@ function MarkLostModal({ deal, onClose, onSuccess }) {
 function MarkOnHoldModal({ deal, onClose, onSuccess }) {
   const { authFetch } = useAuth()
   const [reason, setReason] = useState('')
+  const [followUpDate, setFollowUpDate] = useState('')
   const [saving, setSaving] = useState(false)
 
   async function submit() {
     if (!reason.trim()) return toast.warn('Please enter a reason')
+    if (!followUpDate) return toast.warn('Please select a follow-up date')
     setSaving(true)
     try {
       const res = await authFetch(`/api/deals/${deal.id}/stage`, {
         method: 'PATCH',
-        body: JSON.stringify({ stage: 'On Hold', reason })
+        body: JSON.stringify({ stage: 'On Hold', reason, followUpDate })
       })
       const data = await res.json()
       console.log('Mark on hold response:', data)
@@ -2680,10 +2682,20 @@ function MarkOnHoldModal({ deal, onClose, onSuccess }) {
               style={{ width: '100%' }}
             />
           </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>Follow-up Date *</label>
+            <input
+              type="date"
+              value={followUpDate}
+              onChange={e => setFollowUpDate(e.target.value)}
+              className="input"
+              style={{ width: '100%' }}
+            />
+          </div>
         </div>
         <div className="modal-foot">
           <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={submit} disabled={saving || !reason}>
+          <button className="btn btn-primary" onClick={submit} disabled={saving || !reason.trim() || !followUpDate}>
             {saving ? 'Saving…' : 'Mark On Hold'}
           </button>
         </div>

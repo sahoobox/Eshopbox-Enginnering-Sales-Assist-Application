@@ -1895,7 +1895,17 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id')
     const user = c.get('user')
-    const { stage, reason } = await c.req.json()
+    const { stage, reason, followUpDate } = await c.req.json()
+
+    if (stage === 'On Hold') {
+      if (!reason?.trim()) {
+        return c.json({ error: 'A reason is required to mark this deal On Hold', onHoldRequired: true }, 400)
+      }
+      if (!followUpDate) {
+        return c.json({ error: 'A follow-up date is required to mark this deal On Hold', onHoldRequired: true }, 400)
+      }
+    }
+
     const payload = { Stage: stage }
     if (stage === 'Lost/Dropped') payload.Lost_Reason = reason
     if (stage === 'On Hold') payload.On_Hold_Reason = reason
@@ -1938,6 +1948,15 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
         actorName: user.name,
         actorEmail: user.email,
       })
+      await c.env.DB.prepare(`
+        INSERT INTO on_hold_followups (deal_id, follow_up_date, reason, created_at, task_created)
+        VALUES (?, ?, ?, ?, 0)
+        ON CONFLICT(deal_id) DO UPDATE SET
+          follow_up_date = excluded.follow_up_date,
+          reason = excluded.reason,
+          created_at = excluded.created_at,
+          task_created = 0
+      `).bind(dealId, followUpDate, reason.trim(), new Date().toISOString()).run()
     }
     await logAction(c.env, {
       dealId,
@@ -1957,7 +1976,7 @@ app.post('/api/deals/:id/stage', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id')
     const user = c.get('user')
-    const { stage, reason } = await c.req.json()
+    const { stage, reason, followUpDate } = await c.req.json()
     const VALID_STAGES = [
       'Upcoming Demo', 'Demo Done', 'Proposal Sent',
       'Account Setup in Progress', 'Awaiting First Shipment',
@@ -1968,8 +1987,21 @@ app.post('/api/deals/:id/stage', requireAuth, async (c) => {
     if (!VALID_STAGES.includes(stage)) {
       return c.json({ error: 'Invalid stage' }, 400)
     }
+
+    if (stage === 'On Hold') {
+      if (!reason?.trim()) {
+        return c.json({ error: 'A reason is required to mark this deal On Hold', onHoldRequired: true }, 400)
+      }
+      if (!followUpDate) {
+        return c.json({ error: 'A follow-up date is required to mark this deal On Hold', onHoldRequired: true }, 400)
+      }
+    }
+
     const stageT0 = Date.now()
-    const stageResult = await updateDeal(c.env, dealId, { Stage: stage })
+    const payload = { Stage: stage }
+    if (stage === 'Lost/Dropped') payload.Lost_Reason = reason
+    if (stage === 'On Hold') payload.On_Hold_Reason = reason
+    const stageResult = await updateDeal(c.env, dealId, payload)
     const stageZohoResult = checkZohoResponse(stageResult)
     await logApiCall(c.env, {
       service: 'zoho',
@@ -1999,6 +2031,15 @@ app.post('/api/deals/:id/stage', requireAuth, async (c) => {
         actorName: user?.name || '',
         actorEmail: user?.email || '',
       })
+      await c.env.DB.prepare(`
+        INSERT INTO on_hold_followups (deal_id, follow_up_date, reason, created_at, task_created)
+        VALUES (?, ?, ?, ?, 0)
+        ON CONFLICT(deal_id) DO UPDATE SET
+          follow_up_date = excluded.follow_up_date,
+          reason = excluded.reason,
+          created_at = excluded.created_at,
+          task_created = 0
+      `).bind(dealId, followUpDate, reason.trim(), new Date().toISOString()).run()
     } else {
       await logTimelineEvent(c.env, dealId, {
         eventType: 'stage_changed',
@@ -2023,7 +2064,7 @@ app.post('/api/deals/:id/force-stage', requireAuth, async (c) => {
     if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403)
 
     const dealId = c.req.param('id')
-    const { stage } = await c.req.json()
+    const { stage, reason, followUpDate } = await c.req.json()
     const VALID_STAGES = [
       'Upcoming Demo', 'Demo Done', 'Proposal Sent',
       'Account Setup in Progress', 'Awaiting First Shipment',
@@ -2037,7 +2078,9 @@ app.post('/api/deals/:id/force-stage', requireAuth, async (c) => {
     const fromStage = dealRes?.data?.[0]?.Stage || 'unknown'
 
     const t0 = Date.now()
-    const result = await updateDeal(c.env, dealId, { Stage: stage })
+    const forcePayload = { Stage: stage }
+    if (stage === 'On Hold' && reason?.trim()) forcePayload.On_Hold_Reason = reason
+    const result = await updateDeal(c.env, dealId, forcePayload)
     const zohoResult = checkZohoResponse(result)
 
     await logApiCall(c.env, {
@@ -2066,6 +2109,28 @@ app.post('/api/deals/:id/force-stage', requireAuth, async (c) => {
       actorEmail: user.email,
       metadata: { from: fromStage, to: stage, method: 'admin_force' }
     })
+
+    if (stage === 'On Hold') {
+      if (reason?.trim() && followUpDate) {
+        await c.env.DB.prepare(`
+          INSERT INTO on_hold_followups (deal_id, follow_up_date, reason, created_at, task_created)
+          VALUES (?, ?, ?, ?, 0)
+          ON CONFLICT(deal_id) DO UPDATE SET
+            follow_up_date = excluded.follow_up_date,
+            reason = excluded.reason,
+            created_at = excluded.created_at,
+            task_created = 0
+        `).bind(dealId, followUpDate, reason.trim(), new Date().toISOString()).run()
+      } else {
+        await logTimelineEvent(c.env, dealId, {
+          eventType: 'on_hold_gap',
+          description: 'On Hold forced without reason/follow-up date — needs manual entry',
+          actorName: user.name,
+          actorEmail: user.email,
+          metadata: { method: 'admin_force' }
+        })
+      }
+    }
 
     return c.json({ success: true, stage })
   } catch (err) {
