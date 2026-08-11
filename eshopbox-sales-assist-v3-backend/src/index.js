@@ -981,10 +981,12 @@ app.get('/api/deals', requireAuth, async (c) => {
     )
     const allIds = deals.map(d => d.id)
     const saLoggedIds = deals.filter(d => d.saLogged).map(d => d.id)
+    const onHoldIds = deals.filter(d => d.stage === 'On Hold').map(d => d.id)
     const allIdChunks = chunkArray(allIds, 500)
     const saLoggedIdChunks = chunkArray(saLoggedIds, 500)
+    const onHoldIdChunks = chunkArray(onHoldIds, 500)
 
-    const [summaryResults, emailResults] = await Promise.all([
+    const [summaryResults, emailResults, onHoldResults] = await Promise.all([
       allIdChunks.length > 0 ? Promise.all(allIdChunks.map(chunk => {
         const ids = chunk.map(id => `'${id}'`).join(',')
         return c.env.DB.prepare(`SELECT deal_id, deal_summary FROM deal_form_data WHERE deal_id IN (${ids})`).all()
@@ -992,17 +994,25 @@ app.get('/api/deals', requireAuth, async (c) => {
       saLoggedIds.length > 0 ? Promise.all(saLoggedIdChunks.map(chunk => {
         const ids = chunk.map(id => `'${id}'`).join(',')
         return c.env.DB.prepare(`SELECT deal_id, email_type, status, scheduled_for FROM deal_emails WHERE deal_id IN (${ids})`).all()
+      })) : [],
+      onHoldIds.length > 0 ? Promise.all(onHoldIdChunks.map(chunk => {
+        const ids = chunk.map(id => `'${id}'`).join(',')
+        return c.env.DB.prepare(`SELECT deal_id, created_at FROM on_hold_followups WHERE deal_id IN (${ids})`).all()
       })) : []
     ])
 
     const summaryMap = {}
     const emailMap = {}
+    const onHoldEnteredMap = {}
     summaryResults.flat().forEach(r => r.results?.forEach(row => {
       if (row.deal_summary) summaryMap[row.deal_id] = row.deal_summary
     }))
     emailResults.flat().forEach(r => r.results?.forEach(row => {
       if (!emailMap[row.deal_id]) emailMap[row.deal_id] = {}
       emailMap[row.deal_id][row.email_type] = { status: row.status, scheduledFor: row.scheduled_for }
+    }))
+    onHoldResults.flat().forEach(r => r.results?.forEach(row => {
+      onHoldEnteredMap[row.deal_id] = row.created_at
     }))
 
     // Fetch active SA team member emails for r_no_sa_member flag
@@ -1015,6 +1025,7 @@ app.get('/api/deals', requireAuth, async (c) => {
         ...d,
         dealSummary: summaryMap[d.id] || null,
         emailStatuses: emailMap[d.id] || {},
+        onHoldEnteredAt: onHoldEnteredMap[d.id] || null,
       }
       const flags = getAttentionFlags(dealWithData)
       if (d.repEmail && !teamEmails.has(d.repEmail.toLowerCase())) {
@@ -1284,6 +1295,12 @@ deal.notes = (notesRes?.data || []).map(n => ({
       description: cl.Description || '', createdBy: cl.Created_By?.name || '',
     }));
     if ((effectiveUser.role === 'mde' || effectiveUser.role === 'ae') && deal.repEmail !== effectiveUser.email) return c.json({ error: 'Access denied' }, 403);
+    if (deal.stage === 'On Hold') {
+      const onHoldRow = await c.env.DB.prepare(
+        'SELECT created_at FROM on_hold_followups WHERE deal_id = ?'
+      ).bind(dealId).first()
+      deal.onHoldEnteredAt = onHoldRow?.created_at || null
+    }
     const flags = getAttentionFlags(deal);
     const attentionLevel = getAttentionLevel(flags);
     console.log('[dealSummary] returning dealSummary for', dealId, ':', dealSummary);

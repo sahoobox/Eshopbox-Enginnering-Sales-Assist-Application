@@ -232,6 +232,19 @@ export default function getAttentionFlags(deal) {
     })
   }
 
+  // R17 — On Hold for 30+ days
+  if (deal.stage === 'On Hold') {
+    const daysOnHold = deal.onHoldEnteredAt
+      ? Math.floor((today - new Date(deal.onHoldEnteredAt)) / 86400000)
+      : daysAgoStage
+    if (daysOnHold >= 30) {
+      flags.push({
+        id: 'r17', title: `On Hold for ${daysOnHold} days`, severity: 'medium', daysCount: daysOnHold,
+        desc: `${daysOnHold} days since entering On Hold — consider following up`,
+      })
+    }
+  }
+
   return flags
 }
 
@@ -324,5 +337,10 @@ export const RULE_META = [
     id: 'R16', title: 'Deal in wrong pipeline', severity: 'high', pipeline: 'Both',
     description: "Deal is open and owned by a rep on the MDE list but sitting outside the Mid-market pipeline, or owned by a rep on the AE list but sitting outside the Enterprise 2.0 pipeline.",
     skipConditions: "Terminal stage, no rep email on the deal, or the rep's list membership already matches the deal's pipeline.",
+  },
+  {
+    id: 'R17', title: 'On Hold for 30+ days', severity: 'medium', pipeline: 'Both',
+    description: 'Deal is in stage "On Hold" and 30+ days have passed since it entered that stage — measured from on_hold_followups.created_at when available, falling back to the deal\'s last stage-change time for older On Hold deals with no recorded entry date.',
+    skipConditions: 'Only evaluated on On Hold deals; skipped if fewer than 30 days have passed since entering On Hold.',
   },
 ]
