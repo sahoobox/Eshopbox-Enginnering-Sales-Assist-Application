@@ -212,38 +212,6 @@ app.get('/api/debug/pipelines', requireAuth, async (c) => {
   return c.json(res)
 })
 
-// TEMPORARY — smoke-testing Requirement 3's cron design (On Hold search criteria +
-// Stage_History semantics). Remove once verified.
-app.get('/api/debug/on-hold-search', requireAuth, async (c) => {
-  const user = c.get('user')
-  if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403)
-
-  const res = await zohoAPI(c.env, 'GET', `/Deals/search?criteria=(Stage:equals:${encodeURIComponent('On Hold')})`)
-  return c.json(res)
-})
-
-app.get('/api/debug/stage-history/:dealId', requireAuth, async (c) => {
-  const user = c.get('user')
-  if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403)
-
-  const dealId = c.req.param('dealId')
-  const token = await getAccessToken(c.env)
-  const res = await fetch(
-    `https://www.zohoapis.com/crm/v2.1/Deals/${dealId}/Stage_History`,
-    { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
-  ).then(r => r.json())
-  return c.json(res)
-})
-
-app.get('/api/debug/deal-fields/:dealId', requireAuth, async (c) => {
-  const user = c.get('user')
-  if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403)
-
-  const dealId = c.req.param('dealId')
-  const res = await zohoAPI(c.env, 'GET', `/Deals/${dealId}?fields=On_Hold_Reason,Reason_For_On_Hold,On_Hold_Next_Follow_up_Date`)
-  return c.json(res)
-})
-
 app.delete('/api/cache', requireAuth, async (c) => {
   await c.env.TOKEN_CACHE.delete('v3_deals_cache')
   await c.env.TOKEN_CACHE.delete('zoho_access_token')
