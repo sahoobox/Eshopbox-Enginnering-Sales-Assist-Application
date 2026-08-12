@@ -132,7 +132,7 @@ function MultiSelectFilter({ label, options, selected, onChange }) {
   )
 }
 
-const BLUE_RAMP = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95', '#0d366b']
+const HEAT_RAMP = ['#fde8d7', '#fbc79a', '#f5975a', '#e8672f', '#c8431a', '#9c2f11', '#6e1e0a']
 
 function cssVar(name, fallback) {
   if (typeof window === 'undefined') return fallback
@@ -206,7 +206,7 @@ function RepPipelineBarChart({ flatFlags, onDrilldown }) {
 
 function flagCellStep(count, maxCount) {
   if (count === 0 || maxCount === 0) return -1
-  return Math.min(BLUE_RAMP.length - 1, Math.floor((count / maxCount) * (BLUE_RAMP.length - 1)))
+  return Math.min(HEAT_RAMP.length - 1, Math.floor((count / maxCount) * (HEAT_RAMP.length - 1)))
 }
 
 function FlagHeatmap({ flatFlags, onDrilldown, flagOrder, flagLabels }) {
@@ -253,8 +253,8 @@ function FlagHeatmap({ flatFlags, onDrilldown, flagOrder, flagLabels }) {
               {flagOrder.map(fid => {
                 const count = entry.counts[fid] || 0
                 const step = flagCellStep(count, maxCellCount)
-                const bg = step === -1 ? 'transparent' : BLUE_RAMP[step]
-                const textColor = step >= 3 ? '#FFFFFF' : 'var(--ink-1)'
+                const bg = step === -1 ? 'transparent' : HEAT_RAMP[step]
+                const textColor = step >= 4 ? '#FFFFFF' : 'var(--ink-1)'
                 return (
                   <td
                     key={fid}
@@ -287,15 +287,22 @@ function FlagHeatmap({ flatFlags, onDrilldown, flagOrder, flagLabels }) {
   )
 }
 
-function ReportsView({ flatFlags, onDrilldown, flagOrder, flagLabels }) {
+function ReportsView({ flatFlags, onDrilldown, flagOrder, flagLabels, isRepRole }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div className="card card-pad">
-        <div className="card-title" style={{ marginBottom: 12, fontSize: 14 }}>Flags per rep by pipeline</div>
-        <RepPipelineBarChart flatFlags={flatFlags} onDrilldown={onDrilldown} />
-      </div>
+      {!isRepRole && (
+        <div className="card card-pad">
+          <div className="card-title" style={{ marginBottom: 12, fontSize: 14 }}>Flags per rep by pipeline</div>
+          <RepPipelineBarChart flatFlags={flatFlags} onDrilldown={onDrilldown} />
+        </div>
+      )}
       <div className="card card-pad">
         <div className="card-title" style={{ marginBottom: 12, fontSize: 14 }}>Flag count per rep by flag type</div>
+        {isRepRole && (
+          <p style={{ fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.6, margin: '0 0 12px' }}>
+            This shows how many of each flag type you currently have. Darker cells mean more of that issue — use this to spot patterns and prioritize what to fix first. Click a cell (or a Total) to jump straight to those flags in the table.
+          </p>
+        )}
         <FlagHeatmap flatFlags={flatFlags} onDrilldown={onDrilldown} flagOrder={flagOrder} flagLabels={flagLabels} />
       </div>
     </div>
@@ -314,6 +321,7 @@ export default function NeedAttention() {
     role === ROLES.AE || role === ROLES.SALES_LEAD_ENTERPRISE ? 'Enterprise' :
     'all'
   const activePipeline = searchParams.get('pipeline') || defaultPipeline
+  const isRepRole = role === ROLES.MDE || role === ROLES.AE
 
   const updateParams = (updates) => {
     const next = new URLSearchParams(searchParams)
@@ -604,7 +612,7 @@ export default function NeedAttention() {
 
         {tab === 'reports' && (
           <div style={{ padding: '16px 0 24px' }}>
-            <ReportsView flatFlags={flatFlags} onDrilldown={handleDrilldown} flagOrder={flagOrder} flagLabels={flagLabels} />
+            <ReportsView flatFlags={flatFlags} onDrilldown={handleDrilldown} flagOrder={flagOrder} flagLabels={flagLabels} isRepRole={isRepRole} />
           </div>
         )}
       </div>
