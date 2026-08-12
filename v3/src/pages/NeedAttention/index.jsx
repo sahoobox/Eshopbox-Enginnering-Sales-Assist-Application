@@ -6,6 +6,7 @@ import { Topbar, ToggleGroup } from '../../components/ui'
 import { SkeletonTable } from '../../components/ui/Skeleton'
 import { pipelinePillClass, pipelineLabel } from '../../lib/fieldColors'
 import { usePageTitle } from '../../hooks/usePageTitle'
+import * as XLSX from 'xlsx'
 
 const RESOLVE_INSTRUCTIONS = {
   r1:  "Recap email not sent after demo. Send the Day 1 recap email from the Sequence tab to keep the prospect engaged while the demo is fresh.",
@@ -167,6 +168,23 @@ export default function NeedAttention() {
   const repOptions = [...new Set(flatFlags.map(f => f.repName).filter(Boolean))].sort()
   const flagOptions = FLAG_ORDER
 
+  const handleExportExcel = () => {
+    if (filteredFlags.length === 0) return
+    const rows = filteredFlags.map(f => ({
+      Flag: f.flagTitle,
+      Brand: f.brandName,
+      Rep: f.repName,
+      Pipeline: pipelineLabel(f.pipeline),
+      Stage: f.stage,
+      Days: f.daysInStage,
+    }))
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Need Attention')
+    const today = new Date().toISOString().slice(0, 10)
+    XLSX.writeFile(wb, `need-attention-flags-${today}.xlsx`)
+  }
+
   if (loading) return <div className="main"><SkeletonTable rows={6} cols={6} /></div>
   if (error) return (
     <div className="main">
@@ -235,6 +253,15 @@ export default function NeedAttention() {
             <button onClick={refetch}
               style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, cursor: 'pointer', background: 'transparent', color: 'var(--ink-2)', marginLeft: 'auto' }}>
               ↻ Refresh
+            </button>
+            <button
+              className="btn btn-sm"
+              onClick={handleExportExcel}
+              disabled={filteredFlags.length === 0}
+              title={filteredFlags.length === 0 ? 'No flags to export' : 'Download the current view as an Excel file'}
+              style={{ opacity: filteredFlags.length === 0 ? 0.5 : 1, cursor: filteredFlags.length === 0 ? 'not-allowed' : 'pointer' }}
+            >
+              ⬇ Download as Excel
             </button>
             <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
               {filteredFlags.length} of {flatFlags.length} flags
