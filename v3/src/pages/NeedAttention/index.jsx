@@ -12,7 +12,10 @@ import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip, Lege
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend)
 
-const RESOLVE_INSTRUCTIONS = {
+// Fallback flag metadata — used only while GET /api/settings/flags hasn't resolved yet, or if it
+// fails. RULE_META in the backend's attentionRules.js is the live source of truth; this is a
+// best-effort backup and needs manual upkeep, same category as RULE_META itself.
+const FALLBACK_RESOLVE_INSTRUCTIONS = {
   r1:  "Recap email not sent after demo. Send the Day 1 recap email from the Sequence tab to keep the prospect engaged while the demo is fresh.",
   r2:  "Pricing proposal not sent 3+ days after demo. Send or mark the Day 2 proposal as sent from the Sequence tab to move this deal forward.",
   r3:  "ROI email is overdue. Send the Day 3 ROI email from the Sequence tab — this is critical to maintain momentum after the demo.",
@@ -31,27 +34,30 @@ const RESOLVE_INSTRUCTIONS = {
   r16: "Deal owner is an MDE/AE rep but the deal is sitting in the wrong pipeline. Move the deal to the pipeline that matches the rep's role (MDE → Mid-market, AE → Enterprise 2.0).",
 }
 
-const FLAG_LABELS = {
-  r1: 'No Activity',
+const FALLBACK_FLAG_LABELS = {
+  r1: 'Recap Not Sent',
   r2: 'Proposal Delayed',
   r3: 'ROI Email Overdue',
   r4: 'No Follow-up',
-  r5: 'No Nudge Sent',
+  r5: 'Meeting Passed',
   r6: 'Stage Stuck',
   r7: 'Gone Quiet',
   r8: 'No Response',
   r9: 'No F2F Meeting',
-  r10: 'Bad Timing',
+  r10: 'No Lost Reason',
   r11: 'Demo Not Scheduled',
-  r12: 'Demo Overdue',
+  r12: 'Not Logged',
   r13: 'Setup Delayed',
   r14: 'Shipment Delayed',
   r15: 'Not Activated',
   r16: 'Wrong Pipeline',
 }
 
-const FLAG_ORDER = Object.keys(FLAG_LABELS)
+const FALLBACK_FLAG_ORDER = Object.keys(FALLBACK_FLAG_LABELS)
 
+// DAYS_TOOLTIPS has no live-source equivalent — RULE_META carries no "what does the days count
+// measure" field. Stays hand-maintained; same manual-sync category as RULE_META itself.
+// Known gap: keep this updated whenever a rule's days metric changes.
 const DAYS_TOOLTIPS = {
   r1:  'Days since last activity was logged',
   r2:  'Days since demo was conducted',
@@ -69,6 +75,7 @@ const DAYS_TOOLTIPS = {
   r14: 'Days since deal entered current stage',
   r15: 'Days since deal entered current stage',
   r16: 'Days since deal was assigned to wrong pipeline',
+  r17: 'Days since entering On Hold',
 }
 
 function MultiSelectFilter({ label, options, selected, onChange }) {
@@ -202,7 +209,7 @@ function flagCellStep(count, maxCount) {
   return Math.min(BLUE_RAMP.length - 1, Math.floor((count / maxCount) * (BLUE_RAMP.length - 1)))
 }
 
-function FlagHeatmap({ flatFlags, onDrilldown }) {
+function FlagHeatmap({ flatFlags, onDrilldown, flagOrder, flagLabels }) {
   const repMap = new Map()
   flatFlags.forEach(f => {
     const repKey = f.repName || 'Unknown'
@@ -215,14 +222,14 @@ function FlagHeatmap({ flatFlags, onDrilldown }) {
   const rows = [...repMap.entries()].map(([repKey, entry]) => ({
     repKey,
     entry,
-    total: FLAG_ORDER.reduce((sum, fid) => sum + (entry.counts[fid] || 0), 0),
+    total: flagOrder.reduce((sum, fid) => sum + (entry.counts[fid] || 0), 0),
   })).sort((a, b) => b.total - a.total)
 
   if (rows.length === 0) {
     return <Empty title="Nothing to show" body="No flags match the current filters." />
   }
 
-  const maxCellCount = Math.max(1, ...rows.flatMap(r => FLAG_ORDER.map(fid => r.entry.counts[fid] || 0)))
+  const maxCellCount = Math.max(1, ...rows.flatMap(r => flagOrder.map(fid => r.entry.counts[fid] || 0)))
   const headCellStyle = { padding: '8px 8px', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', borderBottom: '1px solid var(--line)', whiteSpace: 'nowrap', background: 'var(--surface)', textAlign: 'center' }
 
   return (
@@ -231,8 +238,8 @@ function FlagHeatmap({ flatFlags, onDrilldown }) {
         <thead>
           <tr>
             <th style={{ ...headCellStyle, textAlign: 'left', position: 'sticky', left: 0 }}>REP</th>
-            {FLAG_ORDER.map(fid => (
-              <th key={fid} style={headCellStyle} title={FLAG_LABELS[fid]}>{fid.toUpperCase()}</th>
+            {flagOrder.map(fid => (
+              <th key={fid} style={headCellStyle} title={flagLabels[fid]}>{fid.toUpperCase()}</th>
             ))}
             <th style={{ ...headCellStyle, fontWeight: 700 }}>TOTAL</th>
           </tr>
@@ -243,7 +250,7 @@ function FlagHeatmap({ flatFlags, onDrilldown }) {
               <td style={{ padding: '6px 10px', fontWeight: 600, color: 'var(--ink-1)', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: 'var(--surface)', borderBottom: '1px solid var(--line)' }}>
                 {repKey}
               </td>
-              {FLAG_ORDER.map(fid => {
+              {flagOrder.map(fid => {
                 const count = entry.counts[fid] || 0
                 const step = flagCellStep(count, maxCellCount)
                 const bg = step === -1 ? 'transparent' : BLUE_RAMP[step]
@@ -252,7 +259,7 @@ function FlagHeatmap({ flatFlags, onDrilldown }) {
                   <td
                     key={fid}
                     onClick={count > 0 ? () => onDrilldown({ rep: [...entry.rawValues], flagId: [fid] }) : undefined}
-                    title={`${repKey} · ${FLAG_LABELS[fid]}: ${count}`}
+                    title={`${repKey} · ${flagLabels[fid]}: ${count}`}
                     style={{
                       padding: '6px 8px', textAlign: 'center', borderBottom: '1px solid var(--line)',
                       background: bg, color: textColor, fontWeight: count > 0 ? 600 : 400,
@@ -280,7 +287,7 @@ function FlagHeatmap({ flatFlags, onDrilldown }) {
   )
 }
 
-function ReportsView({ flatFlags, onDrilldown }) {
+function ReportsView({ flatFlags, onDrilldown, flagOrder, flagLabels }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div className="card card-pad">
@@ -289,7 +296,7 @@ function ReportsView({ flatFlags, onDrilldown }) {
       </div>
       <div className="card card-pad">
         <div className="card-title" style={{ marginBottom: 12, fontSize: 14 }}>Flag count per rep by flag type</div>
-        <FlagHeatmap flatFlags={flatFlags} onDrilldown={onDrilldown} />
+        <FlagHeatmap flatFlags={flatFlags} onDrilldown={onDrilldown} flagOrder={flagOrder} flagLabels={flagLabels} />
       </div>
     </div>
   )
@@ -329,6 +336,15 @@ export default function NeedAttention() {
           setTeamEmails(emails)
         }
       })
+      .catch(() => {})
+  }, [])
+
+  const [ruleMeta, setRuleMeta] = useState([])
+
+  useEffect(() => {
+    authFetch('/api/settings/flags')
+      .then(r => r.json())
+      .then(d => setRuleMeta(d.flags || []))
       .catch(() => {})
   }, [])
 
@@ -395,7 +411,18 @@ export default function NeedAttention() {
   })
 
   const repOptions = [...new Set(flatFlags.map(f => f.repName).filter(Boolean))].sort()
-  const flagOptions = FLAG_ORDER
+
+  const flagLabels = ruleMeta.length > 0
+    ? Object.fromEntries(ruleMeta.map(r => [r.id.toLowerCase(), r.title]))
+    : FALLBACK_FLAG_LABELS
+
+  const resolveInstructions = ruleMeta.length > 0
+    ? Object.fromEntries(ruleMeta.map(r => [r.id.toLowerCase(), r.description]))
+    : FALLBACK_RESOLVE_INSTRUCTIONS
+
+  const flagOrder = ruleMeta.length > 0
+    ? ruleMeta.map(r => r.id.toLowerCase())
+    : FALLBACK_FLAG_ORDER
 
   const pipelineScopeLabel =
     activePipeline === 'Mid-Market' ? 'in Mid-Market' :
@@ -465,7 +492,7 @@ export default function NeedAttention() {
             </select>
             <MultiSelectFilter
               label="flags"
-              options={flagOptions.map(f => ({ value: f, label: `${f.toUpperCase()} - ${FLAG_LABELS[f]}` }))}
+              options={flagOrder.map(f => ({ value: f, label: `${f.toUpperCase()} - ${flagLabels[f]}` }))}
               selected={filterFlag}
               onChange={setFilterFlag}
             />
@@ -577,7 +604,7 @@ export default function NeedAttention() {
 
         {tab === 'reports' && (
           <div style={{ padding: '16px 0 24px' }}>
-            <ReportsView flatFlags={flatFlags} onDrilldown={handleDrilldown} />
+            <ReportsView flatFlags={flatFlags} onDrilldown={handleDrilldown} flagOrder={flagOrder} flagLabels={flagLabels} />
           </div>
         )}
       </div>
@@ -594,7 +621,7 @@ export default function NeedAttention() {
               {resolveFlag.brandName} · {resolveFlag.repName}
             </div>
             <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.7, margin: 0, padding: '12px 16px', background: 'var(--surface-2)', borderRadius: 8 }}>
-              {RESOLVE_INSTRUCTIONS[resolveFlag.flagId] || 'Open the deal and investigate the issue.'}
+              {resolveInstructions[resolveFlag.flagId] || 'Open the deal and investigate the issue.'}
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 24 }}>
               <button onClick={() => setResolveFlag(null)}

@@ -650,8 +650,6 @@ app.get('/auth/team', requireAuth, async (c) => {
 });
 
 app.get('/api/settings/flags', requireAuth, async (c) => {
-  const user = c.get('user');
-  if (user?.role !== 'admin') return c.json({ error: 'Admins only' }, 403);
   return c.json({ flags: RULE_META });
 });
 
