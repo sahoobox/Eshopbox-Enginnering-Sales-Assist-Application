@@ -2,11 +2,15 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
-import { Topbar, ToggleGroup } from '../../components/ui'
+import { Topbar, ToggleGroup, Empty } from '../../components/ui'
 import { SkeletonTable } from '../../components/ui/Skeleton'
 import { pipelinePillClass, pipelineLabel } from '../../lib/fieldColors'
 import { usePageTitle } from '../../hooks/usePageTitle'
 import * as XLSX from 'xlsx'
+import { Bar } from 'react-chartjs-2'
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip, Legend } from 'chart.js'
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend)
 
 const RESOLVE_INSTRUCTIONS = {
   r1:  "Recap email not sent after demo. Send the Day 1 recap email from the Sequence tab to keep the prospect engaged while the demo is fresh.",
@@ -121,6 +125,176 @@ function MultiSelectFilter({ label, options, selected, onChange }) {
   )
 }
 
+const BLUE_RAMP = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95', '#0d366b']
+
+function cssVar(name, fallback) {
+  if (typeof window === 'undefined') return fallback
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  return value || fallback
+}
+
+function RepPipelineBarChart({ flatFlags, onDrilldown }) {
+  const repMap = new Map()
+  flatFlags.forEach(f => {
+    const repKey = f.repName || 'Unknown'
+    if (!repMap.has(repKey)) repMap.set(repKey, { 'Mid-market': 0, 'Enterprise 2.0': 0, rawValues: new Set() })
+    const entry = repMap.get(repKey)
+    entry[f.pipeline] = (entry[f.pipeline] || 0) + 1
+    entry.rawValues.add(f.repName)
+  })
+
+  const reps = [...repMap.keys()].sort((a, b) => {
+    const totalA = repMap.get(a)['Mid-market'] + repMap.get(a)['Enterprise 2.0']
+    const totalB = repMap.get(b)['Mid-market'] + repMap.get(b)['Enterprise 2.0']
+    return totalB - totalA
+  })
+
+  if (reps.length === 0) {
+    return <Empty title="Nothing to chart" body="No flags match the current filters." />
+  }
+
+  const pipelinesPresent = new Set(flatFlags.map(f => f.pipeline))
+  const pipelineOrder = ['Mid-market', 'Enterprise 2.0'].filter(p => pipelinesPresent.has(p))
+  const pipelineColor = { 'Mid-market': cssVar('--info', '#185FA5'), 'Enterprise 2.0': cssVar('--warn', '#854F0B') }
+  const inkColor = cssVar('--ink-2', '#4A4A46')
+  const gridColor = cssVar('--line', '#EBE8E0')
+
+  const data = {
+    labels: reps,
+    datasets: pipelineOrder.map(p => ({
+      label: pipelineLabel(p),
+      data: reps.map(r => repMap.get(r)[p] || 0),
+      backgroundColor: pipelineColor[p],
+      borderRadius: 4,
+      maxBarThickness: 28,
+    })),
+  }
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    onClick: (evt, elements) => {
+      if (!elements.length) return
+      const repKey = reps[elements[0].index]
+      onDrilldown({ rep: [...repMap.get(repKey).rawValues], flagId: [] })
+    },
+    onHover: (evt, elements) => {
+      evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'
+    },
+    plugins: {
+      legend: { display: pipelineOrder.length > 1, position: 'top', labels: { color: inkColor, font: { size: 12 } } },
+    },
+    scales: {
+      x: { ticks: { color: inkColor, font: { size: 12 } }, grid: { display: false } },
+      y: { beginAtZero: true, ticks: { color: inkColor, precision: 0 }, grid: { color: gridColor } },
+    },
+  }
+
+  return (
+    <div style={{ height: 340 }}>
+      <Bar data={data} options={options} />
+    </div>
+  )
+}
+
+function flagCellStep(count, maxCount) {
+  if (count === 0 || maxCount === 0) return -1
+  return Math.min(BLUE_RAMP.length - 1, Math.floor((count / maxCount) * (BLUE_RAMP.length - 1)))
+}
+
+function FlagHeatmap({ flatFlags, onDrilldown }) {
+  const repMap = new Map()
+  flatFlags.forEach(f => {
+    const repKey = f.repName || 'Unknown'
+    if (!repMap.has(repKey)) repMap.set(repKey, { counts: {}, rawValues: new Set() })
+    const entry = repMap.get(repKey)
+    entry.counts[f.flagId] = (entry.counts[f.flagId] || 0) + 1
+    entry.rawValues.add(f.repName)
+  })
+
+  const rows = [...repMap.entries()].map(([repKey, entry]) => ({
+    repKey,
+    entry,
+    total: FLAG_ORDER.reduce((sum, fid) => sum + (entry.counts[fid] || 0), 0),
+  })).sort((a, b) => b.total - a.total)
+
+  if (rows.length === 0) {
+    return <Empty title="Nothing to show" body="No flags match the current filters." />
+  }
+
+  const maxCellCount = Math.max(1, ...rows.flatMap(r => FLAG_ORDER.map(fid => r.entry.counts[fid] || 0)))
+  const headCellStyle = { padding: '8px 8px', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', borderBottom: '1px solid var(--line)', whiteSpace: 'nowrap', background: 'var(--surface)', textAlign: 'center' }
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%' }}>
+        <thead>
+          <tr>
+            <th style={{ ...headCellStyle, textAlign: 'left', position: 'sticky', left: 0 }}>REP</th>
+            {FLAG_ORDER.map(fid => (
+              <th key={fid} style={headCellStyle} title={FLAG_LABELS[fid]}>{fid.toUpperCase()}</th>
+            ))}
+            <th style={{ ...headCellStyle, fontWeight: 700 }}>TOTAL</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ repKey, entry, total }) => (
+            <tr key={repKey}>
+              <td style={{ padding: '6px 10px', fontWeight: 600, color: 'var(--ink-1)', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: 'var(--surface)', borderBottom: '1px solid var(--line)' }}>
+                {repKey}
+              </td>
+              {FLAG_ORDER.map(fid => {
+                const count = entry.counts[fid] || 0
+                const step = flagCellStep(count, maxCellCount)
+                const bg = step === -1 ? 'transparent' : BLUE_RAMP[step]
+                const textColor = step >= 3 ? '#FFFFFF' : 'var(--ink-1)'
+                return (
+                  <td
+                    key={fid}
+                    onClick={count > 0 ? () => onDrilldown({ rep: [...entry.rawValues], flagId: [fid] }) : undefined}
+                    title={`${repKey} · ${FLAG_LABELS[fid]}: ${count}`}
+                    style={{
+                      padding: '6px 8px', textAlign: 'center', borderBottom: '1px solid var(--line)',
+                      background: bg, color: textColor, fontWeight: count > 0 ? 600 : 400,
+                      cursor: count > 0 ? 'pointer' : 'default',
+                    }}
+                  >
+                    {count > 0 ? count : ''}
+                  </td>
+                )
+              })}
+              <td
+                onClick={total > 0 ? () => onDrilldown({ rep: [...entry.rawValues], flagId: [] }) : undefined}
+                style={{
+                  padding: '6px 10px', textAlign: 'center', fontWeight: 700, borderBottom: '1px solid var(--line)',
+                  background: 'var(--surface-2)', color: 'var(--ink-1)', cursor: total > 0 ? 'pointer' : 'default',
+                }}
+              >
+                {total}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function ReportsView({ flatFlags, onDrilldown }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div className="card card-pad">
+        <div className="card-title" style={{ marginBottom: 12, fontSize: 14 }}>Flags per rep by pipeline</div>
+        <RepPipelineBarChart flatFlags={flatFlags} onDrilldown={onDrilldown} />
+      </div>
+      <div className="card card-pad">
+        <div className="card-title" style={{ marginBottom: 12, fontSize: 14 }}>Flag count per rep by flag type</div>
+        <FlagHeatmap flatFlags={flatFlags} onDrilldown={onDrilldown} />
+      </div>
+    </div>
+  )
+}
+
 export default function NeedAttention() {
   const navigate = useNavigate()
   const { authFetch, role, isAdmin } = useAuth()
@@ -206,6 +380,7 @@ export default function NeedAttention() {
   const [filterRep, setFilterRep] = useState([])
   const [filterSeverity, setFilterSeverity] = useState('all')
   const [resolveFlag, setResolveFlag] = useState(null)
+  const [tab, setTab] = useState('table')
 
   const filteredFlags = flatFlags.filter(f => {
     if (searchQuery) {
@@ -226,6 +401,12 @@ export default function NeedAttention() {
     activePipeline === 'Mid-Market' ? 'in Mid-Market' :
     activePipeline === 'Enterprise' ? 'in Enterprise 2.0' :
     'across all pipelines'
+
+  const handleDrilldown = ({ rep, flagId }) => {
+    setFilterRep(rep)
+    setFilterFlag(flagId)
+    setTab('table')
+  }
 
   const handleExportExcel = () => {
     if (filteredFlags.length === 0) return
@@ -260,6 +441,12 @@ export default function NeedAttention() {
       />
 
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '16px 20px' }}>
+        <div className="tabs">
+          <button className={`tab ${tab === 'table' ? 'active' : ''}`} onClick={() => setTab('table')}>Table</button>
+          <button className={`tab ${tab === 'reports' ? 'active' : ''}`} onClick={() => setTab('reports')}>Reports</button>
+        </div>
+
+        {tab === 'table' && (
         <div style={{ padding: '0 0 24px' }}>
 
           {/* Filter bar */}
@@ -386,6 +573,13 @@ export default function NeedAttention() {
             </table>
           </div>
         </div>
+        )}
+
+        {tab === 'reports' && (
+          <div style={{ padding: '16px 0 24px' }}>
+            <ReportsView flatFlags={flatFlags} onDrilldown={handleDrilldown} />
+          </div>
+        )}
       </div>
 
       {resolveFlag && (
