@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
@@ -65,6 +65,60 @@ const DAYS_TOOLTIPS = {
   r14: 'Days since deal entered current stage',
   r15: 'Days since deal entered current stage',
   r16: 'Days since deal was assigned to wrong pipeline',
+}
+
+function MultiSelectFilter({ label, options, selected, onChange }) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = e => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const toggleValue = val => onChange(
+    selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val]
+  )
+
+  const buttonText = selected.length === 0
+    ? `All ${label}`
+    : `${selected.length} ${label.slice(0, -1)}${selected.length > 1 ? 's' : ''} selected`
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink-1)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+      >
+        {buttonText}
+        <span style={{ fontSize: 10, color: 'var(--ink-3)' }}>▾</span>
+      </button>
+      {open && (
+        <div className="filter-dropdown">
+          <div className="fdd-title">Filter by {label}</div>
+          <div className="fdd-opts">
+            {options.map(opt => (
+              <label key={opt.value} className="fdd-opt-row">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(opt.value)}
+                  onChange={() => toggleValue(opt.value)}
+                />
+                <span>{opt.label}</span>
+              </label>
+            ))}
+          </div>
+          <div className="fdd-footer">
+            <button className="btn btn-sm" onClick={() => onChange([])} disabled={selected.length === 0}>Clear</button>
+            <button className="btn btn-sm" onClick={() => setOpen(false)}>Done</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function NeedAttention() {
@@ -148,8 +202,8 @@ export default function NeedAttention() {
   })
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [filterFlag, setFilterFlag] = useState('all')
-  const [filterRep, setFilterRep] = useState('all')
+  const [filterFlag, setFilterFlag] = useState([])
+  const [filterRep, setFilterRep] = useState([])
   const [filterSeverity, setFilterSeverity] = useState('all')
   const [resolveFlag, setResolveFlag] = useState(null)
 
@@ -159,14 +213,19 @@ export default function NeedAttention() {
       if (!f.brandName?.toLowerCase().includes(q) &&
           !f.repName?.toLowerCase().includes(q)) return false
     }
-    if (filterFlag !== 'all' && f.flagId !== filterFlag) return false
-    if (filterRep !== 'all' && f.repName !== filterRep) return false
+    if (filterFlag.length > 0 && !filterFlag.includes(f.flagId)) return false
+    if (filterRep.length > 0 && !filterRep.includes(f.repName)) return false
     if (filterSeverity !== 'all' && f.flagSeverity !== filterSeverity) return false
     return true
   })
 
   const repOptions = [...new Set(flatFlags.map(f => f.repName).filter(Boolean))].sort()
   const flagOptions = FLAG_ORDER
+
+  const pipelineScopeLabel =
+    activePipeline === 'Mid-Market' ? 'in Mid-Market' :
+    activePipeline === 'Enterprise' ? 'in Enterprise 2.0' :
+    'across all pipelines'
 
   const handleExportExcel = () => {
     if (filteredFlags.length === 0) return
@@ -197,7 +256,7 @@ export default function NeedAttention() {
     <div className="main" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <Topbar
         title="Need Attention"
-        subtitle={`${flatFlags.length} flags across ${flaggedDeals.length} deals`}
+        subtitle={`${flatFlags.length} flags across ${flaggedDeals.length} deals ${pipelineScopeLabel}`}
       />
 
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '16px 20px' }}>
@@ -217,20 +276,18 @@ export default function NeedAttention() {
               <option value="high">High</option>
               <option value="medium">Medium</option>
             </select>
-            <select value={filterFlag} onChange={e => setFilterFlag(e.target.value)}
-              style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink-1)' }}>
-              <option value="all">All flags</option>
-              {flagOptions.map(f => (
-                <option key={f} value={f}>{f.toUpperCase()} - {FLAG_LABELS[f]}</option>
-              ))}
-            </select>
-            <select value={filterRep} onChange={e => setFilterRep(e.target.value)}
-              style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink-1)' }}>
-              <option value="all">All reps</option>
-              {repOptions.map(r => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
+            <MultiSelectFilter
+              label="flags"
+              options={flagOptions.map(f => ({ value: f, label: `${f.toUpperCase()} - ${FLAG_LABELS[f]}` }))}
+              selected={filterFlag}
+              onChange={setFilterFlag}
+            />
+            <MultiSelectFilter
+              label="reps"
+              options={repOptions.map(r => ({ value: r, label: r }))}
+              selected={filterRep}
+              onChange={setFilterRep}
+            />
             {isAdmin && (
               <div style={{ flexShrink: 0 }}>
                 <ToggleGroup
@@ -244,8 +301,8 @@ export default function NeedAttention() {
                 />
               </div>
             )}
-            {(searchQuery || filterFlag !== 'all' || filterRep !== 'all' || filterSeverity !== 'all') && (
-              <button onClick={() => { setSearchQuery(''); setFilterFlag('all'); setFilterRep('all'); setFilterSeverity('all') }}
+            {(searchQuery || filterFlag.length > 0 || filterRep.length > 0 || filterSeverity !== 'all') && (
+              <button onClick={() => { setSearchQuery(''); setFilterFlag([]); setFilterRep([]); setFilterSeverity('all') }}
                 style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, cursor: 'pointer', background: 'transparent', color: 'var(--ink-3)' }}>
                 Clear filters
               </button>
