@@ -383,6 +383,14 @@ score: (() => {
     productType: Array.isArray(d.What_type_of_products_do_you_sell)
       ? d.What_type_of_products_do_you_sell.join(', ')
       : d.What_type_of_products_do_you_sell || '',
+    dealType: d.Lead_Type || '',
+    website: d.Website || '',
+    meetingOutcome: d.Meeting_Outcome || '',
+    shippingSetupZoho: Array.isArray(d.Current_Shipping_Setup)
+      ? d.Current_Shipping_Setup.join(', ')
+      : d.Current_Shipping_Setup || '',
+    fulfillmentSetupZoho: d.Current_Fulfillment_Setup || '',
+    inventoryTimeline: d.Inventory_Move_Timeline || '',
     demoDate: d.Demo_Date || '',
     demoScheduled: d.Demo_Scheduled || null,
     demoScheduledDateTime: d.Demo_Scheduled_Date_Time || null,
@@ -1208,6 +1216,7 @@ if (formRow) {
     brandType: formRow.brand_type || '',
     oms: formRow.oms || '',
     shoppingCart: formRow.shopping_cart || '',
+    productCategory: formRow.product_category || '',
     shippingSetup: formRow.shipping_setup || '',
     warehousingSetup: formRow.warehousing_setup || '',
     shippingPains: JSON.parse(formRow.shipping_pains || '[]'),
@@ -4787,6 +4796,12 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
     const lastName = lead.Last_Name || ''
     const volume = lead.How_many_orders_do_you_ship_in_a_month || ''
     const leadSource = lead.Lead_Source || ''
+    // Meeting_Outcome is not in LEAD_FIELDS / doesn't exist on Leads — skipped.
+    const website = lead.Website || ''
+    // Note the name mismatch: Leads uses Shipping_Setup, Deals uses Current_Shipping_Setup.
+    const shippingSetup = lead.Shipping_Setup || ''
+    const fulfillmentSetup = lead.Current_Fulfillment_Setup || ''
+    const inventoryTimeline = lead.Inventory_Move_Timeline || ''
 
     // 2. Find existing Account
     let existingAccountId = null
@@ -4842,6 +4857,10 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
           ...(formattedDateTime ? { Demo_Scheduled_Date_Time: formattedDateTime } : {}),
           ...(volume ? { How_many_orders_do_you_ship_in_a_month: volume } : {}),
           ...(leadSource ? { Lead_Source: leadSource } : {}),
+          ...(website ? { Website: website } : {}),
+          ...(shippingSetup ? { Current_Shipping_Setup: shippingSetup } : {}),
+          ...(fulfillmentSetup ? { Current_Fulfillment_Setup: fulfillmentSetup } : {}),
+          ...(inventoryTimeline ? { Inventory_Move_Timeline: inventoryTimeline } : {}),
           Layout: { id: '6483035000025962021' }
         },
         ...(existingAccountId ? { Accounts: { id: existingAccountId } } : {}),
@@ -5045,8 +5064,8 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       return c.json({ error: 'Failed to convert lead', details: convertRes }, 400)
     }
 
-    // 7b. Demo_Scheduled + Conversion_Medium safety net — Zoho can silently drop
-    // custom fields during convert, so re-assert them directly on the new deal.
+    // 7b. Demo_Scheduled + Conversion_Medium + Lead-originated fields safety net — Zoho can
+    // silently drop custom fields during convert, so re-assert them directly on the new deal.
     // Non-blocking: a failure here must not fail the conversion response, since
     // the deal already exists.
     try {
@@ -5060,7 +5079,12 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
             data: [{
               Demo_Scheduled: demoScheduled ? 'Yes' : 'No',
               Conversion_Medium: conversionMedium,
-              ...(formattedDateTime ? { Demo_Scheduled_Date_Time: formattedDateTime } : {})
+              Lead_Type: lead.Lead_Type || 'Inbound',
+              ...(formattedDateTime ? { Demo_Scheduled_Date_Time: formattedDateTime } : {}),
+              ...(website ? { Website: website } : {}),
+              ...(shippingSetup ? { Current_Shipping_Setup: shippingSetup } : {}),
+              ...(fulfillmentSetup ? { Current_Fulfillment_Setup: fulfillmentSetup } : {}),
+              ...(inventoryTimeline ? { Inventory_Move_Timeline: inventoryTimeline } : {})
             }]
           })
         }

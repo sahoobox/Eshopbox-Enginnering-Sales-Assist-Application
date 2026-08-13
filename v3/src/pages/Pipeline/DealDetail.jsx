@@ -453,6 +453,78 @@ export default function DealDetail({ dealId }) {
                   </span>
                 </div>
               )}
+              {deal.dealType && (
+                <div className="ws-side-row">
+                  <span className="k">Deal Type</span>
+                  <span className="v">{deal.dealType}</span>
+                </div>
+              )}
+              {deal.website && (
+                <div className="ws-side-row">
+                  <span className="k">Website</span>
+                  <a
+                    href={deal.website.startsWith('http') ? deal.website : `https://${deal.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="v"
+                    style={{ color: 'var(--info)' }}
+                  >
+                    {deal.website}
+                  </a>
+                </div>
+              )}
+              {deal.productType && (
+                <div className="ws-side-row">
+                  <span className="k">Product Type</span>
+                  <span className="v">{deal.productType}</span>
+                </div>
+              )}
+              {deal.meetingOutcome && (
+                <div className="ws-side-row">
+                  <span className="k">Meeting Outcome</span>
+                  <span className="v">{deal.meetingOutcome}</span>
+                </div>
+              )}
+              {(deal.shippingSetupZoho || deal.demoInfo?.shippingSetup) && (
+                <div className="ws-side-row">
+                  <span className="k">Shipping Setup</span>
+                  <span className="v">
+                    {deal.shippingSetupZoho || deal.demoInfo?.shippingSetup}
+                    {!deal.shippingSetupZoho && deal.demoInfo?.shippingSetup && (
+                      <span className="pill pill-neutral" style={{ fontSize: 10, marginLeft: 6 }}>From Demo Log</span>
+                    )}
+                  </span>
+                </div>
+              )}
+              {(deal.fulfillmentSetupZoho || deal.demoInfo?.warehousingSetup) && (
+                <div className="ws-side-row">
+                  <span className="k">Current Fulfillment Setup</span>
+                  <span className="v">
+                    {deal.fulfillmentSetupZoho || deal.demoInfo?.warehousingSetup}
+                    {!deal.fulfillmentSetupZoho && deal.demoInfo?.warehousingSetup && (
+                      <span className="pill pill-neutral" style={{ fontSize: 10, marginLeft: 6 }}>From Demo Log</span>
+                    )}
+                  </span>
+                </div>
+              )}
+              {deal.inventoryTimeline && (
+                <div className="ws-side-row">
+                  <span className="k">Inventory Move Timeline</span>
+                  <span className="v">{deal.inventoryTimeline}</span>
+                </div>
+              )}
+              {deal.city && (
+                <div className="ws-side-row">
+                  <span className="k">City</span>
+                  <span className="v">{deal.city}</span>
+                </div>
+              )}
+              {deal.supportNeeded && (
+                <div className="ws-side-row">
+                  <span className="k">Support Needed</span>
+                  <span className="v">{deal.supportNeeded}</span>
+                </div>
+              )}
               {[
                 { k: 'Solution', v: deal.solutionInterest },
                 { k: 'Volume', v: deal.orderVolume },
@@ -1006,9 +1078,6 @@ function DemoInfoTab({ deal }) {
         { k: 'Brand Type', v: d.brandType },
         { k: 'Demo Format', v: d.demoFormat },
         { k: 'Meeting Location', v: d.meetingLocation },
-        { k: 'City', v: deal.city },
-        { k: 'Support Needed', v: deal.supportNeeded },
-        { k: 'Product Type', v: deal.productType },
       ]
     },
     {
