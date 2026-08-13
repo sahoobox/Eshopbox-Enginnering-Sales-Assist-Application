@@ -523,7 +523,7 @@ export default function DealDetail({ dealId }) {
               ].map(row => (
                 <div key={row.k} className="ws-side-row">
                   <span className="k">{row.k}</span>
-                  <span className="v">{row.v || '—'}</span>
+                  <span className="v">{row.v || <EmptyZohoBadge />}</span>
                 </div>
               ))}
               {/* Demo Scheduled row */}
@@ -554,12 +554,12 @@ export default function DealDetail({ dealId }) {
                 { k: 'Follow-up mtg', v: formatDate(deal.followupMeetingDate) },
                 { k: 'Days in stage', v: daysAgo(deal.stageChangedOn) != null ? `${daysAgo(deal.stageChangedOn)}d` : '—' },
                 { k: 'Demo logged', v: deal.saLogged ? <span className="pill pill-ok">✓ Yes</span> : <span className="pill pill-neutral">No</span> },
-                ...(deal.stage === 'Lost/Dropped' ? [{ k: 'Lost reason', v: deal.lostReason || '—' }] : []),
-                ...(deal.stage === 'On Hold' ? [{ k: 'On Hold reason', v: deal.onHoldReason || '—' }] : []),
+                ...(deal.stage === 'Lost/Dropped' ? [{ k: 'Lost reason', v: deal.lostReason || <EmptyZohoBadge /> }] : []),
+                ...(deal.stage === 'On Hold' ? [{ k: 'On Hold reason', v: deal.onHoldReason || <EmptyZohoBadge /> }] : []),
               ].map(row => (
                 <div key={row.k} className="ws-side-row">
                   <span className="k">{row.k}</span>
-                  <span className="v">{row.v || '—'}</span>
+                  <span className="v">{row.v || <EmptyZohoBadge />}</span>
                 </div>
               ))}
             </div>
