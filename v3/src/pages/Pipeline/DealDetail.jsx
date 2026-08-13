@@ -14,6 +14,10 @@ import { CONVERSION_MEDIUM_MAP } from '../../components/ui/DealCard'
 import { truncateAtWord } from '../../lib/text'
 import { usePageTitle } from '../../hooks/usePageTitle'
 
+function EmptyZohoBadge() {
+  return <span className="pill pill-slate" style={{ fontSize: 10 }}>Not set in Zoho</span>
+}
+
 export default function DealDetail({ dealId }) {
   const navigate = useNavigate()
   const { deal, emails, loading, error, refetch: refetchDeal } = useDeal(dealId)
@@ -455,7 +459,7 @@ export default function DealDetail({ dealId }) {
               )}
               <div className="ws-side-row">
                 <span className="k">Deal Type</span>
-                <span className="v">{deal.dealType || '—'}</span>
+                <span className="v">{deal.dealType || <EmptyZohoBadge />}</span>
               </div>
               <div className="ws-side-row">
                 <span className="k">Website</span>
@@ -470,21 +474,21 @@ export default function DealDetail({ dealId }) {
                     {deal.website}
                   </a>
                 ) : (
-                  <span className="v">—</span>
+                  <span className="v"><EmptyZohoBadge /></span>
                 )}
               </div>
               <div className="ws-side-row">
                 <span className="k">Product Type</span>
-                <span className="v">{deal.productType || '—'}</span>
+                <span className="v">{deal.productType || <EmptyZohoBadge />}</span>
               </div>
               <div className="ws-side-row">
                 <span className="k">Meeting Outcome</span>
-                <span className="v">{deal.meetingOutcome || '—'}</span>
+                <span className="v">{deal.meetingOutcome || <EmptyZohoBadge />}</span>
               </div>
               <div className="ws-side-row">
                 <span className="k">Shipping Setup</span>
                 <span className="v">
-                  {deal.shippingSetupZoho || deal.demoInfo?.shippingSetup || '—'}
+                  {deal.shippingSetupZoho || deal.demoInfo?.shippingSetup || <EmptyZohoBadge />}
                   {!deal.shippingSetupZoho && deal.demoInfo?.shippingSetup && (
                     <span className="pill pill-neutral" style={{ fontSize: 10, marginLeft: 6 }}>From Demo Log</span>
                   )}
@@ -493,7 +497,7 @@ export default function DealDetail({ dealId }) {
               <div className="ws-side-row">
                 <span className="k">Current Fulfillment Setup</span>
                 <span className="v">
-                  {deal.fulfillmentSetupZoho || deal.demoInfo?.warehousingSetup || '—'}
+                  {deal.fulfillmentSetupZoho || deal.demoInfo?.warehousingSetup || <EmptyZohoBadge />}
                   {!deal.fulfillmentSetupZoho && deal.demoInfo?.warehousingSetup && (
                     <span className="pill pill-neutral" style={{ fontSize: 10, marginLeft: 6 }}>From Demo Log</span>
                   )}
@@ -501,15 +505,15 @@ export default function DealDetail({ dealId }) {
               </div>
               <div className="ws-side-row">
                 <span className="k">Inventory Move Timeline</span>
-                <span className="v">{deal.inventoryTimeline || '—'}</span>
+                <span className="v">{deal.inventoryTimeline || <EmptyZohoBadge />}</span>
               </div>
               <div className="ws-side-row">
                 <span className="k">City</span>
-                <span className="v">{deal.city || '—'}</span>
+                <span className="v">{deal.city || <EmptyZohoBadge />}</span>
               </div>
               <div className="ws-side-row">
                 <span className="k">Support Needed</span>
-                <span className="v">{deal.supportNeeded || '—'}</span>
+                <span className="v">{deal.supportNeeded || <EmptyZohoBadge />}</span>
               </div>
               {[
                 { k: 'Solution', v: deal.solutionInterest },
