@@ -1765,10 +1765,15 @@ function SequenceTab({ emails, deal, onRetryGenerate }) {
     async function markSent() {
       setMarking(true)
       try {
-        await authFetch(`/api/deals/${deal.id}/day2/mark-sent`, { method: 'POST' })
-        window.location.reload()
+        const res = await authFetch(`/api/deals/${deal.id}/day2/mark-sent`, { method: 'POST' })
+        const result = await res.json()
+        if (result.stageAdvanced === false) {
+          toast.warn(`Marked as sent, but stage wasn't auto-advanced — ${result.stageAdvanceSkippedReason || 'stage precondition not met'}. Move it manually if needed.`)
+        }
+        await refetchDeal()
       } catch {
         toast.error('Failed to mark as sent. Please try again.')
+      } finally {
         setMarking(false)
       }
     }

@@ -1468,12 +1468,76 @@ const dealPayload = {
     };
 
     let zohoUpdateSuccess = false;
+    let stageAdvanced = false;
+    let stageAdvanceSkippedReason = null;
+    const dealZohoT0 = Date.now();
     try {
-      await updateDeal(c.env, formData.zohoId, dealPayload);
-      zohoUpdateSuccess = true;
+      const dealUpdateResult = await updateDeal(c.env, formData.zohoId, dealPayload);
+      const dealZohoResult = checkZohoResponse(dealUpdateResult);
+      zohoUpdateSuccess = dealZohoResult.success;
+      stageAdvanced = shouldUpdateStage && dealZohoResult.success;
+      await logApiCall(c.env, {
+        service: 'zoho',
+        endpoint: `/Deals/${formData.zohoId}`,
+        method: 'PUT',
+        dealId,
+        actorEmail: user.email,
+        actorName: user.name,
+        requestSummary: shouldUpdateStage
+          ? 'Sync demo log to Zoho + auto-advance stage to Demo Done'
+          : 'Sync demo log to Zoho (grade + fields)',
+        success: dealZohoResult.success,
+        errorMessage: dealZohoResult.success ? null : `${dealZohoResult.code}: ${dealZohoResult.message}`,
+        durationMs: Date.now() - dealZohoT0
+      });
+      if (shouldUpdateStage && !dealZohoResult.success) {
+        stageAdvanceSkippedReason = `Zoho rejected the update (${dealZohoResult.code}: ${dealZohoResult.message})`;
+        await logTimelineEvent(c.env, dealId, {
+          eventType: 'stage_advance_failed',
+          description: `Auto-advance to "Demo Done" failed — Zoho rejected the update (${dealZohoResult.code}: ${dealZohoResult.message}).`,
+          actorName: user.name,
+          actorEmail: user.email,
+          metadata: { fromStage: currentStage, toStage: 'Demo Done', errorCode: dealZohoResult.code, errorMessage: dealZohoResult.message }
+        });
+      }
     } catch (e) {
       console.error('Zoho updateDeal failed:', e.message);
+      await logApiCall(c.env, {
+        service: 'zoho',
+        endpoint: `/Deals/${formData.zohoId}`,
+        method: 'PUT',
+        dealId,
+        actorEmail: user.email,
+        actorName: user.name,
+        requestSummary: shouldUpdateStage
+          ? 'Sync demo log to Zoho + auto-advance stage to Demo Done'
+          : 'Sync demo log to Zoho (grade + fields)',
+        success: false,
+        errorMessage: e.message,
+        durationMs: Date.now() - dealZohoT0
+      });
+      if (shouldUpdateStage) {
+        stageAdvanceSkippedReason = e.message;
+        await logTimelineEvent(c.env, dealId, {
+          eventType: 'stage_advance_failed',
+          description: `Auto-advance to "Demo Done" failed — ${e.message}.`,
+          actorName: user.name,
+          actorEmail: user.email,
+          metadata: { fromStage: currentStage, toStage: 'Demo Done', errorMessage: e.message }
+        });
+      }
       // Non-blocking — D1 already saved, deal is logged locally
+    }
+
+    if (!shouldUpdateStage) {
+      stageAdvanceSkippedReason = `Deal was in "${currentStage}", not "Upcoming Demo"`;
+      await logTimelineEvent(c.env, dealId, {
+        eventType: 'stage_advance_skipped',
+        description: `Stage auto-advance to "Demo Done" skipped — deal was in "${currentStage}", not "Upcoming Demo".`,
+        actorName: user.name,
+        actorEmail: user.email,
+        metadata: { fromStage: currentStage, toStage: 'Demo Done' }
+      });
     }
 
 const dealOwner = existingDeal?.data?.[0]?.Owner;
@@ -1506,7 +1570,7 @@ try {
       actorEmail: user.email,
       metadata: { grade, score }
     })
-    return c.json({ success: true, dealId, grade, score, zohoSynced: zohoUpdateSuccess });
+    return c.json({ success: true, dealId, grade, score, zohoSynced: zohoUpdateSuccess, stageAdvanced, stageAdvanceSkippedReason });
   } catch (err) {
     return c.json({ error: 'Sync failed', details: err.message }, 500);
   }
@@ -1554,6 +1618,8 @@ app.post('/api/deals/:id/day2/mark-sent', requireAuth, async (c) => {
          VALUES (?, ?, 'day2', '', '', 'sent', datetime('now'), datetime('now'), datetime('now'))`
       ).bind(crypto.randomUUID(), dealId).run()
     }
+    let stageAdvanced = false;
+    let stageAdvanceSkippedReason = null;
     try {
       const dealRes = await getDeal(c.env, dealId)
       const currentStage = dealRes?.data?.[0]?.Stage
@@ -1573,7 +1639,9 @@ app.post('/api/deals/:id/day2/mark-sent', requireAuth, async (c) => {
           errorMessage: stageZohoResult.success ? null : `${stageZohoResult.code}: ${stageZohoResult.message}`,
           durationMs: Date.now() - stageT0
         })
+        stageAdvanced = stageZohoResult.success
         if (!stageZohoResult.success) {
+          stageAdvanceSkippedReason = `Zoho rejected the update (${stageZohoResult.code}: ${stageZohoResult.message})`
           await logTimelineEvent(c.env, dealId, {
             eventType: 'stage_advance_failed',
             description: `Auto-advance to "Proposal Sent" failed after pricing proposal was marked sent — Zoho rejected the update (${stageZohoResult.code}: ${stageZohoResult.message}). Stage remains "Demo Done".`,
@@ -1583,9 +1651,19 @@ app.post('/api/deals/:id/day2/mark-sent', requireAuth, async (c) => {
           })
         }
         await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+      } else {
+        stageAdvanceSkippedReason = `Deal was in "${currentStage}", not "Demo Done"`
+        await logTimelineEvent(c.env, dealId, {
+          eventType: 'stage_advance_skipped',
+          description: `Stage auto-advance to "Proposal Sent" skipped after pricing proposal was marked sent — deal was in "${currentStage}", not "Demo Done".`,
+          actorName: user.name,
+          actorEmail: user.email,
+          metadata: { emailType: 'day2', fromStage: currentStage, toStage: 'Proposal Sent' }
+        })
       }
     } catch (e) {
       console.error('Stage auto-advance failed:', e.message)
+      stageAdvanceSkippedReason = e.message
       await logApiCall(c.env, {
         service: 'zoho',
         endpoint: `/Deals/${dealId}`,
@@ -1612,7 +1690,7 @@ app.post('/api/deals/:id/day2/mark-sent', requireAuth, async (c) => {
       actorEmail: user.email,
       metadata: { emailType: 'day2' }
     })
-    return c.json({ success: true });
+    return c.json({ success: true, stageAdvanced, stageAdvanceSkippedReason });
   } catch (err) {
     return c.json({ error: 'Failed to mark day2 as sent', details: err.message }, 500);
   }

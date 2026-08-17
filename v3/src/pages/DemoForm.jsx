@@ -437,6 +437,10 @@ export default function DemoForm() {
       return;
     }
 
+    if (syncResult.stageAdvanced === false) {
+      toast.warn(`Demo logged, but stage wasn't auto-advanced — ${syncResult.stageAdvanceSkippedReason || 'stage precondition not met'}. Move it manually if needed.`);
+    }
+
     refetch();
 
     // Phase 2: Claude content generation (non-critical)
