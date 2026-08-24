@@ -41,6 +41,10 @@ const ORDER_VOLUME_OPTIONS = [
   'New store / not shipping orders yet',
 ]
 
+// 'Paid' exists as a Lead_Type value elsewhere in the codebase but has zero real
+// deals as of this writing — add it back here if it starts appearing in live data.
+const DEAL_TYPE_OPTIONS = ['Inbound', 'Outbound', 'Outbound Partner']
+
 // ── Pipeline page ─────────────────────────────────────────
 export default function Pipeline() {
   const { dealId } = useParams()
@@ -55,6 +59,7 @@ function matchSingle(deal, f) {
     case 'stage':       return f.values.includes(deal.stage)
     case 'grade':       return f.values.includes(deal.grade)
     case 'orderVolume': return f.values.includes(deal.orderVolume)
+    case 'dealType':    return f.values.includes(deal.dealType)
     case 'saLogged':    return f.values.includes(deal.saLogged ? 'Yes' : 'No')
     case 'demoDate': {
       if (!deal.demoDate || !deal.saLogged) return false
@@ -692,6 +697,7 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
     { key: 'stage',       label: 'Stage',        type: 'multi', opts: stages },
     { key: 'grade',       label: 'Grade',        type: 'multi', opts: ['A', 'B', 'C', 'D'] },
     { key: 'orderVolume', label: 'Order Volume',  type: 'multi', opts: ORDER_VOLUME_OPTIONS },
+    { key: 'dealType',    label: 'Deal Type',     type: 'multi', opts: DEAL_TYPE_OPTIONS },
     { key: 'createdAt',             label: 'Deal Created Date',   type: 'date' },
     { key: 'demoScheduledDateTime', label: 'Demo Scheduled Date', type: 'date' },
     { key: 'demoDate',    label: 'Demo Logged Date', type: 'date' },
