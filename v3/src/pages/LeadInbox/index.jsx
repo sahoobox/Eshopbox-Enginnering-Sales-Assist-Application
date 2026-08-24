@@ -8,13 +8,6 @@ import { Repeat } from 'lucide-react'
 import { leadStatusStyle, leadSourcePill } from '../../lib/fieldColors'
 import { usePageTitle } from '../../hooks/usePageTitle'
 
-const AE_EMAILS = [
-  'taufeeq.ahmad@eshopbox.com',
-  'afzal.maknoo@eshopbox.com',
-  'gautam@eshopbox.com',
-  'jeevan.more@eshopbox.com',
-]
-
 const PAGE_SIZE = 50
 
 // ── Lead filter matching ──────────────────────────────────
@@ -410,9 +403,9 @@ export default function LeadInbox() {
     let result = scopedLeads
 
     if (activePipeline === 'Enterprise') {
-      result = result.filter(l => AE_EMAILS.includes(l.ownerEmail))
+      result = result.filter(l => l.isEnterprise)
     } else if (activePipeline === 'Mid-Market') {
-      result = result.filter(l => !AE_EMAILS.includes(l.ownerEmail))
+      result = result.filter(l => !l.isEnterprise)
     }
 
     if (localSearch.trim()) {

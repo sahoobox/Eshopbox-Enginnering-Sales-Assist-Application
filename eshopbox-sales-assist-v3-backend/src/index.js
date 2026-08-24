@@ -4543,7 +4543,7 @@ const ACTIVE_LEAD_STATUSES = ['Connected', 'Connecting', 'Bad Timing']
 
 const SYSTEM_EMAILS = ['shikhar.gupta@eshopbox.com']
 
-function mapZohoLead(l, userNameMap = new Map()) {
+function mapZohoLead(l, userNameMap = new Map(), aeEmailsSet = new Set()) {
   return {
     id: l.id,
     fullName: l.Full_Name || `${l.First_Name || ''} ${l.Last_Name || ''}`.trim(),
@@ -4559,6 +4559,7 @@ function mapZohoLead(l, userNameMap = new Map()) {
     ownerName: resolveOwnerName(l.Owner, userNameMap),
     ownerEmail: l.Owner?.email || '',
     ownerId: l.Owner?.id || '',
+    isEnterprise: aeEmailsSet.has((l.Owner?.email || '').toLowerCase()),
     orderVolume: l.How_many_orders_do_you_ship_in_a_month || l.Monthly_Order_Volume || l.Order_Volume || '',
     utmSource: l.UTM_Source || '',
     utmMedium: l.UTM_Medium || '',
@@ -4592,9 +4593,10 @@ app.get('/api/leads', requireAuth, async (c) => {
       getAEEmails(c.env.DB),
       getUserNamesByEmail(c.env.DB)
     ])
+    const aeEmailsSet = new Set(dynamicAEEmails.map(e => e.toLowerCase()))
     const allLeads = await getAllLeads(c.env)
     console.log('Leads from cache/Zoho:', allLeads.length)
-    let leads = allLeads.map(l => mapZohoLead(l, userNameMap))
+    let leads = allLeads.map(l => mapZohoLead(l, userNameMap, aeEmailsSet))
     if (user.role === 'mde' || user.role === 'ae') {
       leads = leads.filter(l => l.ownerEmail === user.email)
     } else if (user.role === 'lead-midmarket') {
