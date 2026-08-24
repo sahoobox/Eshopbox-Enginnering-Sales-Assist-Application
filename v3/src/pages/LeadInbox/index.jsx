@@ -8,14 +8,6 @@ import { Repeat } from 'lucide-react'
 import { leadStatusStyle, leadSourcePill } from '../../lib/fieldColors'
 import { usePageTitle } from '../../hooks/usePageTitle'
 
-const MDE_EMAILS = [
-  'sriya.komal@eshopbox.com',
-  'mriganki.srivastava@eshopbox.com',
-  'shubham.kumar@eshopbox.com',
-  'raghwendra.kumar@eshopbox.com',
-  'arihant.sharma@eshopbox.com',
-]
-
 const AE_EMAILS = [
   'taufeeq.ahmad@eshopbox.com',
   'afzal.maknoo@eshopbox.com',
@@ -332,9 +324,10 @@ export default function LeadInbox() {
   const [colWidths, setColWidths] = useState([])
 
   const scopedLeads = useMemo(() => {
+    // lead-midmarket/lead-enterprise: GET /api/leads already scopes leads to the
+    // caller's role using the live users table (dynamicMDEEmails/dynamicAEEmails),
+    // so no client-side re-filter is needed here — same pass-through as admin.
     if (role === ROLES.MDE || role === ROLES.AE) return leads.filter(l => l.ownerEmail === user?.email)
-    if (role === ROLES.SALES_LEAD_MIDMARKET) return leads.filter(l => MDE_EMAILS.includes(l.ownerEmail))
-    if (role === ROLES.SALES_LEAD_ENTERPRISE) return leads.filter(l => AE_EMAILS.includes(l.ownerEmail))
     return leads
   }, [leads, role, user])
 
