@@ -340,7 +340,30 @@ async function getAEEmails(db) {
   }
 }
 
-function mapZohoDeal(d) {
+// Batch email->name lookup so repName/ownerName can resolve from OUR users table
+// instead of Zoho's Owner.name (which can drift out of sync, e.g. a shortened
+// display name set inside Zoho itself). One query per request, not per row.
+async function getUserNamesByEmail(db) {
+  try {
+    const rows = await db.prepare(
+      "SELECT email, name FROM users WHERE is_active = 1"
+    ).all()
+    const map = new Map()
+    ;(rows.results || []).forEach(u => {
+      if (u.email) map.set(u.email.toLowerCase(), u.name)
+    })
+    return map
+  } catch {
+    return new Map()
+  }
+}
+
+function resolveOwnerName(zohoOwner, userNameMap) {
+  const email = (zohoOwner?.email || '').toLowerCase()
+  return (email && userNameMap.get(email)) || zohoOwner?.name || ''
+}
+
+function mapZohoDeal(d, userNameMap = new Map()) {
   return {
     id: d.id,
     dealName: d.Deal_Name,
@@ -348,7 +371,7 @@ function mapZohoDeal(d) {
     stage: d.Stage,
     stageAligned: ALL_VALID_STAGES.includes(d.Stage),
     pipeline: d.Pipeline || '',
-    repName: d.Owner?.name || 'Unknown',
+    repName: resolveOwnerName(d.Owner, userNameMap) || 'Unknown',
     repEmail: d.Owner?.email || '',
 grade: (() => {
   const raw = d.SA_Forecast_Probability || 0;
@@ -940,13 +963,14 @@ app.get('/api/deals', requireAuth, async (c) => {
 
     const { data: rawDeals } = await getDeals(c.env)
 
-    const [dynamicMDEEmails, dynamicAEEmails] = await Promise.all([
+    const [dynamicMDEEmails, dynamicAEEmails, userNameMap] = await Promise.all([
       getMDEEmails(c.env.DB),
-      getAEEmails(c.env.DB)
+      getAEEmails(c.env.DB),
+      getUserNamesByEmail(c.env.DB)
     ])
 
     // Map to deal objects
-    let deals = rawDeals.map(d => mapZohoDeal(d))
+    let deals = rawDeals.map(d => mapZohoDeal(d, userNameMap))
 
     // Role-based filtering
     const userRole = effectiveUser.role
@@ -1021,9 +1045,8 @@ app.get('/api/deals', requireAuth, async (c) => {
       onHoldEnteredMap[row.deal_id] = row.created_at
     }))
 
-    // Fetch active SA team member emails for r_no_sa_member flag
-    const teamRows = await c.env.DB.prepare('SELECT email FROM users WHERE is_active = 1').all()
-    const teamEmails = new Set((teamRows.results || []).map(r => r.email.toLowerCase()))
+    // teamEmails reuses userNameMap's key set — same "is_active = 1" query already ran above
+    const teamEmails = new Set(userNameMap.keys())
 
     // Attach D1 data and flags
     deals = deals.map(d => {
@@ -1094,16 +1117,17 @@ app.get('/api/deals/:id', requireAuth, async (c) => {
         if (viewAsUser) effectiveUser = viewAsUser;
       }
     }
-    const [dealRes, tasksRes, notesRes, meetingsRes, callsRes] = await Promise.all([
+    const [dealRes, tasksRes, notesRes, meetingsRes, callsRes, userNameMap] = await Promise.all([
       getDeal(c.env, dealId),
       getDealTasks(c.env, dealId),
       getDealNotes(c.env, dealId),
       getDealMeetings(c.env, dealId),
       getDealCalls(c.env, dealId),
+      getUserNamesByEmail(c.env.DB),
     ]);
     const tasks = tasksRes?.data || [];
     if (!dealRes?.data?.[0]) return c.json({ error: 'Deal not found' }, 404);
-const deal = mapZohoDeal(dealRes.data[0]);
+const deal = mapZohoDeal(dealRes.data[0], userNameMap);
 deal.tasks = tasks;
 
 const contactId = dealRes.data[0].Contact_Name?.id
@@ -3433,6 +3457,7 @@ app.get('/api/zoho/deal/:id', requireAuth, async (c) => {
     const dealRes = await getDeal(c.env, dealId);
     if (!dealRes?.data?.[0]) return c.json({ error: 'Deal not found' }, 404);
     const d = dealRes.data[0];
+    const userNameMap = await getUserNamesByEmail(c.env.DB);
 
     // Contact_Name is always {id, name} object in Zoho
     const contactObj = d.Contact_Name;
@@ -3467,7 +3492,7 @@ return c.json({
   brandName: d.Deal_Name?.split(' — ')[0] || d.Deal_Name || '',
   orderVolume,
   stage: d.Stage || '',
-  repName: d.Owner?.name || '',
+  repName: resolveOwnerName(d.Owner, userNameMap),
   repEmail: d.Owner?.email || '',
   saLogged: d.SA_Logged || false,
   volumeTooLow,
@@ -4518,7 +4543,7 @@ const ACTIVE_LEAD_STATUSES = ['Connected', 'Connecting', 'Bad Timing']
 
 const SYSTEM_EMAILS = ['shikhar.gupta@eshopbox.com']
 
-function mapZohoLead(l) {
+function mapZohoLead(l, userNameMap = new Map()) {
   return {
     id: l.id,
     fullName: l.Full_Name || `${l.First_Name || ''} ${l.Last_Name || ''}`.trim(),
@@ -4531,7 +4556,7 @@ function mapZohoLead(l) {
     leadSource: l.Lead_Source || '',
     originalLeadSource: l.Original_Lead_Source || '',
     leadStatus: l.Lead_Status || '',
-    ownerName: l.Owner?.name || '',
+    ownerName: resolveOwnerName(l.Owner, userNameMap),
     ownerEmail: l.Owner?.email || '',
     ownerId: l.Owner?.id || '',
     orderVolume: l.How_many_orders_do_you_ship_in_a_month || l.Monthly_Order_Volume || l.Order_Volume || '',
@@ -4562,13 +4587,14 @@ app.get('/api/leads', requireAuth, async (c) => {
       try { await c.env.TOKEN_CACHE.delete('v3_leads_cache') } catch {}
     }
     const user = c.get('user')
-    const [dynamicMDEEmails, dynamicAEEmails] = await Promise.all([
+    const [dynamicMDEEmails, dynamicAEEmails, userNameMap] = await Promise.all([
       getMDEEmails(c.env.DB),
-      getAEEmails(c.env.DB)
+      getAEEmails(c.env.DB),
+      getUserNamesByEmail(c.env.DB)
     ])
     const allLeads = await getAllLeads(c.env)
     console.log('Leads from cache/Zoho:', allLeads.length)
-    let leads = allLeads.map(mapZohoLead)
+    let leads = allLeads.map(l => mapZohoLead(l, userNameMap))
     if (user.role === 'mde' || user.role === 'ae') {
       leads = leads.filter(l => l.ownerEmail === user.email)
     } else if (user.role === 'lead-midmarket') {
@@ -4585,13 +4611,14 @@ app.get('/api/leads', requireAuth, async (c) => {
 app.get('/api/leads/:id', requireAuth, async (c) => {
   try {
     const leadId = c.req.param('id')
-    const [leadRes, notesRes] = await Promise.allSettled([
+    const [leadRes, notesRes, userNameMap] = await Promise.allSettled([
       getLead(c.env, leadId),
       getLeadNotes(c.env, leadId),
+      getUserNamesByEmail(c.env.DB),
     ])
     const leadData = leadRes.status === 'fulfilled' ? leadRes.value : null
     if (!leadData?.data?.[0]) return c.json({ error: 'Lead not found' }, 404)
-    const lead = mapZohoLead(leadData.data[0])
+    const lead = mapZohoLead(leadData.data[0], userNameMap.status === 'fulfilled' ? userNameMap.value : new Map())
     lead.notes = notesRes.status === 'fulfilled' ? (notesRes.value?.data || []) : []
     return c.json(lead)
   } catch (err) {
@@ -5307,6 +5334,7 @@ app.get('/api/leads/:id/dedup-check', requireAuth, async (c) => {
     ]
     const emailDomain = email.includes('@') ? email.split('@')[1] : ''
     const isPersonalEmail = PERSONAL_DOMAINS.includes(emailDomain)
+    const userNameMap = await getUserNamesByEmail(c.env.DB)
 
     const [emailDomainRes, phoneRes, brandLeadsRes, brandDealsRes, emailContactRes, phoneContactRes] = await Promise.all([
       !isPersonalEmail && emailDomain
@@ -5377,7 +5405,7 @@ app.get('/api/leads/:id/dedup-check', requireAuth, async (c) => {
       id: d.id,
       dealName: d.Deal_Name,
       stage: d.Stage,
-      ownerName: d.Owner?.name,
+      ownerName: resolveOwnerName(d.Owner, userNameMap),
       pipeline: d.Pipeline,
       accountName: d.Account_Name?.name || d.Account_Name,
     }))
@@ -5512,7 +5540,8 @@ app.get('/api/leads/:id/tasks', requireAuth, async (c) => {
     const leadId = c.req.param('id')
     const res = await zohoAPI(c.env, 'GET', `/Tasks/search?criteria=(What_Id:equals:${leadId})&fields=id,Subject,Status,Due_Date,Priority,Description,Owner,Created_Time`)
     if (!res?.data) return c.json({ tasks: [] })
-    return c.json({ tasks: res.data.map(mapZohoTask) })
+    const userNameMap = await getUserNamesByEmail(c.env.DB)
+    return c.json({ tasks: res.data.map(t => mapZohoTask(t, userNameMap)) })
   } catch (err) {
     return c.json({ tasks: [] })
   }
@@ -5880,7 +5909,7 @@ app.patch('/api/leads/:id/call/:callId/complete', requireAuth, async (c) => {
 
 // ── TASKS ─────────────────────────────────────────────────
 
-function mapZohoTask(t) {
+function mapZohoTask(t, userNameMap = new Map()) {
   return {
     id: t.id,
     subject: t.Subject || '',
@@ -5888,7 +5917,7 @@ function mapZohoTask(t) {
     priority: t.Priority || 'Normal',
     dueDate: t.Due_Date || '',
     description: t.Description || '',
-    ownerName: t.Owner?.name || '',
+    ownerName: resolveOwnerName(t.Owner, userNameMap),
     ownerEmail: t.Owner?.email || '',
     dealId: t.What_Id?.id || '',
     dealName: t.What_Id?.name || '',
@@ -5908,13 +5937,14 @@ const TASK_AE_EMAILS = ['taufeeq.ahmad@eshopbox.com','afzal.maknoo@eshopbox.com'
 app.get('/api/tasks', requireAuth, async (c) => {
   try {
     const user = c.get('user')
-    const [dynamicMDEEmails, dynamicAEEmails] = await Promise.all([
+    const [dynamicMDEEmails, dynamicAEEmails, userNameMap] = await Promise.all([
       getMDEEmails(c.env.DB),
-      getAEEmails(c.env.DB)
+      getAEEmails(c.env.DB),
+      getUserNamesByEmail(c.env.DB)
     ])
     const res = await getTasks(c.env)
     if (!res?.data) return c.json({ tasks: [] })
-    let tasks = res.data.map(mapZohoTask).filter(t => t.status !== 'Completed')
+    let tasks = res.data.map(t => mapZohoTask(t, userNameMap)).filter(t => t.status !== 'Completed')
     if (user.role === 'mde' || user.role === 'ae') {
       tasks = tasks.filter(t => t.ownerEmail === user.email)
     } else if (user.role === 'lead-midmarket') {
@@ -5933,7 +5963,8 @@ app.get('/api/deals/:id/tasks', requireAuth, async (c) => {
     const dealId = c.req.param('id')
     const res = await getTasks(c.env, { deal_id: dealId })
     if (!res?.data) return c.json({ tasks: [] })
-    const tasks = res.data.map(mapZohoTask)
+    const userNameMap = await getUserNamesByEmail(c.env.DB)
+    const tasks = res.data.map(t => mapZohoTask(t, userNameMap))
     return c.json({ tasks, total: tasks.length })
   } catch (err) {
     return c.json({ error: 'Failed to fetch deal tasks', details: err.message }, 500)

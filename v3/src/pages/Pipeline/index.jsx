@@ -11,28 +11,6 @@ import {
   ALL_PIPELINE_STAGES, MID_MARKET_STAGES, ENT_STAGES, StagePill, stageColor, initials, formatDate, daysAgo
 } from '../../lib/stageConfig'
 
-const AE_EMAILS = [
-  'taufeeq.ahmad@eshopbox.com',
-  'afzal.maknoo@eshopbox.com',
-  'gautam@eshopbox.com',
-  'jeevan.more@eshopbox.com',
-]
-
-const MDE_EMAILS = [
-  'sriya.komal@eshopbox.com',
-  'mriganki.srivastava@eshopbox.com',
-  'shubham.kumar@eshopbox.com',
-  'raghwendra.kumar@eshopbox.com',
-  'arihant.sharma@eshopbox.com',
-]
-
-const LEAD_EMAILS = [
-  'umang.seth@eshopbox.com',
-  'gautam@eshopbox.com',
-]
-
-const REP_EMAILS = new Set([...AE_EMAILS, ...MDE_EMAILS, ...LEAD_EMAILS])
-
 const ORDER_VOLUME_OPTIONS = [
   '1 - 500 orders/month',
   '501 - 3,000 orders/month',
@@ -112,7 +90,7 @@ function matchFilters(deal, filters) {
 
 // ── Pipeline list ─────────────────────────────────────────
 function PipelineList() {
-  const { role, isMDE, isAE, isAdmin, isMidMarketLead, isEnterpriseLead } = useAuth()
+  const { role, isMDE, isAE, isAdmin, isMidMarketLead, isEnterpriseLead, authFetch } = useAuth()
   const { deals, loading, error, refetch } = useDeals()
   usePageTitle('All Deals')
   const [searchParams, setSearchParams] = useSearchParams()
@@ -144,6 +122,15 @@ function PipelineList() {
 
   const isEnterprise = pipelineFilter === 'enterprise'
   const wonStage = isEnterprise ? 'Won/Payment Received' : 'Active'
+
+  const [teamMembers, setTeamMembers] = useState([])
+  useEffect(() => {
+    if (!isAdmin && !isMidMarketLead && !isEnterpriseLead) return
+    authFetch('/api/team/assignable-users')
+      .then(r => r.json())
+      .then(d => setTeamMembers(d.users || []))
+      .catch(() => {})
+  }, [isAdmin, isMidMarketLead, isEnterpriseLead])
 
   const currentStages = useMemo(() =>
     isMDE ? MID_MARKET_STAGES : isAE ? ENT_STAGES : pipelineFilter === 'enterprise' ? ENT_STAGES : MID_MARKET_STAGES
@@ -529,6 +516,8 @@ function PipelineList() {
           isAdmin={isAdmin}
           isMidMarketLead={isMidMarketLead}
           isEnterpriseLead={isEnterpriseLead}
+          teamMembers={teamMembers}
+          pipelineFilter={pipelineFilter}
           search={searchQuery}
           onSearch={v => updateParams({ q: v || null })}
         />
@@ -665,7 +654,7 @@ function PipelineList() {
 }
 
 // ── Filter bar ────────────────────────────────────────────
-const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stages, isAdmin, isMidMarketLead, isEnterpriseLead, search, onSearch }, ref) {
+const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stages, isAdmin, isMidMarketLead, isEnterpriseLead, teamMembers, pipelineFilter, search, onSearch }, ref) {
   const [open, setOpen] = useState(null)   // null | { mode: 'add'|'edit', id? }
   const [step, setStep] = useState('field')
   const [draft, setDraft] = useState(null)
@@ -682,11 +671,11 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
 
   useImperativeHandle(ref, () => ({ openAdd }))
 
-  let repDeals = deals
-  if (isMidMarketLead) repDeals = deals.filter(d => d.pipeline === 'Mid-market')
-  if (isEnterpriseLead) repDeals = deals.filter(d => d.pipeline === 'Enterprise 2.0')
+  const relevantRoles = pipelineFilter === 'enterprise'
+    ? ['ae', 'lead-enterprise']
+    : ['mde', 'lead-midmarket']
   const repNames = [...new Set(
-    repDeals.filter(d => REP_EMAILS.has(d.repEmail)).map(d => d.repName).filter(Boolean)
+    teamMembers.filter(u => relevantRoles.includes(u.role)).map(u => u.name)
   )].sort()
   const flagTitles = [...new Set(deals.flatMap(d => d.flags?.map(f => f.title) || []))].sort()
 
