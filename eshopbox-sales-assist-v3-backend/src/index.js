@@ -5227,6 +5227,44 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       console.error('Demo_Scheduled safety-net PATCH failed:', demoPatchErr.message)
     }
 
+    // 7c. Mark the ORIGINAL lead as Converted — Zoho's native convert action does
+    // not reliably set Lead_Status on its own (confirmed via manual test: lead
+    // remained "Connecting" after a successful conversion). Runs only here,
+    // strictly after dealId is confirmed above, so a failed/rejected conversion
+    // never falsely marks a lead as Converted. Non-blocking: a failure here must
+    // not fail the conversion response, since the deal already exists.
+    try {
+      const leadStatusPatchT0 = Date.now()
+      const leadStatusPatchFetchRes = await fetch(
+        `https://www.zohoapis.com/crm/v2/Leads/${leadId}`,
+        {
+          method: 'PUT',
+          headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: [{ Lead_Status: 'Converted' }] })
+        }
+      )
+      const leadStatusPatchDurationMs = Date.now() - leadStatusPatchT0
+      const leadStatusPatchBody = await leadStatusPatchFetchRes.json().catch(() => null)
+      const leadStatusPatchResult = checkZohoResponse(leadStatusPatchBody)
+      await logApiCall(c.env, {
+        service: 'zoho',
+        endpoint: `/Leads/${leadId}`,
+        method: 'PUT',
+        leadId,
+        dealId,
+        brandName: company || dealName || null,
+        actorEmail: user.email,
+        actorName: user.name,
+        requestSummary: 'Set Lead_Status=Converted on original lead after successful convert (safety net)',
+        responseStatus: leadStatusPatchFetchRes.status,
+        success: leadStatusPatchResult.success,
+        errorMessage: leadStatusPatchResult.success ? null : leadStatusPatchResult.code + ': ' + leadStatusPatchResult.message,
+        durationMs: leadStatusPatchDurationMs
+      })
+    } catch (leadStatusPatchErr) {
+      console.error('Lead_Status=Converted safety-net PATCH failed:', leadStatusPatchErr.message)
+    }
+
     // 8. Write D1 lead_deal_mapping
     await c.env.DB.prepare(
       `INSERT OR IGNORE INTO lead_deal_mapping
