@@ -5236,7 +5236,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
     try {
       const leadStatusPatchT0 = Date.now()
       const leadStatusPatchFetchRes = await fetch(
-        `https://www.zohoapis.com/crm/v2/Leads/${leadId}`,
+        `https://www.zohoapis.com/crm/v2/Leads/${leadId}?converted=true`,
         {
           method: 'PUT',
           headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
