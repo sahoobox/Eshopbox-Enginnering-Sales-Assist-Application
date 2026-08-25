@@ -5128,7 +5128,170 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       }
     }
 
+    if (!dealId && zohoCode === 'DUPLICATE_DATA' && zohoApiName === 'account') {
+      // Duplicate Account — Zoho refused to link/create an Account (commonly because
+      // reused test/company names collide with one created by a prior, unrelated
+      // conversion). Prefer the exact colliding record id Zoho hands back; only fall
+      // back to a name search if it doesn't, since a name match isn't guaranteed to
+      // be the actual colliding record when multiple Accounts share a name.
+      console.log('Duplicate account detected on convert, attempting to link existing account...')
+
+      let duplicateAccountId = zohoError?.details?.id || null
+      if (!duplicateAccountId && company) {
+        const dupAccSearch = await safeJson(await fetch(
+          `https://www.zohoapis.com/crm/v2/Accounts/search?criteria=(Account_Name:equals:${encodeURIComponent(company)})&fields=id`,
+          { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
+        ))
+        duplicateAccountId = dupAccSearch?.data?.[0]?.id || null
+      }
+
+      if (duplicateAccountId) {
+        const dupAccRetryPayload = {
+          ...convertPayload,
+          data: [{
+            ...convertPayload.data[0],
+            Accounts: { id: duplicateAccountId }
+          }]
+        }
+
+        const dupAccRetryT0 = Date.now()
+        const dupAccRetryFetchRes = await fetch(
+          `https://www.zohoapis.com/crm/v2/Leads/${leadId}/actions/convert`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(dupAccRetryPayload)
+          }
+        )
+        const dupAccRetryDurationMs = Date.now() - dupAccRetryT0
+        const dupAccRetryRes = await safeJson(dupAccRetryFetchRes)
+        console.log('Duplicate-account retry response:', JSON.stringify(dupAccRetryRes))
+
+        const dupAccRetryData = dupAccRetryRes?.data?.[0]
+
+        zohoError = dupAccRetryData?.data?.[0] || dupAccRetryData
+        zohoCode = zohoError?.code || dupAccRetryData?.code
+        zohoApiName = zohoError?.details?.api_name || ''
+
+        await logApiCall(c.env, {
+          service: 'zoho',
+          endpoint: `/crm/v2/Leads/${leadId}/actions/convert`,
+          method: 'POST',
+          leadId,
+          brandName: company || null,
+          actorEmail: user.email,
+          actorName: user.name,
+          requestSummary: `Retry convert linking existing account ${duplicateAccountId} (account DUPLICATE_DATA)`,
+          responseStatus: dupAccRetryFetchRes.status,
+          success: dupAccRetryData?.code === 'SUCCESS',
+          errorMessage: dupAccRetryData?.code === 'SUCCESS' ? null : (zohoCode + ': ' + (zohoError?.message || JSON.stringify(dupAccRetryRes))),
+          durationMs: dupAccRetryDurationMs
+        })
+
+        if (dupAccRetryData?.code === 'SUCCESS') {
+          dealId = dupAccRetryData.details?.Deals?.id || dupAccRetryData.details?.Deals
+          contactId = dupAccRetryData.details?.Contacts?.id || dupAccRetryData.details?.Contacts
+          accountId = dupAccRetryData.details?.Accounts?.id || dupAccRetryData.details?.Accounts
+        }
+      } else {
+        console.log('DUPLICATE_DATA on account but no duplicate id/name match found — cannot auto-link.')
+      }
+    }
+
+    if (!dealId && zohoCode === 'DUPLICATE_DATA' && zohoApiName === 'contact') {
+      // Duplicate Contact — same approach as the account case above, but for Contacts.
+      console.log('Duplicate contact detected on convert, attempting to link existing contact...')
+
+      let duplicateContactId = zohoError?.details?.id || null
+      if (!duplicateContactId && email) {
+        const dupConSearch = await safeJson(await fetch(
+          `https://www.zohoapis.com/crm/v2/Contacts/search?criteria=(Email:equals:${encodeURIComponent(email)})&fields=id`,
+          { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
+        ))
+        duplicateContactId = dupConSearch?.data?.[0]?.id || null
+      }
+
+      if (duplicateContactId) {
+        const dupConRetryPayload = {
+          ...convertPayload,
+          data: [{
+            ...convertPayload.data[0],
+            Contacts: { id: duplicateContactId }
+          }]
+        }
+
+        const dupConRetryT0 = Date.now()
+        const dupConRetryFetchRes = await fetch(
+          `https://www.zohoapis.com/crm/v2/Leads/${leadId}/actions/convert`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(dupConRetryPayload)
+          }
+        )
+        const dupConRetryDurationMs = Date.now() - dupConRetryT0
+        const dupConRetryRes = await safeJson(dupConRetryFetchRes)
+        console.log('Duplicate-contact retry response:', JSON.stringify(dupConRetryRes))
+
+        const dupConRetryData = dupConRetryRes?.data?.[0]
+
+        zohoError = dupConRetryData?.data?.[0] || dupConRetryData
+        zohoCode = zohoError?.code || dupConRetryData?.code
+        zohoApiName = zohoError?.details?.api_name || ''
+
+        await logApiCall(c.env, {
+          service: 'zoho',
+          endpoint: `/crm/v2/Leads/${leadId}/actions/convert`,
+          method: 'POST',
+          leadId,
+          brandName: company || null,
+          actorEmail: user.email,
+          actorName: user.name,
+          requestSummary: `Retry convert linking existing contact ${duplicateContactId} (contact DUPLICATE_DATA)`,
+          responseStatus: dupConRetryFetchRes.status,
+          success: dupConRetryData?.code === 'SUCCESS',
+          errorMessage: dupConRetryData?.code === 'SUCCESS' ? null : (zohoCode + ': ' + (zohoError?.message || JSON.stringify(dupConRetryRes))),
+          durationMs: dupConRetryDurationMs
+        })
+
+        if (dupConRetryData?.code === 'SUCCESS') {
+          dealId = dupConRetryData.details?.Deals?.id || dupConRetryData.details?.Deals
+          contactId = dupConRetryData.details?.Contacts?.id || dupConRetryData.details?.Contacts
+          accountId = dupConRetryData.details?.Accounts?.id || dupConRetryData.details?.Accounts
+        }
+      } else {
+        console.log('DUPLICATE_DATA on contact but no duplicate id/email match found — cannot auto-link.')
+      }
+    }
+
     if (!dealId && zohoCode === 'DUPLICATE_DATA') {
+      // Genuinely on the Deal itself, zohoApiName missing/unclear, or the account/
+      // contact auto-link retry above also failed to produce a dealId. Previously
+      // this branch had zero audit trail — added full logging (with the raw Zoho
+      // response) so a future occurrence is diagnosable without log archaeology.
+      await logAction(c.env, {
+        leadId,
+        actorEmail: user.email,
+        actorName: user.name,
+        action: 'lead_conversion_failed',
+        details: { zohoApiName: zohoApiName || 'unknown', error: JSON.stringify(convertRes) },
+        success: false,
+        error: `DUPLICATE_DATA on ${zohoApiName || 'unknown entity'}`
+      })
+      await logApiCall(c.env, {
+        service: 'zoho',
+        endpoint: `/crm/v2/Leads/${leadId}/actions/convert`,
+        method: 'POST',
+        leadId,
+        brandName: company || null,
+        actorEmail: user.email,
+        actorName: user.name,
+        requestSummary: 'Convert lead to deal',
+        responseStatus: convertFetchRes.status,
+        success: false,
+        errorMessage: `DUPLICATE_DATA: ${zohoApiName || 'unknown entity'} — ${zohoError?.message || JSON.stringify(convertRes)}`,
+        durationMs: convertDurationMs
+      })
       return c.json({
         error: 'A deal already exists for this lead. Please check the Deals section.',
         alreadyExists: true
