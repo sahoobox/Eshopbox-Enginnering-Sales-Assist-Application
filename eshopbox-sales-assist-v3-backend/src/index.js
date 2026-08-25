@@ -4945,6 +4945,82 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
         : demoScheduledDateTime
     }
 
+    // 6b. Mark the lead Converted BEFORE calling Zoho's native convert action.
+    // The previous approach — patching Lead_Status AFTER convert, even with
+    // ?converted=true — was still rejected by Zoho. Setting it here, while the
+    // Lead is still a normal, unconverted record, avoids that failure mode.
+    // Non-blocking: a failure here must not stop the actual conversion.
+    const originalLeadStatus = lead.Lead_Status || ''
+    let leadStatusPatched = false
+    try {
+      const leadStatusT0 = Date.now()
+      const leadStatusFetchRes = await fetch(
+        `https://www.zohoapis.com/crm/v2/Leads/${leadId}`,
+        {
+          method: 'PUT',
+          headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: [{ Lead_Status: 'Converted' }] })
+        }
+      )
+      const leadStatusDurationMs = Date.now() - leadStatusT0
+      const leadStatusBody = await leadStatusFetchRes.json().catch(() => null)
+      const leadStatusResult = checkZohoResponse(leadStatusBody)
+      leadStatusPatched = leadStatusResult.success
+      await logApiCall(c.env, {
+        service: 'zoho',
+        endpoint: `/Leads/${leadId}`,
+        method: 'PUT',
+        leadId,
+        brandName: company || dealName || null,
+        actorEmail: user.email,
+        actorName: user.name,
+        requestSummary: 'Set Lead_Status=Converted before calling native convert action',
+        responseStatus: leadStatusFetchRes.status,
+        success: leadStatusResult.success,
+        errorMessage: leadStatusResult.success ? null : leadStatusResult.code + ': ' + leadStatusResult.message,
+        durationMs: leadStatusDurationMs
+      })
+    } catch (leadStatusErr) {
+      console.error('Pre-convert Lead_Status=Converted PATCH failed:', leadStatusErr.message)
+    }
+
+    // Reverts the pre-convert write above if the conversion ends up not actually
+    // succeeding — only runs when we know the write took effect in the first
+    // place, so a lead is never left falsely marked Converted with no real deal.
+    const revertLeadStatusIfNeeded = async (reason) => {
+      if (!leadStatusPatched) return
+      try {
+        const revertT0 = Date.now()
+        const revertFetchRes = await fetch(
+          `https://www.zohoapis.com/crm/v2/Leads/${leadId}`,
+          {
+            method: 'PUT',
+            headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: [{ Lead_Status: originalLeadStatus || 'New' }] })
+          }
+        )
+        const revertDurationMs = Date.now() - revertT0
+        const revertBody = await revertFetchRes.json().catch(() => null)
+        const revertResult = checkZohoResponse(revertBody)
+        await logApiCall(c.env, {
+          service: 'zoho',
+          endpoint: `/Leads/${leadId}`,
+          method: 'PUT',
+          leadId,
+          brandName: company || dealName || null,
+          actorEmail: user.email,
+          actorName: user.name,
+          requestSummary: `Revert Lead_Status to "${originalLeadStatus || 'New'}" after conversion failed (${reason})`,
+          responseStatus: revertFetchRes.status,
+          success: revertResult.success,
+          errorMessage: revertResult.success ? null : revertResult.code + ': ' + revertResult.message,
+          durationMs: revertDurationMs
+        })
+      } catch (revertErr) {
+        console.error('Lead_Status revert failed:', revertErr.message)
+      }
+    }
+
     // 7. Call Zoho native convert
     const convertPayload = {
       data: [{
@@ -5292,6 +5368,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
         errorMessage: `DUPLICATE_DATA: ${zohoApiName || 'unknown entity'} — ${zohoError?.message || JSON.stringify(convertRes)}`,
         durationMs: convertDurationMs
       })
+      await revertLeadStatusIfNeeded('duplicate_data')
       return c.json({
         error: 'A deal already exists for this lead. Please check the Deals section.',
         alreadyExists: true
@@ -5299,6 +5376,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
     }
 
     if (!dealId && zohoCode === 'INVALID_DATA') {
+      await revertLeadStatusIfNeeded('invalid_data')
       return c.json({
         error: `Conversion failed — invalid data for field: ${zohoApiName || 'unknown'}. Please contact admin.`,
         details: convertRes
@@ -5331,6 +5409,7 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
           : 'Could not extract dealId from Zoho response: ' + JSON.stringify(convertRes),
         durationMs: convertDurationMs
       })
+      await revertLeadStatusIfNeeded('unknown_error')
       return c.json({ error: 'Failed to convert lead', details: convertRes }, 400)
     }
 
@@ -5388,44 +5467,6 @@ app.post('/api/leads/:id/convert', requireAuth, async (c) => {
       })
     } catch (demoPatchErr) {
       console.error('Demo_Scheduled safety-net PATCH failed:', demoPatchErr.message)
-    }
-
-    // 7c. Mark the ORIGINAL lead as Converted — Zoho's native convert action does
-    // not reliably set Lead_Status on its own (confirmed via manual test: lead
-    // remained "Connecting" after a successful conversion). Runs only here,
-    // strictly after dealId is confirmed above, so a failed/rejected conversion
-    // never falsely marks a lead as Converted. Non-blocking: a failure here must
-    // not fail the conversion response, since the deal already exists.
-    try {
-      const leadStatusPatchT0 = Date.now()
-      const leadStatusPatchFetchRes = await fetch(
-        `https://www.zohoapis.com/crm/v2/Leads/${leadId}?converted=true`,
-        {
-          method: 'PUT',
-          headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: [{ Lead_Status: 'Converted' }] })
-        }
-      )
-      const leadStatusPatchDurationMs = Date.now() - leadStatusPatchT0
-      const leadStatusPatchBody = await leadStatusPatchFetchRes.json().catch(() => null)
-      const leadStatusPatchResult = checkZohoResponse(leadStatusPatchBody)
-      await logApiCall(c.env, {
-        service: 'zoho',
-        endpoint: `/Leads/${leadId}`,
-        method: 'PUT',
-        leadId,
-        dealId,
-        brandName: company || dealName || null,
-        actorEmail: user.email,
-        actorName: user.name,
-        requestSummary: 'Set Lead_Status=Converted on original lead after successful convert (safety net)',
-        responseStatus: leadStatusPatchFetchRes.status,
-        success: leadStatusPatchResult.success,
-        errorMessage: leadStatusPatchResult.success ? null : leadStatusPatchResult.code + ': ' + leadStatusPatchResult.message,
-        durationMs: leadStatusPatchDurationMs
-      })
-    } catch (leadStatusPatchErr) {
-      console.error('Lead_Status=Converted safety-net PATCH failed:', leadStatusPatchErr.message)
     }
 
     // 8. Write D1 lead_deal_mapping
