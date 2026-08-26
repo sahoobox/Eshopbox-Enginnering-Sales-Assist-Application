@@ -1628,19 +1628,20 @@ app.post('/api/deals/:id/day2/mark-sent', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id');
     const user = c.get('user');
+    const now = new Date().toISOString();
     const existing = await c.env.DB.prepare(
       'SELECT id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
     ).bind(dealId, 'day2').first()
 
     if (existing) {
       await c.env.DB.prepare(
-        `UPDATE deal_emails SET status = 'sent', sent_at = datetime('now') WHERE deal_id = ? AND email_type = ?`
-      ).bind(dealId, 'day2').run()
+        `UPDATE deal_emails SET status = 'sent', sent_at = ? WHERE deal_id = ? AND email_type = ?`
+      ).bind(now, dealId, 'day2').run()
     } else {
       await c.env.DB.prepare(
         `INSERT INTO deal_emails (id, deal_id, email_type, subject, body, status, sent_at, created_at, updated_at)
-         VALUES (?, ?, 'day2', '', '', 'sent', datetime('now'), datetime('now'), datetime('now'))`
-      ).bind(crypto.randomUUID(), dealId).run()
+         VALUES (?, ?, 'day2', '', '', 'sent', ?, ?, ?)`
+      ).bind(crypto.randomUUID(), dealId, now, now, now).run()
     }
     let stageAdvanced = false;
     let stageAdvanceSkippedReason = null;
@@ -1725,17 +1726,18 @@ app.post('/api/deals/:id/day1/mark-sent', requireAuth, async (c) => {
     const dealId = c.req.param('id')
     const user = c.get('user')
     const emailType = 'day1'
+    const now = new Date().toISOString()
     const existing = await c.env.DB.prepare(
       'SELECT id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
     ).bind(dealId, emailType).first()
     if (existing) {
       await c.env.DB.prepare(
-        `UPDATE deal_emails SET status = 'sent', sent_at = datetime('now'), updated_at = datetime('now') WHERE deal_id = ? AND email_type = ?`
-      ).bind(dealId, emailType).run()
+        `UPDATE deal_emails SET status = 'sent', sent_at = ?, updated_at = ? WHERE deal_id = ? AND email_type = ?`
+      ).bind(now, now, dealId, emailType).run()
     } else {
       await c.env.DB.prepare(
-        `INSERT INTO deal_emails (id, deal_id, email_type, subject, body, status, sent_at, created_at, updated_at) VALUES (?, ?, ?, '', '', 'sent', datetime('now'), datetime('now'), datetime('now'))`
-      ).bind(crypto.randomUUID(), dealId, emailType).run()
+        `INSERT INTO deal_emails (id, deal_id, email_type, subject, body, status, sent_at, created_at, updated_at) VALUES (?, ?, ?, '', '', 'sent', ?, ?, ?)`
+      ).bind(crypto.randomUUID(), dealId, emailType, now, now, now).run()
     }
     await c.env.TOKEN_CACHE.delete('v3_deals_cache')
     await logTimelineEvent(c.env, dealId, {
@@ -1756,17 +1758,18 @@ app.post('/api/deals/:id/day3/mark-sent', requireAuth, async (c) => {
     const dealId = c.req.param('id')
     const user = c.get('user')
     const emailType = 'day3'
+    const now = new Date().toISOString()
     const existing = await c.env.DB.prepare(
       'SELECT id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
     ).bind(dealId, emailType).first()
     if (existing) {
       await c.env.DB.prepare(
-        `UPDATE deal_emails SET status = 'sent', sent_at = datetime('now'), updated_at = datetime('now') WHERE deal_id = ? AND email_type = ?`
-      ).bind(dealId, emailType).run()
+        `UPDATE deal_emails SET status = 'sent', sent_at = ?, updated_at = ? WHERE deal_id = ? AND email_type = ?`
+      ).bind(now, now, dealId, emailType).run()
     } else {
       await c.env.DB.prepare(
-        `INSERT INTO deal_emails (id, deal_id, email_type, subject, body, status, sent_at, created_at, updated_at) VALUES (?, ?, ?, '', '', 'sent', datetime('now'), datetime('now'), datetime('now'))`
-      ).bind(crypto.randomUUID(), dealId, emailType).run()
+        `INSERT INTO deal_emails (id, deal_id, email_type, subject, body, status, sent_at, created_at, updated_at) VALUES (?, ?, ?, '', '', 'sent', ?, ?, ?)`
+      ).bind(crypto.randomUUID(), dealId, emailType, now, now, now).run()
     }
     await c.env.TOKEN_CACHE.delete('v3_deals_cache')
     await logTimelineEvent(c.env, dealId, {
@@ -1787,17 +1790,18 @@ app.post('/api/deals/:id/day4/mark-sent', requireAuth, async (c) => {
     const dealId = c.req.param('id')
     const user = c.get('user')
     const emailType = 'day4'
+    const now = new Date().toISOString()
     const existing = await c.env.DB.prepare(
       'SELECT id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
     ).bind(dealId, emailType).first()
     if (existing) {
       await c.env.DB.prepare(
-        `UPDATE deal_emails SET status = 'sent', sent_at = datetime('now'), updated_at = datetime('now') WHERE deal_id = ? AND email_type = ?`
-      ).bind(dealId, emailType).run()
+        `UPDATE deal_emails SET status = 'sent', sent_at = ?, updated_at = ? WHERE deal_id = ? AND email_type = ?`
+      ).bind(now, now, dealId, emailType).run()
     } else {
       await c.env.DB.prepare(
-        `INSERT INTO deal_emails (id, deal_id, email_type, subject, body, status, sent_at, created_at, updated_at) VALUES (?, ?, ?, '', '', 'sent', datetime('now'), datetime('now'), datetime('now'))`
-      ).bind(crypto.randomUUID(), dealId, emailType).run()
+        `INSERT INTO deal_emails (id, deal_id, email_type, subject, body, status, sent_at, created_at, updated_at) VALUES (?, ?, ?, '', '', 'sent', ?, ?, ?)`
+      ).bind(crypto.randomUUID(), dealId, emailType, now, now, now).run()
     }
     await c.env.TOKEN_CACHE.delete('v3_deals_cache')
     await logTimelineEvent(c.env, dealId, {
@@ -1818,17 +1822,18 @@ app.post('/api/deals/:id/nudge/mark-sent', requireAuth, async (c) => {
     const dealId = c.req.param('id')
     const user = c.get('user')
     const emailType = 'nudge'
+    const now = new Date().toISOString()
     const existing = await c.env.DB.prepare(
       'SELECT id FROM deal_emails WHERE deal_id = ? AND email_type = ?'
     ).bind(dealId, emailType).first()
     if (existing) {
       await c.env.DB.prepare(
-        `UPDATE deal_emails SET status = 'sent', sent_at = datetime('now'), updated_at = datetime('now') WHERE deal_id = ? AND email_type = ?`
-      ).bind(dealId, emailType).run()
+        `UPDATE deal_emails SET status = 'sent', sent_at = ?, updated_at = ? WHERE deal_id = ? AND email_type = ?`
+      ).bind(now, now, dealId, emailType).run()
     } else {
       await c.env.DB.prepare(
-        `INSERT INTO deal_emails (id, deal_id, email_type, subject, body, status, sent_at, created_at, updated_at) VALUES (?, ?, ?, '', '', 'sent', datetime('now'), datetime('now'), datetime('now'))`
-      ).bind(crypto.randomUUID(), dealId, emailType).run()
+        `INSERT INTO deal_emails (id, deal_id, email_type, subject, body, status, sent_at, created_at, updated_at) VALUES (?, ?, ?, '', '', 'sent', ?, ?, ?)`
+      ).bind(crypto.randomUUID(), dealId, emailType, now, now, now).run()
     }
     await c.env.TOKEN_CACHE.delete('v3_deals_cache')
     await logTimelineEvent(c.env, dealId, {
