@@ -179,14 +179,12 @@ export default function getAttentionFlags(deal) {
     }
   }
 
-  // R12 — Demo Done but form not logged in Sales Assist
-  if (!isTerminal && !deal.saLogged) {
-    if (deal.stage === 'Demo Done') {
-      flags.push({
-        id: 'r12', title: 'Demo done — form not logged in Sales Assist', severity: 'high', daysCount: daysAgoDemo ?? 0,
-        desc: `${daysAgoDemo ?? 0} days since demo, not yet logged`,
-      })
-    }
+  // R12 — Demo not logged, deal already past "Upcoming Demo" (any non-terminal stage from Demo Done onward)
+  if (!isTerminal && !deal.saLogged && deal.stage !== 'Upcoming Demo') {
+    flags.push({
+      id: 'r12', title: `Demo not logged, although deal is in "${deal.stage}"`, severity: 'high', daysCount: daysAgoDemo ?? 0,
+      desc: `${daysAgoDemo ?? 0} days since demo, not yet logged`,
+    })
   }
 
   // R13 — Account Setup in Progress 14+ days
@@ -314,9 +312,9 @@ export const RULE_META = [
     skipConditions: 'A demo date is already set, or stage other than Upcoming Demo.',
   },
   {
-    id: 'R12', title: 'Demo done — form not logged in Sales Assist', severity: 'high', pipeline: 'Both',
-    description: 'Deal is open, the demo form has not been logged in Sales Assist, and stage is "Demo Done."',
-    skipConditions: 'Terminal stage, demo already logged, or stage other than Demo Done.',
+    id: 'R12', title: 'Demo not logged, deal past Upcoming Demo', severity: 'high', pipeline: 'Both',
+    description: 'Deal is open, in any non-terminal stage from "Demo Done" onward (Demo Done, Proposal Sent, Account Setup in Progress, Awaiting First Shipment, First Shipment Done, Follow up Meeting Done, Deal Approved, Demo Approved), and the demo form has not been logged in Sales Assist.',
+    skipConditions: 'Terminal stage, demo already logged, or stage is "Upcoming Demo."',
   },
   {
     id: 'R13', title: 'Account setup taking too long', severity: 'medium', pipeline: 'Mid-market',
