@@ -1172,7 +1172,8 @@ function formatEmailDateTime(dateStr) {
   try {
     return new Date(dateStr).toLocaleString('en-IN', {
       day: '2-digit', month: 'short', year: '2-digit',
-      hour: '2-digit', minute: '2-digit', hour12: true
+      hour: '2-digit', minute: '2-digit', hour12: true,
+      timeZone: 'Asia/Kolkata'
     })
   } catch { return dateStr }
 }

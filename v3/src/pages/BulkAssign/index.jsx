@@ -599,7 +599,7 @@ function HistorySection({ history, loadingHistory }) {
                 {history.map(h => (
                   <tr key={h.id}>
                     <td style={{ fontSize: 12, color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>
-                      {new Date(h.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      {new Date(h.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
                     </td>
                     <td style={{ fontSize: 13 }}>{h.done_by_name}</td>
                     <td style={{ fontSize: 13 }}><b>{h.to_owner_name}</b></td>
