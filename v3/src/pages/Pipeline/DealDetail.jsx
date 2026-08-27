@@ -251,7 +251,7 @@ export default function DealDetail({ dealId }) {
               href={`https://crmplus.zoho.com/zoho10446/index.do/cxapp/crm/eshopbox/tab/Potentials/${deal.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="btn btn-sm"
+              className="btn btn-sm btn-zoho"
             >
               Open in Zoho CRM ↗
             </a>

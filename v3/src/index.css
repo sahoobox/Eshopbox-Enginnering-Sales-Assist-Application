@@ -413,6 +413,8 @@ main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: 
 .btn-danger:hover { background: #f9d5d5; }
 .btn-ok { background: var(--ok); border-color: var(--ok); color: #fff; }
 .btn-ok:hover { background: #0B5A45; border-color: #0B5A45; }
+.btn-zoho { background: #226DB4; border-color: #226DB4; color: #fff; }
+.btn-zoho:hover { background: #1B5A93; border-color: #1B5A93; }
 
 /* ── Cards ── */
 .card {
