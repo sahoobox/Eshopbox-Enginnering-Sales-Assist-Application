@@ -374,6 +374,7 @@ function mapZohoDeal(d, userNameMap = new Map()) {
     repName: resolveOwnerName(d.Owner, userNameMap) || 'Unknown',
     repEmail: d.Owner?.email || '',
 grade: (() => {
+  if (!d.SA_Logged) return null;
   const raw = d.SA_Forecast_Probability || 0;
   const s = raw > 20 ? Math.round((raw / 100) * 22) : raw;
   if (s >= 14) return 'A';

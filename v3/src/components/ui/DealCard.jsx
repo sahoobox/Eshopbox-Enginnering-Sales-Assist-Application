@@ -29,9 +29,9 @@ function daysSince(dateStr) {
 export default function DealCard({ deal }) {
   const navigate = useNavigate()
 
-  const grade = deal.grade || 'D'
-  const gradeClass = `kc-grade kc-grade-${grade.toLowerCase()}`
-  const labelClass = `kc-label kc-label-grade-${grade.toLowerCase()}`
+  const grade = deal.grade
+  const gradeClass = grade ? `kc-grade kc-grade-${grade.toLowerCase()}` : ''
+  const labelClass = grade ? `kc-label kc-label-grade-${grade.toLowerCase()}` : ''
 
   const flagCount = deal.flags?.length || 0
   const hasCritical = deal.flags?.some(f => f.level === 'high' || f.severity === 'high')
@@ -55,7 +55,7 @@ export default function DealCard({ deal }) {
     <div className={cardClass} onClick={() => window.open(`/pipeline/${deal.id}`, '_blank')} style={{ minHeight: 160, display: 'flex', flexDirection: 'column' }}>
       {/* Grade colour strip at top */}
       <div className="kc-labels">
-        <div className={labelClass} />
+        {grade && <div className={labelClass} />}
         {deal.saLogged && <div className="kc-label" style={{ background: 'var(--ok)', opacity: 0.5 }} />}
         {flagCount > 0 && <div className="kc-label" style={{ background: hasCritical ? 'var(--danger)' : 'var(--warn)', opacity: 0.7 }} />}
       </div>
