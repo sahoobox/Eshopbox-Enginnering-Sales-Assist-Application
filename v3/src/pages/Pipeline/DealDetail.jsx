@@ -246,6 +246,16 @@ export default function DealDetail({ dealId }) {
           {(isAdmin || isSalesLead) && (
             <button className="btn btn-sm" onClick={() => setShowReassign(true)}>Reassign</button>
           )}
+          {isAdmin && (
+            <a
+              href={`https://crmplus.zoho.com/zoho10446/index.do/cxapp/crm/eshopbox/tab/Potentials/${deal.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-sm"
+            >
+              Open in Zoho CRM ↗
+            </a>
+          )}
         </div>
       </div>
 
