@@ -101,13 +101,16 @@ function PipelineList() {
   const sortBy = searchParams.get('sortBy') || 'createdAt'
   const sortDir = searchParams.get('sortDir') || 'desc'
   const searchQuery = searchParams.get('q') || ''
-  const activeFilters = (() => { try { return JSON.parse(searchParams.get('filters') || '[]') } catch { return [] } })()
+  const activeFilters = useMemo(() => {
+    try { return JSON.parse(searchParams.get('filters') || '[]') }
+    catch { return [] }
+  }, [searchParams.get('filters')])
   const [showLegend, setShowLegend] = useState(false)
   const listPage = Number(searchParams.get('page') || 1)
   const listPageSize = Number(searchParams.get('pageSize') || 50)
   const skipFirstPageReset = useRef(true)
 
-  const updateParams = (updates) => {
+  const updateParams = useCallback((updates) => {
     const next = new URLSearchParams(searchParams)
     Object.entries(updates).forEach(([k, v]) => {
       if (v === null || v === undefined || v === '') {
@@ -117,7 +120,7 @@ function PipelineList() {
       }
     })
     setSearchParams(next, { replace: true })
-  }
+  }, [searchParams, setSearchParams])
 
   const TERMINAL = ['Won/Payment Received', 'Lost/Dropped', 'On Hold']
 
@@ -190,7 +193,7 @@ function PipelineList() {
   useEffect(() => {
     // Skip on mount so a deep-linked ?page=N isn't immediately reset to 1.
     if (skipFirstPageReset.current) { skipFirstPageReset.current = false; return }
-    updateParams({ page: null })
+    if (listPage !== 1) updateParams({ page: null })
   }, [sortedDeals])
 
   const tileTooltips = {

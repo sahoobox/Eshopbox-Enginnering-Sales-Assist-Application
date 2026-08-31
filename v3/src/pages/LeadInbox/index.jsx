@@ -274,14 +274,14 @@ export default function LeadInbox() {
   const activeFilters = useMemo(() => {
     try { return JSON.parse(searchParams.get('filters') || '[]') }
     catch { return [] }
-  }, [searchParams])
+  }, [searchParams.get('filters')])
   const currentPage = Number(searchParams.get('page') || 1)
   const pageSize = Number(searchParams.get('size') || 50)
   const sortOrder = searchParams.get('sort') || 'desc'
   const defaultLeadPipeline = role === ROLES.SALES_LEAD_MIDMARKET ? 'Mid-Market' : role === ROLES.SALES_LEAD_ENTERPRISE ? 'Enterprise' : 'all'
   const activePipeline = searchParams.get('pipeline') || defaultLeadPipeline
 
-  const updateParams = (updates) => {
+  const updateParams = useCallback((updates) => {
     const next = new URLSearchParams(searchParams)
     Object.entries(updates).forEach(([k, v]) => {
       if (v === null || v === undefined || v === '') {
@@ -291,7 +291,7 @@ export default function LeadInbox() {
       }
     })
     setSearchParams(next, { replace: true })
-  }
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
     const timer = setTimeout(() => {

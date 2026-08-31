@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth, ROLES } from '../../context/AuthContext'
 import { useDeals } from '../../hooks/useDeals'
@@ -323,7 +323,7 @@ export default function NeedAttention() {
   const activePipeline = searchParams.get('pipeline') || defaultPipeline
   const isRepRole = role === ROLES.MDE || role === ROLES.AE
 
-  const updateParams = (updates) => {
+  const updateParams = useCallback((updates) => {
     const next = new URLSearchParams(searchParams)
     Object.entries(updates).forEach(([k, v]) => {
       if (v === null || v === undefined || v === '') {
@@ -333,7 +333,7 @@ export default function NeedAttention() {
       }
     })
     setSearchParams(next, { replace: true })
-  }
+  }, [searchParams, setSearchParams])
 
   const [teamEmails, setTeamEmails] = useState([])
 
@@ -403,8 +403,14 @@ export default function NeedAttention() {
   })
 
   const searchQuery = searchParams.get('q') || ''
-  const filterFlag = (() => { try { return JSON.parse(searchParams.get('flags') || '[]') } catch { return [] } })()
-  const filterRep = (() => { try { return JSON.parse(searchParams.get('reps') || '[]') } catch { return [] } })()
+  const filterFlag = useMemo(() => {
+    try { return JSON.parse(searchParams.get('flags') || '[]') }
+    catch { return [] }
+  }, [searchParams.get('flags')])
+  const filterRep = useMemo(() => {
+    try { return JSON.parse(searchParams.get('reps') || '[]') }
+    catch { return [] }
+  }, [searchParams.get('reps')])
   const filterSeverity = searchParams.get('severity') || 'all'
   const [resolveFlag, setResolveFlag] = useState(null)
   const tab = searchParams.get('tab') || 'table'
