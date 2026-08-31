@@ -662,7 +662,10 @@ export default function LeadInbox() {
               const statusStyle = leadStatusStyle(lead.leadStatus)
 
               return (
-                <tr key={lead.id} onClick={() => window.open(`/leads/${lead.id}`, '_blank')} style={{ cursor: 'pointer' }}>
+                <tr key={lead.id} onClick={() => {
+                  const qs = searchParams.toString()
+                  window.open(`/leads/${lead.id}${qs ? `?from=${encodeURIComponent(qs)}` : ''}`, '_blank')
+                }} style={{ cursor: 'pointer' }}>
                   <td style={{ whiteSpace: 'nowrap', padding: '14px 16px' }}>
                     <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-1)' }}>{createdDate}</div>
                     <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{createdTime}</div>

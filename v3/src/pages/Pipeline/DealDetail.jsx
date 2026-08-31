@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ArrowRight, Mail, FileText, Send, ClipboardList, StickyNote, Phone, Calendar, CheckSquare, XCircle, PauseCircle, RefreshCw, Star, UserCheck, Plus, Activity, Flag, Monitor, Sparkles, User, Building2 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import DOMPurify from 'dompurify'
 import { useDeal } from '../../hooks/useDeals'
 import { useAuth } from '../../context/AuthContext'
@@ -20,6 +20,9 @@ function EmptyZohoBadge() {
 
 export default function DealDetail({ dealId }) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const fromQuery = searchParams.get('from')
+  const backHref = fromQuery ? `/pipeline?${fromQuery}` : '/pipeline'
   const { deal, emails, loading, error, refetch: refetchDeal } = useDeal(dealId)
   const { authFetch, isAdmin, isSalesLead } = useAuth()
   usePageTitle(deal ? `Deal Detail: ${deal.brandName || deal.dealName}` : 'Deal Detail')
@@ -61,7 +64,7 @@ export default function DealDetail({ dealId }) {
   )
   if (error || !deal) return (
     <div className="main">
-      <button className="btn btn-ghost" onClick={() => navigate('/pipeline')} style={{ marginBottom: 10 }}>← Back to pipeline</button>
+      <button className="btn btn-ghost" onClick={() => navigate(backHref)} style={{ marginBottom: 10 }}>← Back to pipeline</button>
       <div className="callout danger">{error || 'Deal not found'}</div>
     </div>
   )
@@ -137,7 +140,7 @@ export default function DealDetail({ dealId }) {
   return (
     <div className="main">
       {/* Back */}
-      <button className="btn btn-ghost" onClick={() => navigate('/pipeline')} style={{ marginBottom: 10 }}>
+      <button className="btn btn-ghost" onClick={() => navigate(backHref)} style={{ marginBottom: 10 }}>
         ← Back to pipeline
       </button>
 

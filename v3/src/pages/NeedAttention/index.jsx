@@ -326,8 +326,11 @@ export default function NeedAttention() {
   const updateParams = (updates) => {
     const next = new URLSearchParams(searchParams)
     Object.entries(updates).forEach(([k, v]) => {
-      if (v == null) next.delete(k)
-      else next.set(k, v)
+      if (v === null || v === undefined || v === '') {
+        next.delete(k)
+      } else {
+        next.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v))
+      }
     })
     setSearchParams(next, { replace: true })
   }
@@ -399,12 +402,12 @@ export default function NeedAttention() {
     return (order[a.flagSeverity] ?? 2) - (order[b.flagSeverity] ?? 2)
   })
 
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filterFlag, setFilterFlag] = useState([])
-  const [filterRep, setFilterRep] = useState([])
-  const [filterSeverity, setFilterSeverity] = useState('all')
+  const searchQuery = searchParams.get('q') || ''
+  const filterFlag = (() => { try { return JSON.parse(searchParams.get('flags') || '[]') } catch { return [] } })()
+  const filterRep = (() => { try { return JSON.parse(searchParams.get('reps') || '[]') } catch { return [] } })()
+  const filterSeverity = searchParams.get('severity') || 'all'
   const [resolveFlag, setResolveFlag] = useState(null)
-  const [tab, setTab] = useState('table')
+  const tab = searchParams.get('tab') || 'table'
 
   const filteredFlags = flatFlags.filter(f => {
     if (searchQuery) {
@@ -438,9 +441,11 @@ export default function NeedAttention() {
     'across all pipelines'
 
   const handleDrilldown = ({ rep, flagId }) => {
-    setFilterRep(rep)
-    setFilterFlag(flagId)
-    setTab('table')
+    updateParams({
+      reps: rep.length ? rep : null,
+      flags: flagId.length ? flagId : null,
+      tab: null,
+    })
   }
 
   const handleExportExcel = () => {
@@ -477,8 +482,8 @@ export default function NeedAttention() {
 
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '16px 20px' }}>
         <div className="tabs">
-          <button className={`tab ${tab === 'table' ? 'active' : ''}`} onClick={() => setTab('table')}>Table</button>
-          <button className={`tab ${tab === 'reports' ? 'active' : ''}`} onClick={() => setTab('reports')}>Reports</button>
+          <button className={`tab ${tab === 'table' ? 'active' : ''}`} onClick={() => updateParams({ tab: null })}>Table</button>
+          <button className={`tab ${tab === 'reports' ? 'active' : ''}`} onClick={() => updateParams({ tab: 'reports' })}>Reports</button>
         </div>
 
         {tab === 'table' && (
@@ -489,10 +494,10 @@ export default function NeedAttention() {
             <input
               placeholder="Search brand or rep..."
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              onChange={e => updateParams({ q: e.target.value || null })}
               style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink-1)', minWidth: 200 }}
             />
-            <select value={filterSeverity} onChange={e => setFilterSeverity(e.target.value)}
+            <select value={filterSeverity} onChange={e => updateParams({ severity: e.target.value === 'all' ? null : e.target.value })}
               style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink-1)' }}>
               <option value="all">All severity</option>
               <option value="high">High</option>
@@ -502,13 +507,13 @@ export default function NeedAttention() {
               label="flags"
               options={flagOrder.map(f => ({ value: f, label: `${f.toUpperCase()} - ${flagLabels[f]}` }))}
               selected={filterFlag}
-              onChange={setFilterFlag}
+              onChange={vals => updateParams({ flags: vals.length ? vals : null })}
             />
             <MultiSelectFilter
               label="reps"
               options={repOptions.map(r => ({ value: r, label: r }))}
               selected={filterRep}
-              onChange={setFilterRep}
+              onChange={vals => updateParams({ reps: vals.length ? vals : null })}
             />
             {isAdmin && (
               <div style={{ flexShrink: 0 }}>
@@ -524,7 +529,7 @@ export default function NeedAttention() {
               </div>
             )}
             {(searchQuery || filterFlag.length > 0 || filterRep.length > 0 || filterSeverity !== 'all') && (
-              <button onClick={() => { setSearchQuery(''); setFilterFlag([]); setFilterRep([]); setFilterSeverity('all') }}
+              <button onClick={() => updateParams({ q: null, flags: null, reps: null, severity: null })}
                 style={{ padding: '7px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13, cursor: 'pointer', background: 'transparent', color: 'var(--ink-3)' }}>
                 Clear filters
               </button>

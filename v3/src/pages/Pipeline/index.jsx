@@ -103,8 +103,9 @@ function PipelineList() {
   const searchQuery = searchParams.get('q') || ''
   const activeFilters = (() => { try { return JSON.parse(searchParams.get('filters') || '[]') } catch { return [] } })()
   const [showLegend, setShowLegend] = useState(false)
-  const [listPage, setListPage] = useState(1)
-  const [listPageSize, setListPageSize] = useState(50)
+  const listPage = Number(searchParams.get('page') || 1)
+  const listPageSize = Number(searchParams.get('pageSize') || 50)
+  const skipFirstPageReset = useRef(true)
 
   const updateParams = (updates) => {
     const next = new URLSearchParams(searchParams)
@@ -186,7 +187,11 @@ function PipelineList() {
   const paginatedDeals = sortedDeals.slice(listStart, listEnd)
   const totalListPages = Math.ceil(totalListDeals / listPageSize)
 
-  useEffect(() => setListPage(1), [sortedDeals])
+  useEffect(() => {
+    // Skip on mount so a deep-linked ?page=N isn't immediately reset to 1.
+    if (skipFirstPageReset.current) { skipFirstPageReset.current = false; return }
+    updateParams({ page: null })
+  }, [sortedDeals])
 
   const tileTooltips = {
     inbox: 'Active deals in a conducted or upcoming stage that need action — your working pipeline.',
@@ -531,7 +536,10 @@ function PipelineList() {
           ? <KanbanView deals={sortedDeals} pipelineFilter={pipelineFilter} />
           : <ListView
               deals={paginatedDeals}
-              onOpen={id => window.open(`/pipeline/${id}`, '_blank')}
+              onOpen={id => {
+                const qs = searchParams.toString()
+                window.open(`/pipeline/${id}${qs ? `?from=${encodeURIComponent(qs)}` : ''}`, '_blank')
+              }}
               tableRef={listTableRef}
               theadRef={listTheadRef}
             />
@@ -554,7 +562,7 @@ function PipelineList() {
             </span>
             <select
               value={listPageSize}
-              onChange={e => { setListPageSize(Number(e.target.value)); setListPage(1) }}
+              onChange={e => updateParams({ pageSize: Number(e.target.value), page: null })}
               style={{
                 padding: '4px 8px', borderRadius: 6,
                 border: '1.5px solid var(--line)',
@@ -573,7 +581,7 @@ function PipelineList() {
           {!showAllList && totalListPages > 1 && (
             <div style={{ display: 'flex', gap: 8 }}>
               <button
-                onClick={() => setListPage(p => Math.max(1, p - 1))}
+                onClick={() => updateParams({ page: Math.max(1, listPage - 1) })}
                 disabled={listPage === 1}
                 style={{
                   padding: '6px 14px', borderRadius: 6,
@@ -584,7 +592,7 @@ function PipelineList() {
                 }}
               >Previous</button>
               <button
-                onClick={() => setListPage(p => Math.min(totalListPages, p + 1))}
+                onClick={() => updateParams({ page: Math.min(totalListPages, listPage + 1) })}
                 disabled={listPage === totalListPages}
                 style={{
                   padding: '6px 14px', borderRadius: 6,

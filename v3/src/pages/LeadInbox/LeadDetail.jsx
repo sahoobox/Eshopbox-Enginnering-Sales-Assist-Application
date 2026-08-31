@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import DOMPurify from 'dompurify'
 import { useAuth } from '../../context/AuthContext'
 import { Loading } from '../../components/ui'
@@ -375,6 +375,9 @@ function ChangeStatusModal({ lead, targetStatus, onClose, onSuccess }) {
 export default function LeadDetail() {
   const { leadId } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const fromQuery = searchParams.get('from')
+  const backHref = fromQuery ? `/leads?${fromQuery}` : '/leads'
   const { authFetch, user, isAdmin, isSalesLead } = useAuth()
 
   const [lead, setLead] = useState(null)
@@ -476,7 +479,7 @@ export default function LeadDetail() {
   if (loading) return <div className="main"><Loading text="Loading lead…" /></div>
   if (error || !lead) return (
     <div className="main">
-      <button className="btn btn-ghost" onClick={() => navigate('/leads')}>← Back to lead inbox</button>
+      <button className="btn btn-ghost" onClick={() => navigate(backHref)}>← Back to lead inbox</button>
       <div className="callout danger" style={{ marginTop: 12 }}>{error || 'Lead not found'}</div>
     </div>
   )
@@ -507,7 +510,7 @@ export default function LeadDetail() {
 
   return (
     <div className="main">
-      <button className="btn btn-ghost" onClick={() => navigate('/leads')} style={{ marginBottom: 12 }}>
+      <button className="btn btn-ghost" onClick={() => navigate(backHref)} style={{ marginBottom: 12 }}>
         ← Back to lead inbox
       </button>
 

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { MessageCircle, Phone, Mail, Globe, Calendar, Building2 } from 'lucide-react'
 import { leadSourcePill, conversionMediumPill } from '../../lib/fieldColors'
 
@@ -28,6 +28,7 @@ function daysSince(dateStr) {
 
 export default function DealCard({ deal }) {
   const navigate = useNavigate()
+  const location = useLocation()
 
   const grade = deal.grade
   const gradeClass = grade ? `kc-grade kc-grade-${grade.toLowerCase()}` : ''
@@ -52,7 +53,10 @@ export default function DealCard({ deal }) {
   ].filter(Boolean)
 
   return (
-    <div className={cardClass} onClick={() => window.open(`/pipeline/${deal.id}`, '_blank')} style={{ minHeight: 160, display: 'flex', flexDirection: 'column' }}>
+    <div className={cardClass} onClick={() => {
+      const qs = location.search.slice(1)
+      window.open(`/pipeline/${deal.id}${qs ? `?from=${encodeURIComponent(qs)}` : ''}`, '_blank')
+    }} style={{ minHeight: 160, display: 'flex', flexDirection: 'column' }}>
       {/* Grade colour strip at top */}
       <div className="kc-labels">
         {grade && <div className={labelClass} />}
