@@ -19,6 +19,16 @@ const ORDER_VOLUME_OPTIONS = [
   'New store / not shipping orders yet',
 ]
 
+const SUPPORT_NEEDED_OPTIONS = [
+  "Shipping - I'll store inventory, Eshopbox ships my orders",
+  "Both - I'm exploring both options",
+  'Fulfilment - Store my inventory in Eshopbox fulfilment centres',
+  'Eshopbox Plus',
+  'Warehousing',
+  'Shipping',
+  'Both',
+]
+
 // 'Paid' exists as a Lead_Type value elsewhere in the codebase but has zero real
 // deals as of this writing — add it back here if it starts appearing in live data.
 const DEAL_TYPE_OPTIONS = ['Inbound', 'Outbound', 'Outbound Partner']
@@ -37,6 +47,7 @@ function matchSingle(deal, f) {
     case 'stage':       return f.values.includes(deal.stage)
     case 'grade':       return f.values.includes(deal.grade)
     case 'orderVolume': return f.values.includes(deal.orderVolume)
+    case 'supportNeeded': return f.values.includes(deal.supportNeeded)
     case 'dealType':    return f.values.includes(deal.dealType)
     case 'saLogged':    return f.values.includes(deal.saLogged ? 'Yes' : 'No')
     case 'demoDate': {
@@ -688,6 +699,7 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
     { key: 'grade',       label: 'Grade',        type: 'multi', opts: ['A', 'B', 'C', 'D'] },
     { key: 'orderVolume', label: 'Order Volume',  type: 'multi', opts: ORDER_VOLUME_OPTIONS },
     { key: 'dealType',    label: 'Deal Type',     type: 'multi', opts: DEAL_TYPE_OPTIONS },
+    { key: 'supportNeeded', label: 'Support Needed', type: 'multi', opts: SUPPORT_NEEDED_OPTIONS },
     { key: 'createdAt',             label: 'Deal Created Date',   type: 'date' },
     { key: 'demoScheduledDateTime', label: 'Demo Scheduled Date', type: 'date' },
     { key: 'demoDate',    label: 'Demo Logged Date', type: 'date' },
