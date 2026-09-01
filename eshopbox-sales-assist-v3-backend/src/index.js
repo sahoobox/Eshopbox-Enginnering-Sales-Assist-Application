@@ -4583,7 +4583,7 @@ function mapZohoLead(l, userNameMap = new Map(), aeEmailsSet = new Set()) {
     shippingSetup: l.Shipping_Setup || '',
     fulfillmentSetup: l.Current_Fulfillment_Setup || '',
     inventoryTimeline: l.Inventory_Move_Timeline || '',
-    website: l.Website || '',
+    website: l.Website || l.Website_URL || '',
   }
 }
 

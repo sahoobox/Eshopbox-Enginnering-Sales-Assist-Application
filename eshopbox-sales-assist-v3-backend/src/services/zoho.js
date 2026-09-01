@@ -334,7 +334,7 @@ const LEAD_FIELDS = [
   'Disqualified_reason', 'Bad_Timing_Reason', 'Description',
   'How_can_Eshopbox_support_your_business', 'What_type_of_products_do_you_sell',
   'City', 'Shipping_Setup', 'Current_Fulfillment_Setup',
-  'Inventory_Move_Timeline', 'Website'
+  'Inventory_Move_Timeline', 'Website', 'Website_URL'
 ].join(',')
 
 const LEADS_CACHE_KEY = 'v3_leads_cache'
