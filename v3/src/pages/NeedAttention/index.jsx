@@ -239,7 +239,7 @@ function FlagHeatmap({ flatFlags, onDrilldown, flagOrder, flagLabels }) {
           <tr>
             <th style={{ ...headCellStyle, textAlign: 'left', position: 'sticky', left: 0 }}>REP</th>
             {flagOrder.map(fid => (
-              <th key={fid} style={headCellStyle} title={flagLabels[fid]}>{fid.toUpperCase()}</th>
+              <th key={fid} style={headCellStyle} title={flagLabels[fid]}>{fid.toUpperCase()} - {flagLabels[fid]}</th>
             ))}
             <th style={{ ...headCellStyle, fontWeight: 700 }}>TOTAL</th>
           </tr>
@@ -287,9 +287,23 @@ function FlagHeatmap({ flatFlags, onDrilldown, flagOrder, flagLabels }) {
   )
 }
 
-function ReportsView({ flatFlags, onDrilldown, flagOrder, flagLabels, isRepRole }) {
+function ReportsView({ flatFlags, onDrilldown, flagOrder, flagLabels, isRepRole, filterFlag, filterRep, repOptions, updateParams }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <MultiSelectFilter
+          label="flags"
+          options={flagOrder.map(f => ({ value: f, label: `${f.toUpperCase()} - ${flagLabels[f]}` }))}
+          selected={filterFlag}
+          onChange={vals => updateParams({ flags: vals.length ? vals : null })}
+        />
+        <MultiSelectFilter
+          label="reps"
+          options={repOptions.map(r => ({ value: r, label: r }))}
+          selected={filterRep}
+          onChange={vals => updateParams({ reps: vals.length ? vals : null })}
+        />
+      </div>
       {!isRepRole && (
         <div className="card card-pad">
           <div className="card-title" style={{ marginBottom: 12, fontSize: 14 }}>Flags per rep by pipeline</div>
@@ -623,7 +637,17 @@ export default function NeedAttention() {
 
         {tab === 'reports' && (
           <div style={{ padding: '16px 0 24px' }}>
-            <ReportsView flatFlags={flatFlags} onDrilldown={handleDrilldown} flagOrder={flagOrder} flagLabels={flagLabels} isRepRole={isRepRole} />
+            <ReportsView
+              flatFlags={filteredFlags}
+              onDrilldown={handleDrilldown}
+              flagOrder={flagOrder}
+              flagLabels={flagLabels}
+              isRepRole={isRepRole}
+              filterFlag={filterFlag}
+              filterRep={filterRep}
+              repOptions={repOptions}
+              updateParams={updateParams}
+            />
           </div>
         )}
       </div>
