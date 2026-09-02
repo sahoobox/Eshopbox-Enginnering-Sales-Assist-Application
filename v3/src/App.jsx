@@ -10,6 +10,7 @@ import LeadDetail from './pages/LeadInbox/LeadDetail'
 import DemoForm from './pages/DemoForm'
 import AccountSettings from './pages/AccountSettings'
 import ApiLog from './pages/Admin/ApiLog'
+import CentralDashboard from './pages/CentralDashboard'
 import {
   MyDay, LeadInbox, Accounts,
   Tasks, Performance, Reports, Settings, NotFound, NeedAttention, BulkAssign,
@@ -82,6 +83,11 @@ function AppLayout() {
           {/* API Logs — visible only to satyanarayan.sahoo@eshopbox.com */}
           {user?.email === 'satyanarayan.sahoo@eshopbox.com' && (
             <Route path="/admin/api-log" element={<ApiLog />} />
+          )}
+
+          {/* Central Dashboard — visible only to satyanarayan.sahoo@eshopbox.com */}
+          {user?.email === 'satyanarayan.sahoo@eshopbox.com' && (
+            <Route path="/central-dashboard" element={<CentralDashboard />} />
           )}
 
           {/* Performance + Reports — Sales Lead and Admin only */}
