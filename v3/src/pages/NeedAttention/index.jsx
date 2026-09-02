@@ -239,7 +239,7 @@ function FlagHeatmap({ flatFlags, onDrilldown, flagOrder, flagLabels }) {
           <tr>
             <th style={{ ...headCellStyle, textAlign: 'left', position: 'sticky', left: 0 }}>REP</th>
             {flagOrder.map(fid => (
-              <th key={fid} style={headCellStyle} title={flagLabels[fid]}>{fid.toUpperCase()} - {flagLabels[fid]}</th>
+              <th key={fid} style={headCellStyle} title={flagLabels[fid]}>{fid.toUpperCase()}</th>
             ))}
             <th style={{ ...headCellStyle, fontWeight: 700 }}>TOTAL</th>
           </tr>
@@ -293,7 +293,7 @@ function ReportsView({ flatFlags, onDrilldown, flagOrder, flagLabels, isRepRole,
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <MultiSelectFilter
           label="flags"
-          options={flagOrder.map(f => ({ value: f, label: `${f.toUpperCase()} - ${flagLabels[f]}` }))}
+          options={flagOrder.map(f => ({ value: f, label: f.toUpperCase() }))}
           selected={filterFlag}
           onChange={vals => updateParams({ flags: vals.length ? vals : null })}
         />
@@ -318,6 +318,27 @@ function ReportsView({ flatFlags, onDrilldown, flagOrder, flagLabels, isRepRole,
           </p>
         )}
         <FlagHeatmap flatFlags={flatFlags} onDrilldown={onDrilldown} flagOrder={flagOrder} flagLabels={flagLabels} />
+      </div>
+      <div className="card card-pad">
+        <div className="card-title" style={{ marginBottom: 12, fontSize: 14 }}>Flag reference</div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr>
+                <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', borderBottom: '1px solid var(--line)', whiteSpace: 'nowrap' }}>ID</th>
+                <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', borderBottom: '1px solid var(--line)' }}>What it means</th>
+              </tr>
+            </thead>
+            <tbody>
+              {flagOrder.map(fid => (
+                <tr key={fid}>
+                  <td style={{ padding: '8px 10px', fontWeight: 700, color: 'var(--ink-1)', whiteSpace: 'nowrap', borderBottom: '1px solid var(--line)' }}>{fid.toUpperCase()}</td>
+                  <td style={{ padding: '8px 10px', color: 'var(--ink-2)', borderBottom: '1px solid var(--line)' }}>{flagLabels[fid]}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )
@@ -525,7 +546,7 @@ export default function NeedAttention() {
             </select>
             <MultiSelectFilter
               label="flags"
-              options={flagOrder.map(f => ({ value: f, label: `${f.toUpperCase()} - ${flagLabels[f]}` }))}
+              options={flagOrder.map(f => ({ value: f, label: f.toUpperCase() }))}
               selected={filterFlag}
               onChange={vals => updateParams({ flags: vals.length ? vals : null })}
             />
