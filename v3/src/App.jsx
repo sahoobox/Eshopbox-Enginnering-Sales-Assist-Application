@@ -85,10 +85,8 @@ function AppLayout() {
             <Route path="/admin/api-log" element={<ApiLog />} />
           )}
 
-          {/* Central Dashboard — visible only to satyanarayan.sahoo@eshopbox.com */}
-          {user?.email === 'satyanarayan.sahoo@eshopbox.com' && (
-            <Route path="/central-dashboard" element={<CentralDashboard />} />
-          )}
+          {/* Central Dashboard — visible to all logged-in users */}
+          <Route path="/central-dashboard" element={<CentralDashboard />} />
 
           {/* Performance + Reports — Sales Lead and Admin only */}
           {(role === ROLES.SALES_LEAD_MIDMARKET ||

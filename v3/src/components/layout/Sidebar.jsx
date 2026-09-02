@@ -146,13 +146,13 @@ export default function Sidebar({ counts = {} }) {
       count: apiFailures,
       badge: apiFailures > 0 ? 'danger' : null,
     })
-    navItems.push({
-      id: 'central-dashboard',
-      label: 'Central Dashboard',
-      path: '/central-dashboard',
-      section: 'Admin',
-    })
   }
+  navItems.push({
+    id: 'central-dashboard',
+    label: 'Central Dashboard',
+    path: '/central-dashboard',
+    section: null,
+  })
 
   // Group nav items by section
   const sections = []
