@@ -44,7 +44,7 @@ function matchLeadSingle(lead, f) {
                d.getFullYear() === now.getFullYear()
       }
       if (f.preset === 'custom' && f.from && f.to) {
-        return d >= new Date(f.from) &&
+        return d >= new Date(f.from + 'T00:00:00') &&
                d <= new Date(f.to + 'T23:59:59')
       }
       return true

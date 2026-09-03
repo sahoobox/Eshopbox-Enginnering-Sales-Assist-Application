@@ -53,21 +53,21 @@ function matchSingle(deal, f) {
     case 'demoDate': {
       if (!deal.demoDate || !deal.saLogged) return false
       const d = new Date(deal.demoDate)
-      const from = f.dateFrom ? new Date(f.dateFrom) : null
+      const from = f.dateFrom ? new Date(f.dateFrom + 'T00:00:00') : null
       const to   = f.dateTo   ? new Date(f.dateTo + 'T23:59:59') : null
       return (!from || d >= from) && (!to || d <= to)
     }
     case 'createdAt': {
       if (!deal.createdAt) return false
       const d = new Date(deal.createdAt)
-      const from = f.dateFrom ? new Date(f.dateFrom) : null
+      const from = f.dateFrom ? new Date(f.dateFrom + 'T00:00:00') : null
       const to   = f.dateTo   ? new Date(f.dateTo + 'T23:59:59') : null
       return (!from || d >= from) && (!to || d <= to)
     }
     case 'demoScheduledDateTime': {
       if (!deal.demoScheduledDateTime) return false
       const d = new Date(deal.demoScheduledDateTime)
-      const from = f.dateFrom ? new Date(f.dateFrom) : null
+      const from = f.dateFrom ? new Date(f.dateFrom + 'T00:00:00') : null
       const to   = f.dateTo   ? new Date(f.dateTo + 'T23:59:59') : null
       return (!from || d >= from) && (!to || d <= to)
     }
@@ -742,7 +742,7 @@ const FilterBar = forwardRef(function FilterBar({ filters, onChange, deals, stag
     if (preset === 'Last 7 days')  from.setDate(today.getDate() - 7)
     if (preset === 'Last 30 days') from.setDate(today.getDate() - 30)
     if (preset === 'Last 90 days') from.setDate(today.getDate() - 90)
-    const fmt = d => d.toISOString().split('T')[0]
+    const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     setDraft(d => ({ ...d, preset, dateFrom: fmt(from), dateTo: fmt(today) }))
   }
 
