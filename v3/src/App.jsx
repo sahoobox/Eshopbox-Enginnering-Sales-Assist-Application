@@ -11,6 +11,7 @@ import DemoForm from './pages/DemoForm'
 import AccountSettings from './pages/AccountSettings'
 import ApiLog from './pages/Admin/ApiLog'
 import CentralDashboard from './pages/CentralDashboard'
+import TestDashboard from './pages/TestDashboard'
 import {
   MyDay, LeadInbox, Accounts,
   Tasks, Performance, Reports, Settings, NotFound, NeedAttention, BulkAssign,
@@ -87,6 +88,11 @@ function AppLayout() {
 
           {/* Central Dashboard — visible to all logged-in users */}
           <Route path="/central-dashboard" element={<CentralDashboard />} />
+
+          {/* Test Dashboard — visible only to satyanarayan.sahoo and nitiksha */}
+          {['satyanarayan.sahoo@eshopbox.com', 'nitiksha@eshopbox.com'].includes(user?.email) && (
+            <Route path="/test-dashboard" element={<TestDashboard />} />
+          )}
 
           {/* Performance + Reports — Sales Lead and Admin only */}
           {(role === ROLES.SALES_LEAD_MIDMARKET ||

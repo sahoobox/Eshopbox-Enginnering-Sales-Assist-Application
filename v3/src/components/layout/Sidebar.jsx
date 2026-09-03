@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth, ROLES, ROLE_LABELS } from '../../context/AuthContext'
 import {
   Layers, AlertCircle, Inbox, Building2, CheckSquare, TrendingUp,
-  BarChart3, Users, Settings, Terminal, Plus, LayoutDashboard,
+  BarChart3, Users, Settings, Terminal, Plus, LayoutDashboard, Gauge,
 } from 'lucide-react'
 
 const NAV_ICON = {
@@ -18,6 +18,7 @@ const NAV_ICON = {
   settings: Settings,
   'api-log': Terminal,
   'central-dashboard': LayoutDashboard,
+  'test-dashboard': Gauge,
 }
 
 const NAV_ICON_COLOR = {
@@ -32,6 +33,7 @@ const NAV_ICON_COLOR = {
   settings: 'var(--slate)',
   'api-log': 'var(--rose)',
   'central-dashboard': 'var(--indigo)',
+  'test-dashboard': 'var(--darkgreen)',
 }
 
 // Nav config per role
@@ -153,6 +155,14 @@ export default function Sidebar({ counts = {} }) {
     path: '/central-dashboard',
     section: null,
   })
+  if (['satyanarayan.sahoo@eshopbox.com', 'nitiksha@eshopbox.com'].includes(user?.email)) {
+    navItems.push({
+      id: 'test-dashboard',
+      label: 'Test Dashboard',
+      path: '/test-dashboard',
+      section: null,
+    })
+  }
 
   // Group nav items by section
   const sections = []
