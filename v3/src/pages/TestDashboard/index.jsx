@@ -3,7 +3,7 @@ import { usePageTitle } from '../../hooks/usePageTitle'
 import { Loading } from '../../components/ui'
 
 export default function TestDashboard() {
-  usePageTitle('Test Dashboard')
+  usePageTitle('Performance Dashboard')
   const [loaded, setLoaded] = useState(false)
 
   return (
@@ -16,7 +16,7 @@ export default function TestDashboard() {
       <iframe
         src="https://crmplus.zoho.com/reports/open-view/3119678000006558021"
         style={{ width: '100%', height: '100%', border: 'none', flex: 1 }}
-        title="Test Dashboard"
+        title="Performance Dashboard"
         onLoad={() => setLoaded(true)}
       />
     </div>

@@ -152,7 +152,7 @@ export default function Sidebar({ counts = {} }) {
   if (role === ROLES.ADMIN || ['satyanarayan.sahoo@eshopbox.com', 'nitiksha@eshopbox.com', 'umang.seth@eshopbox.com', 'gautam@eshopbox.com'].includes(user?.email)) {
     navItems.push({
       id: 'test-dashboard',
-      label: 'Test Dashboard',
+      label: 'Performance Dashboard',
       path: '/test-dashboard',
       section: null,
     })
