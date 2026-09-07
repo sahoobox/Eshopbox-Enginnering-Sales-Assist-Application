@@ -50,7 +50,6 @@ function getNavItems(role, counts = {}) {
         count: counts.totalFlags || 0 },
       { id: 'lead-inbox',    label: 'Lead Inbox',    path: '/leads',            section: null,
         count: counts.leads, badge: counts.slaBreaches > 0 ? 'danger' : null },
-      { id: 'accounts',   label: 'Accounts',      path: '/accounts',    section: null },
       { id: 'tasks',      label: 'Tasks',         path: '/tasks',       section: null,
         count: counts.tasksToday },
     )
@@ -65,10 +64,7 @@ function getNavItems(role, counts = {}) {
       { id: 'lead-inbox',     label: 'Lead Inbox',          path: '/leads',          section: null,
         count: counts.leads, badge: counts.slaBreaches > 0 ? 'danger' : null },
       { id: 'bulk-assign',    label: 'Bulk Assign',         path: '/bulk-assign',    section: null },
-      { id: 'accounts',   label: 'Accounts',      path: '/accounts',    section: null },
       { id: 'tasks',      label: 'Tasks',         path: '/tasks',       section: null },
-      { id: 'performance',label: 'Performance',   path: '/performance', section: null },
-      { id: 'reports',    label: 'Reports',       path: '/reports',     section: null },
       { id: 'settings',   label: 'Settings',      path: '/settings',    section: 'Team' },
     )
   }
@@ -82,10 +78,7 @@ function getNavItems(role, counts = {}) {
       { id: 'lead-inbox',     label: 'Lead Inbox',          path: '/leads',          section: null,
         count: counts.leads, badge: counts.slaBreaches > 0 ? 'danger' : null },
       { id: 'bulk-assign',    label: 'Bulk Assign',         path: '/bulk-assign',    section: null },
-      { id: 'accounts',   label: 'Accounts',      path: '/accounts',    section: null },
       { id: 'tasks',      label: 'Tasks',         path: '/tasks',       section: null },
-      { id: 'performance',label: 'Performance',   path: '/performance', section: null },
-      { id: 'reports',    label: 'Reports',       path: '/reports',     section: null },
       { id: 'settings',   label: 'Settings',      path: '/settings',    section: 'Team' },
     )
   }
@@ -98,10 +91,7 @@ function getNavItems(role, counts = {}) {
         count: counts.totalFlags || 0 },
       { id: 'lead-inbox',     label: 'Lead Inbox',     path: '/leads',          section: null,
         count: counts.leads },
-      { id: 'accounts',    label: 'Accounts',      path: '/accounts',    section: null },
       { id: 'tasks',       label: 'Tasks',         path: '/tasks',       section: null },
-      { id: 'performance', label: 'Performance',   path: '/performance', section: null },
-      { id: 'reports',     label: 'Reports',       path: '/reports',     section: null },
       { id: 'bulk-assign', label: 'Bulk Assign',   path: '/bulk-assign', section: 'Admin' },
       { id: 'settings',    label: 'Settings',      path: '/settings',    section: 'Admin' },
     )
@@ -149,13 +139,17 @@ export default function Sidebar({ counts = {} }) {
       badge: apiFailures > 0 ? 'danger' : null,
     })
   }
+  if (user?.email === 'satyanarayan.sahoo@eshopbox.com') {
+    navItems.push({ id: 'accounts', label: 'Accounts', path: '/accounts', section: null })
+    navItems.push({ id: 'reports', label: 'Reports', path: '/reports', section: null })
+  }
   navItems.push({
     id: 'central-dashboard',
     label: 'Central Dashboard',
     path: '/central-dashboard',
     section: null,
   })
-  if (['satyanarayan.sahoo@eshopbox.com', 'nitiksha@eshopbox.com'].includes(user?.email)) {
+  if (role === ROLES.ADMIN || ['satyanarayan.sahoo@eshopbox.com', 'nitiksha@eshopbox.com', 'umang.seth@eshopbox.com', 'gautam@eshopbox.com'].includes(user?.email)) {
     navItems.push({
       id: 'test-dashboard',
       label: 'Test Dashboard',
