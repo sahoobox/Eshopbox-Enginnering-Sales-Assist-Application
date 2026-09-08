@@ -89,8 +89,8 @@ function AppLayout() {
           {/* Central Dashboard — visible to all logged-in users */}
           <Route path="/central-dashboard" element={<CentralDashboard />} />
 
-          {/* Test Dashboard — visible only to satyanarayan.sahoo and nitiksha */}
-          {['satyanarayan.sahoo@eshopbox.com', 'nitiksha@eshopbox.com'].includes(user?.email) && (
+          {/* Performance Dashboard — visible to all admins, plus satyanarayan.sahoo, nitiksha, umang.seth, gautam */}
+          {(role === ROLES.ADMIN || ['satyanarayan.sahoo@eshopbox.com', 'nitiksha@eshopbox.com', 'umang.seth@eshopbox.com', 'gautam@eshopbox.com'].includes(user?.email)) && (
             <Route path="/test-dashboard" element={<TestDashboard />} />
           )}
 
