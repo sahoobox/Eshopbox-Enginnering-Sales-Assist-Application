@@ -316,7 +316,10 @@ export default function LeadInbox() {
   const [stickyWidth, setStickyWidth] = useState(0)
   const [colWidths, setColWidths] = useState([])
 
-  // Simulated fill: eases toward 89% over ~2.2s, then snaps to 100%
+  // Simulated fill: exponential ease-out toward 90%, tuned so it tracks a
+  // ~100s refresh (real /api/leads?refresh=true calls run ~1.7min) — fast at
+  // first (~39% by 20s), slowing hard after that (~85% by 102s), asymptotically
+  // approaching but never reaching 90% if the fetch runs long. Snaps to 100%
   // the instant the real fetch resolves (loading -> false).
   const [refreshPhase, setRefreshPhase] = useState('idle') // 'idle' | 'filling' | 'done'
   const [refreshPct, setRefreshPct] = useState(0)
@@ -340,14 +343,14 @@ export default function LeadInbox() {
   useEffect(() => {
     if (refreshPhase !== 'filling') return
     const start = performance.now()
-    const duration = 2200
-    const target = 89
+    const target = 90
+    const tau = 35 // seconds — time constant of the exponential ease-out
     let raf
     const tick = (now) => {
-      const t = Math.min((now - start) / duration, 1)
-      const eased = 1 - Math.pow(1 - t, 3) // ease-out cubic
-      setRefreshPct(eased * target)
-      if (t < 1) raf = requestAnimationFrame(tick)
+      const elapsedSec = (now - start) / 1000
+      const pct = target * (1 - Math.exp(-elapsedSec / tau))
+      setRefreshPct(Math.min(target, pct))
+      if (pct < target - 0.1) raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
@@ -655,16 +658,21 @@ export default function LeadInbox() {
 
       {refreshPhase !== 'idle' ? (
         <div style={{ padding: '20px 4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <RefreshCw size={14} className="icon-spin" style={{ color: 'var(--ink-3)' }} />
-            <span style={{ fontSize: 13, color: 'var(--ink-2)', fontWeight: 500 }}>Refreshing leads</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <RefreshCw size={14} className="icon-spin" style={{ color: 'var(--ink-3)' }} />
+              <span style={{ fontSize: 13, color: 'var(--ink-2)', fontWeight: 500 }}>Refreshing leads</span>
+            </div>
+            <span style={{ fontSize: 12, color: 'var(--info)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+              {Math.round(refreshPct)}%
+            </span>
           </div>
-          <div style={{ height: 4, borderRadius: 999, background: 'var(--line)', overflow: 'hidden' }}>
+          <div style={{ height: 3, borderRadius: 999, background: 'var(--line)', overflow: 'hidden' }}>
             <div style={{
               height: '100%',
               width: `${refreshPct}%`,
               borderRadius: 999,
-              background: 'var(--brand)',
+              background: 'var(--info)',
               transition: refreshPhase === 'done' ? 'width 250ms ease-out' : 'none',
             }} />
           </div>
