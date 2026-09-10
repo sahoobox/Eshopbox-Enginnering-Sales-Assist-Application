@@ -4,7 +4,7 @@ import { useAuth, ROLES } from '../../context/AuthContext'
 import { useLeads } from '../../hooks/useLeads'
 import { Topbar, ToggleGroup } from '../../components/ui'
 import { SkeletonTable } from '../../components/ui/Skeleton'
-import { Repeat } from 'lucide-react'
+import { Repeat, RefreshCw } from 'lucide-react'
 import { leadStatusStyle, leadSourcePill } from '../../lib/fieldColors'
 import { usePageTitle } from '../../hooks/usePageTitle'
 
@@ -316,6 +316,43 @@ export default function LeadInbox() {
   const [stickyWidth, setStickyWidth] = useState(0)
   const [colWidths, setColWidths] = useState([])
 
+  // Simulated fill: eases toward 89% over ~2.2s, then snaps to 100%
+  // the instant the real fetch resolves (loading -> false).
+  const [refreshPhase, setRefreshPhase] = useState('idle') // 'idle' | 'filling' | 'done'
+  const [refreshPct, setRefreshPct] = useState(0)
+  const prevLoadingRef = useRef(loading)
+
+  useEffect(() => {
+    const wasLoading = prevLoadingRef.current
+    prevLoadingRef.current = loading
+    if (loading && !wasLoading && leads.length > 0) {
+      setRefreshPct(0)
+      setRefreshPhase('filling')
+    } else if (!loading && wasLoading && refreshPhase !== 'idle') {
+      setRefreshPct(100)
+      setRefreshPhase('done')
+      // Hold at 100% briefly so the snap is visible before the table replaces the bar
+      const t = setTimeout(() => setRefreshPhase('idle'), 350)
+      return () => clearTimeout(t)
+    }
+  }, [loading, leads.length])
+
+  useEffect(() => {
+    if (refreshPhase !== 'filling') return
+    const start = performance.now()
+    const duration = 2200
+    const target = 89
+    let raf
+    const tick = (now) => {
+      const t = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3) // ease-out cubic
+      setRefreshPct(eased * target)
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [refreshPhase])
+
   const scopedLeads = useMemo(() => {
     // lead-midmarket/lead-enterprise: GET /api/leads already scopes leads to the
     // caller's role using the live users table (dynamicMDEEmails/dynamicAEEmails),
@@ -500,7 +537,17 @@ export default function LeadInbox() {
       <Topbar
         title="Lead inbox"
         subtitle="Inbound Contact Sales + qualified outbound. Routing by volume tier. Same-day contact required."
-        actions={<button className="btn btn-sm" onClick={refetch}>↻ Refresh</button>}
+        actions={
+          <button
+            className="btn btn-sm"
+            onClick={refetch}
+            disabled={loading}
+            style={loading ? { opacity: 0.7, cursor: 'not-allowed' } : undefined}
+          >
+            <RefreshCw size={13} className={loading ? 'icon-spin' : undefined} />
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        }
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 16 }}>
@@ -606,14 +653,21 @@ export default function LeadInbox() {
         </select>
       </div>
 
-      {loading && leads.length > 0 ? (
-        <div style={{
-          textAlign: 'center',
-          padding: '12px',
-          color: 'var(--ink-3)',
-          fontSize: 12
-        }}>
-          ↻ Refreshing...
+      {refreshPhase !== 'idle' ? (
+        <div style={{ padding: '20px 4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <RefreshCw size={14} className="icon-spin" style={{ color: 'var(--ink-3)' }} />
+            <span style={{ fontSize: 13, color: 'var(--ink-2)', fontWeight: 500 }}>Refreshing leads</span>
+          </div>
+          <div style={{ height: 4, borderRadius: 999, background: 'var(--line)', overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${refreshPct}%`,
+              borderRadius: 999,
+              background: 'var(--brand)',
+              transition: refreshPhase === 'done' ? 'width 250ms ease-out' : 'none',
+            }} />
+          </div>
         </div>
       ) : loading ? (
         <div>
@@ -621,17 +675,7 @@ export default function LeadInbox() {
         </div>
       ) : (
       <div ref={tableRef} className="table-wrap" style={{ overflowX: 'auto' }} onScroll={handleTableScroll}>
-        <table className="t" style={{ minWidth: 1180, tableLayout: 'fixed' }}>
-          <colgroup>
-            <col style={{ width: '90px' }} />
-            <col style={{ width: '150px' }} />
-            <col style={{ width: '180px' }} />
-            <col style={{ width: '120px' }} />
-            <col style={{ width: '140px' }} />
-            <col style={{ width: '120px' }} />
-            <col style={{ width: '120px' }} />
-            <col style={{ width: '100px' }} />
-          </colgroup>
+        <table className="t" style={{ minWidth: 1180 }}>
           <thead ref={theadRef}>
             <tr>
               <th onClick={() => updateParams({ sort: sortOrder === 'desc' ? 'asc' : 'desc' })}
@@ -662,20 +706,20 @@ export default function LeadInbox() {
               const statusStyle = leadStatusStyle(lead.leadStatus)
 
               return (
-                <tr key={lead.id} onClick={() => {
+                <tr key={lead.id} className="clickable" onClick={() => {
                   const qs = searchParams.toString()
                   window.open(`/leads/${lead.id}${qs ? `?from=${encodeURIComponent(qs)}` : ''}`, '_blank')
-                }} style={{ cursor: 'pointer' }}>
-                  <td style={{ whiteSpace: 'nowrap', padding: '14px 16px' }}>
+                }}>
+                  <td style={{ whiteSpace: 'nowrap' }}>
                     <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-1)' }}>{createdDate}</div>
                     <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{createdTime}</div>
                   </td>
-                  <td style={{ overflow: 'hidden', padding: '14px 16px' }}>
+                  <td style={{ overflow: 'hidden' }}>
                     <b style={{ fontSize: 13, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {lead.company || '—'}
                     </b>
                   </td>
-                  <td style={{ overflow: 'hidden', padding: '14px 16px' }}>
+                  <td style={{ overflow: 'hidden' }}>
                     <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {lead.fullName || `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || '—'}
                     </div>
@@ -683,21 +727,21 @@ export default function LeadInbox() {
                       {lead.email}
                     </div>
                   </td>
-                  <td style={{ padding: '14px 16px' }}>
+                  <td>
                     {lead.leadStatus
-                      ? <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20, display: 'inline-block', ...statusStyle }}>{lead.leadStatus}</span>
+                      ? <span className="pill" style={statusStyle}>{lead.leadStatus}</span>
                       : <span style={{ color: 'var(--ink-3)' }}>—</span>
                     }
                   </td>
-                  <td style={{ fontSize: 13, padding: '14px 16px' }}>{lead.orderVolume || '—'}</td>
-                  <td style={{ padding: '14px 16px' }}>
+                  <td style={{ fontSize: 13 }}>{lead.orderVolume || '—'}</td>
+                  <td>
                     {lead.leadSource
                       ? <span className={`pill ${leadSourcePill(lead.leadSource)}`}>{lead.leadSource}</span>
                       : <span style={{ color: 'var(--ink-3)' }}>—</span>
                     }
                   </td>
-                  <td style={{ fontSize: 13, padding: '14px 16px' }}>{lead.ownerName || '—'}</td>
-                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap', padding: '14px 12px' }}>
+                  <td style={{ fontSize: 13 }}>{lead.ownerName || '—'}</td>
+                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                     {lead.converted ? (
                       <span style={{ fontSize: 11, color: '#2F9E44', fontWeight: 600 }}>✓ Converted</span>
                     ) : (
@@ -746,7 +790,7 @@ export default function LeadInbox() {
                     width: colWidths[i],
                     padding: '9px 12px',
                     fontSize: 11,
-                    fontWeight: 500,
+                    fontWeight: 600,
                     color: 'var(--ink-3)',
                     textAlign: 'left',
                     textTransform: 'uppercase',

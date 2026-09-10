@@ -770,6 +770,8 @@ label,
   margin-right: 10px;
 }
 
+.icon-spin { animation: spin 0.9s linear infinite; }
+
 .skeleton {
   background: var(--line);
   border-radius: var(--radius-sm);
