@@ -117,11 +117,22 @@ export default function ApiLog() {
         {['zoho', 'claude', 'gmail'].map(svc => {
           const s = summary.find(x => x.service === svc)
           const failures = s?.failures || 0
+          const isActive = service === svc
           return (
-            <div key={svc} className="card card-pad" style={{
-              flex: 1,
-              borderLeft: `3px solid ${serviceColor(svc)}`
-            }}>
+            <div
+              key={svc}
+              className="card card-pad clickable"
+              onClick={() => setService(isActive ? 'all' : svc)}
+              style={{
+                flex: 1,
+                cursor: 'pointer',
+                borderLeft: `3px solid ${serviceColor(svc)}`,
+                background: isActive ? 'var(--surface-2)' : undefined,
+                boxShadow: isActive
+                  ? `0 0 0 1px ${serviceColor(svc)}, var(--shadow-1)`
+                  : undefined
+              }}
+            >
               <div style={{
                 fontSize: 11,
                 fontWeight: 700,
@@ -226,7 +237,7 @@ export default function ApiLog() {
           <div className="spinner" />
         </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div className="table-wrap" style={{ width: '100%', overflowX: 'auto' }}>
           <table className="t" style={{ width: '100%' }}>
             <thead>
               <tr>
@@ -273,9 +284,6 @@ export default function ApiLog() {
                   </td>
                   <td style={{
                     fontSize: 12,
-                    maxWidth: 200,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap'
                   }}>
                     {log.request_summary || log.endpoint}
@@ -321,9 +329,6 @@ export default function ApiLog() {
                   <td style={{
                     fontSize: 11,
                     color: 'var(--danger)',
-                    maxWidth: 200,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap'
                   }}>
                     {log.error_message || '—'}
