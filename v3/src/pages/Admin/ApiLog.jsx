@@ -74,14 +74,21 @@ export default function ApiLog() {
   if (user?.email !== SATYA_EMAIL) return null
 
   return (
-    <div style={{ padding: '24px 32px' }}>
+    <div style={{
+      padding: '24px 32px',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
 
       {/* Header */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 24
+        marginBottom: 24,
+        flexShrink: 0
       }}>
         <div>
           <h1 style={{
@@ -112,7 +119,8 @@ export default function ApiLog() {
       <div style={{
         display: 'flex',
         gap: 16,
-        marginBottom: 24
+        marginBottom: 24,
+        flexShrink: 0
       }}>
         {['zoho', 'claude', 'gmail'].map(svc => {
           const s = summary.find(x => x.service === svc)
@@ -193,7 +201,8 @@ export default function ApiLog() {
         display: 'flex',
         gap: 12,
         marginBottom: 16,
-        alignItems: 'center'
+        alignItems: 'center',
+        flexShrink: 0
       }}>
         <select
           className="form-select"
@@ -227,9 +236,25 @@ export default function ApiLog() {
         </span>
       </div>
 
-      {/* Table */}
+      {/* Table — fixed-height, independently-scrollable area.
+          Root above is now a flex column with a bounded height (height:'100%' —
+          same trick .main/NeedAttention use); header/cards/filters are
+          flexShrink:0 so they keep their natural size and stay pinned. This div
+          is the single flex:1 child, so it absorbs all remaining vertical space;
+          minHeight:0 lets it actually shrink below its content height instead of
+          pushing the root taller (the classic flex-scroll-container gotcha).
+          overflowX + overflowY: auto give it its own scrollbar on both axes,
+          independent of the page-level .main scroll. thead gets `t-thead-sticky`
+          (index.css) so column headers stay pinned to the top of THIS container
+          as rows scroll underneath. Reuse this shape — flex-column root +
+          flexShrink:0 chrome + one flex:1/minHeight:0/overflow:auto child +
+          .t-thead-sticky — on any other page that wants a genuinely contained
+          scrolling table instead of NeedAttention's "whole content area scrolls"
+          or Pipeline's JS-measured fake sticky header. */}
       {loading ? (
         <div style={{
+          flex: 1,
+          minHeight: 0,
           display: 'flex',
           justifyContent: 'center',
           padding: 48
@@ -237,9 +262,15 @@ export default function ApiLog() {
           <div className="spinner" />
         </div>
       ) : (
-        <div className="table-wrap" style={{ width: '100%', overflowX: 'auto' }}>
+        <div className="table-wrap" style={{
+          width: '100%',
+          flex: 1,
+          minHeight: 0,
+          overflowX: 'auto',
+          overflowY: 'auto'
+        }}>
           <table className="t" style={{ width: '100%' }}>
-            <thead>
+            <thead className="t-thead-sticky">
               <tr>
                 <th>Time</th>
                 <th>Service</th>

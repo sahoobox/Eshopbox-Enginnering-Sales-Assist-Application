@@ -533,6 +533,17 @@ table.t td {
 table.t tr:last-child td { border-bottom: none; }
 table.t tr:hover td { background: #faf9f7; }
 
+/* Sticky thead for a flex:1 + overflow:auto scroll container (see ApiLog.jsx) —
+   pins column headers to the top of that container as rows scroll underneath,
+   instead of the whole page scrolling (.main) or a JS-measured fake sticky
+   header (Pipeline's list view). Requires table.t th's own background
+   (already set above) so scrolled rows don't show through underneath it. */
+.t-thead-sticky th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
 /* ── Queue items ── */
 .queue { display: flex; flex-direction: column; }
 .q-item {
