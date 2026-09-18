@@ -426,6 +426,7 @@ export default function NeedAttention() {
         repName: deal.repName,
         stage: deal.stage,
         pipeline: deal.pipeline,
+        dealType: deal.dealType,
         daysInStage: flag.daysCount ?? 0,
         daysTooltip: DAYS_TOOLTIPS[flagId] || 'Days since deal entered current stage',
       })
@@ -598,7 +599,7 @@ export default function NeedAttention() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr>
-                  {['FLAG', 'BRAND', 'REP', 'PIPELINE', 'STAGE', 'DAYS', 'RESOLVE'].map(h => (
+                  {['FLAG', 'BRAND', 'REP', 'PIPELINE', 'DEAL TYPE', 'STAGE', 'DAYS', 'RESOLVE'].map(h => (
                     <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', borderBottom: '1px solid var(--line)', whiteSpace: 'nowrap', background: 'var(--surface)' }}>{h}</th>
                   ))}
                 </tr>
@@ -606,7 +607,7 @@ export default function NeedAttention() {
               <tbody>
                 {filteredFlags.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ padding: 40, textAlign: 'center', color: 'var(--ink-3)' }}>
+                    <td colSpan={8} style={{ padding: 40, textAlign: 'center', color: 'var(--ink-3)' }}>
                       No attention flags found
                     </td>
                   </tr>
@@ -633,6 +634,9 @@ export default function NeedAttention() {
                       <span className={`pill ${pipelinePillClass(f.pipeline)}`} style={{ fontSize: 11 }}>
                         {pipelineLabel(f.pipeline)}
                       </span>
+                    </td>
+                    <td style={{ padding: '10px 12px', color: 'var(--ink-2)', fontSize: 12 }}>
+                      {f.dealType || <span style={{ color: 'var(--ink-3)' }}>—</span>}
                     </td>
                     <td style={{ padding: '10px 12px', color: 'var(--ink-2)', fontSize: 12 }}>
                       {f.stage}
