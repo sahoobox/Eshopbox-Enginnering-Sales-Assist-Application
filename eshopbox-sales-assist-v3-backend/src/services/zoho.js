@@ -76,7 +76,7 @@ const DEAL_FIELDS = [
   'Account_Name', 'How_many_orders_do_you_ship_in_a_month',
   'SA_Pain_Points', 'SA_Solution_Interest', 'SA_Brand_Type',
   'SA_Logged', 'Demo_Date', 'SA_Followup_Meeting_Date',
-  'SA_Pricing_Raised', 'SA_F2F_Count', 'Lost_Reason',
+  'SA_Pricing_Raised', 'SA_F2F_Count', 'Lost_Reason', 'Lost_Reason_Brief',
   'Contact_Name', 'Amount', 'On_Hold_Reason', 'Pipeline', 'Lead_Source',
   'City', 'How_can_Eshopbox_support_your_business', 'What_type_of_products_do_you_sell',
   'Demo_Scheduled', 'Demo_Scheduled_Date_Time', 'Conversion_Medium',

@@ -18,6 +18,26 @@ function EmptyZohoBadge() {
   return <span className="pill pill-slate" style={{ fontSize: 10 }}>Not set in Zoho</span>
 }
 
+const LOST_REASON_OTHERS = 'Others (Mandatory Notes Required)'
+
+const LOST_REASON_OPTIONS = [
+  'B2B Dealings only',
+  'Business model Misaligned',
+  'Chose competitor',
+  "Could not connect/Couldn't reach decision maker",
+  'Duplicate opportunity',
+  'Duplicate or Existing account',
+  'Franchise Requirement',
+  'No business/requirement',
+  'Not shipping yet / too early',
+  LOST_REASON_OTHERS,
+  'Out of serviceable region',
+  'Pricing — too expensive',
+  'Project cancelled',
+  'Renewed with existing vendor',
+  'Timeline misalignment',
+]
+
 export default function DealDetail({ dealId }) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -32,6 +52,7 @@ export default function DealDetail({ dealId }) {
   const [showMarkOnHold, setShowMarkOnHold] = useState(false)
   const [showReassign, setShowReassign] = useState(false)
   const [showDemoScheduled, setShowDemoScheduled] = useState(false)
+  const [showLostReason, setShowLostReason] = useState(false)
   const [movingStage, setMovingStage] = useState(null)
   const [stageDropdown, setStageDropdown] = useState(false)
   const [forceStageDropdown, setForceStageDropdown] = useState(false)
@@ -563,11 +584,30 @@ export default function DealDetail({ dealId }) {
                     : '— Set date'}
                 </span>
               </div>
+              {/* Lost reason row — clickable, only shown when deal is Lost/Dropped */}
+              {deal.stage === 'Lost/Dropped' && (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '6px 0',
+                  borderBottom: '1px solid var(--line)',
+                  cursor: 'pointer'
+                }}
+                  onClick={() => setShowLostReason(true)}
+                >
+                  <span style={{ color: 'var(--ink-3)', fontSize: 13 }}>
+                    Lost reason
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 500 }}>
+                    {deal.lostReason || <EmptyZohoBadge />}
+                  </span>
+                </div>
+              )}
               {[
                 { k: 'Follow-up mtg', v: formatDate(deal.followupMeetingDate) },
                 { k: 'Days in stage', v: daysAgo(deal.stageChangedOn) != null ? `${daysAgo(deal.stageChangedOn)}d` : '—' },
                 { k: 'Demo logged', v: deal.saLogged ? <span className="pill pill-ok">✓ Yes</span> : <span className="pill pill-neutral">No</span> },
-                ...(deal.stage === 'Lost/Dropped' ? [{ k: 'Lost reason', v: deal.lostReason || <EmptyZohoBadge /> }] : []),
                 ...(deal.stage === 'On Hold' ? [{ k: 'On Hold reason', v: deal.onHoldReason || <EmptyZohoBadge /> }] : []),
               ].map(row => (
                 <div key={row.k} className="ws-side-row">
@@ -582,6 +622,16 @@ export default function DealDetail({ dealId }) {
       {showF2FForm && <F2FModal deal={deal} onClose={() => setShowF2FForm(false)} />}
       {showMarkLost && <MarkLostModal deal={deal} onClose={() => setShowMarkLost(false)} onSuccess={() => { setShowMarkLost(false); window.location.reload() }} />}
       {showMarkOnHold && <MarkOnHoldModal deal={deal} onClose={() => setShowMarkOnHold(false)} onSuccess={() => { setShowMarkOnHold(false); window.location.reload() }} />}
+      {showLostReason && (
+        <LostReasonModal
+          deal={deal}
+          onClose={() => setShowLostReason(false)}
+          onSuccess={() => {
+            setShowLostReason(false)
+            refetchDeal()
+          }}
+        />
+      )}
       {showReassign && <ReassignDealModal deal={deal} onClose={() => setShowReassign(false)} onSuccess={() => { setShowReassign(false); refetchDeal() }} />}
       {showDemoScheduled && (
         <DemoScheduledModal
@@ -2694,21 +2744,9 @@ function MarkLostModal({ deal, onClose, onSuccess }) {
             <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>Loss Reason *</label>
             <select value={reason} onChange={e => setReason(e.target.value)} className="input" style={{ width: '100%' }}>
               <option value="">Select a reason...</option>
-              <option value="B2B Dealings only">B2B Dealings only</option>
-              <option value="Business model Misaligned">Business model Misaligned</option>
-              <option value="Chose competitor">Chose competitor</option>
-              <option value="Could not connect/Couldn't reach decision maker">Could not connect/Couldn't reach decision maker</option>
-              <option value="Duplicate opportunity">Duplicate opportunity</option>
-              <option value="Duplicate or Existing account">Duplicate or Existing account</option>
-              <option value="Franchise Requirement">Franchise Requirement</option>
-              <option value="No business/requirement">No business/requirement</option>
-              <option value="Not shipping yet / too early">Not shipping yet / too early</option>
-              <option value="Others (Mandatory Notes Required)">Others (Mandatory Notes Required)</option>
-              <option value="Out of serviceable region">Out of serviceable region</option>
-              <option value="Pricing — too expensive">Pricing — too expensive</option>
-              <option value="Project cancelled">Project cancelled</option>
-              <option value="Renewed with existing vendor">Renewed with existing vendor</option>
-              <option value="Timeline misalignment">Timeline misalignment</option>
+              {LOST_REASON_OPTIONS.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -2716,6 +2754,82 @@ function MarkLostModal({ deal, onClose, onSuccess }) {
           <button className="btn" onClick={onClose}>Cancel</button>
           <button className="btn btn-danger" onClick={submit} disabled={saving || !reason}>
             {saving ? 'Saving…' : 'Mark Lost'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LostReasonModal({ deal, onClose, onSuccess }) {
+  const { authFetch } = useAuth()
+  const [reason, setReason] = useState(deal.lostReason || '')
+  const [brief, setBrief] = useState(deal.lostReason === LOST_REASON_OTHERS ? (deal.lostReasonBrief || '') : '')
+  const [saving, setSaving] = useState(false)
+
+  const isOthers = reason === LOST_REASON_OTHERS
+
+  function handleReasonChange(value) {
+    setReason(value)
+    if (value !== LOST_REASON_OTHERS) setBrief('')
+  }
+
+  async function submit() {
+    if (!reason.trim()) return toast.warn('Please select a reason')
+    if (isOthers && !brief.trim()) return toast.warn('Please enter a brief reason')
+    setSaving(true)
+    try {
+      const res = await authFetch(`/api/deals/${deal.id}/stage`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          stage: 'Lost/Dropped',
+          reason,
+          reasonBrief: isOthers ? brief.trim() : '',
+        })
+      })
+      const data = await res.json()
+      if (data.success) { toast.success('Lost reason updated'); onSuccess() }
+      else toast.error(data.error || 'Failed to update lost reason')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-head"><h3>Edit Lost Reason</h3><button className="btn-close" onClick={onClose}>✕</button></div>
+        <div className="modal-body">
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>Loss Reason *</label>
+            <select value={reason} onChange={e => handleReasonChange(e.target.value)} className="input" style={{ width: '100%' }}>
+              <option value="">Select a reason...</option>
+              {LOST_REASON_OPTIONS.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+          </div>
+          {isOthers && (
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6 }}>Lost Reason Brief *</label>
+              <input
+                value={brief}
+                onChange={e => setBrief(e.target.value.slice(0, 100))}
+                maxLength={100}
+                className="input"
+                style={{ width: '100%' }}
+                placeholder="Briefly explain why (max 100 characters)"
+              />
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4, textAlign: 'right' }}>
+                {brief.length}/100
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="modal-foot">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={submit} disabled={saving || !reason || (isOthers && !brief.trim())}>
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
       </div>

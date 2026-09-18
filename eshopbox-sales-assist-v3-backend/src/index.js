@@ -400,6 +400,7 @@ score: (() => {
     contactName: d.Contact_Name?.name || d.Contact_Name || '',
     accountName: d.Account_Name?.name || d.Account_Name || '',
     lostReason: d.Lost_Reason || '',
+    lostReasonBrief: d.Lost_Reason_Brief || '',
     onHoldReason: d.Reason_For_On_Hold || d.On_Hold_Reason || '',
     onHoldFollowUpDate: d.On_Hold_Next_Follow_up_Date || '',
     city: d.City || '',
@@ -2028,7 +2029,7 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id')
     const user = c.get('user')
-    const { stage, reason, followUpDate } = await c.req.json()
+    const { stage, reason, reasonBrief, followUpDate } = await c.req.json()
 
     if (stage === 'On Hold') {
       if (!reason?.trim()) {
@@ -2039,8 +2040,17 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
       }
     }
 
+    const currentDealRes = await getDeal(c.env, dealId)
+    const currentDealData = currentDealRes?.data?.[0]
+    const currentStage = currentDealData?.Stage
+    const isActualTransition = stage !== currentStage
+    const isLostReasonEditOnly = !isActualTransition && stage === 'Lost/Dropped'
+
     const payload = { Stage: stage }
-    if (stage === 'Lost/Dropped') payload.Lost_Reason = reason
+    if (stage === 'Lost/Dropped') {
+      payload.Lost_Reason = reason
+      payload.Lost_Reason_Brief = reasonBrief || ''
+    }
     if (stage === 'On Hold') {
       payload.Reason_For_On_Hold = reason
       payload.On_Hold_Next_Follow_up_Date = followUpDate
@@ -2061,22 +2071,34 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
       durationMs: Date.now() - stageT0
     })
     await c.env.TOKEN_CACHE.delete('v3_deals_cache')
-    await logTimelineEvent(c.env, dealId, {
-      eventType: 'stage_changed',
-      description: `Stage moved to ${stage}`,
-      actorName: user.name,
-      actorEmail: user.email,
-      metadata: { to: stage, reason }
-    })
-    if (stage === 'Lost/Dropped') {
+
+    if (isActualTransition) {
       await logTimelineEvent(c.env, dealId, {
-        eventType: 'mark_lost',
-        description: `Deal marked as Lost — ${reason || 'No reason'}`,
+        eventType: 'stage_changed',
+        description: `Stage moved to ${stage}`,
         actorName: user.name,
         actorEmail: user.email,
-        metadata: { reason }
+        metadata: { to: stage, reason }
+      })
+      if (stage === 'Lost/Dropped') {
+        await logTimelineEvent(c.env, dealId, {
+          eventType: 'mark_lost',
+          description: `Deal marked as Lost — ${reason || 'No reason'}`,
+          actorName: user.name,
+          actorEmail: user.email,
+          metadata: { reason, reasonBrief: reasonBrief || null }
+        })
+      }
+    } else if (isLostReasonEditOnly) {
+      await logTimelineEvent(c.env, dealId, {
+        eventType: 'lost_reason_updated',
+        description: `Lost reason updated — ${reason || 'No reason'}`,
+        actorName: user.name,
+        actorEmail: user.email,
+        metadata: { reason, reasonBrief: reasonBrief || null }
       })
     }
+
     if (stage === 'On Hold') {
       await logTimelineEvent(c.env, dealId, {
         eventType: 'mark_on_hold',
@@ -2095,8 +2117,7 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
       `).bind(dealId, followUpDate, reason.trim(), new Date().toISOString()).run()
 
       try {
-        const onHoldDealRes = await getDeal(c.env, dealId)
-        const onHoldDealData = onHoldDealRes?.data?.[0]
+        const onHoldDealData = currentDealData
         const taskT0 = Date.now()
         const taskResult = await createTask(c.env, dealId, {
           Subject: `Follow up on On Hold deal: ${onHoldDealData?.Deal_Name || dealId}`,
@@ -2142,8 +2163,8 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
       dealId,
       actorEmail: user.email,
       actorName: user.name,
-      action: 'stage_changed',
-      details: { stage, reason },
+      action: isLostReasonEditOnly ? 'lost_reason_updated' : 'stage_changed',
+      details: { stage, reason, reasonBrief: reasonBrief || null },
       success: true
     })
     return c.json({ success: true })
