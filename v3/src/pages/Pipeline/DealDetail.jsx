@@ -38,6 +38,8 @@ const LOST_REASON_OPTIONS = [
   'Timeline misalignment',
 ]
 
+const MEETING_OUTCOME_OPTIONS = ['Meeting Cancelled', 'Meeting No Show', 'Meeting Rescheduled']
+
 export default function DealDetail({ dealId }) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -57,6 +59,8 @@ export default function DealDetail({ dealId }) {
   const [stageDropdown, setStageDropdown] = useState(false)
   const [forceStageDropdown, setForceStageDropdown] = useState(false)
   const [forcingStage, setForcingStage] = useState(null)
+  const [meetingOutcomeDropdown, setMeetingOutcomeDropdown] = useState(false)
+  const [savingMeetingOutcome, setSavingMeetingOutcome] = useState(false)
 
   useEffect(() => {
     if (!stageDropdown) return
@@ -75,6 +79,15 @@ export default function DealDetail({ dealId }) {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [forceStageDropdown])
+
+  useEffect(() => {
+    if (!meetingOutcomeDropdown) return
+    const handler = (e) => {
+      if (!e.target.closest('[data-meeting-outcome-dropdown]')) setMeetingOutcomeDropdown(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [meetingOutcomeDropdown])
 
   if (loading) return (
     <div className="main" style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 16 }}>
@@ -158,6 +171,25 @@ export default function DealDetail({ dealId }) {
     }
   }
 
+  const setMeetingOutcome = async (value) => {
+    if (value === (deal.meetingOutcome || '') || savingMeetingOutcome) return
+    setMeetingOutcomeDropdown(false)
+    setSavingMeetingOutcome(true)
+    try {
+      const res = await authFetch(`/api/deals/${deal.id}/meeting-outcome`, {
+        method: 'PATCH',
+        body: JSON.stringify({ meetingOutcome: value })
+      })
+      const data = await res.json()
+      if (data.success) { toast.success('Meeting outcome updated'); refetchDeal() }
+      else toast.error(data.error || 'Failed to update meeting outcome')
+    } catch {
+      toast.error('Network error. Try again.')
+    } finally {
+      setSavingMeetingOutcome(false)
+    }
+  }
+
   return (
     <div className="main">
       {/* Back */}
@@ -192,6 +224,60 @@ export default function DealDetail({ dealId }) {
           </span>
         )}
         <div className="hdr-meta">
+          <div data-meeting-outcome-dropdown style={{ position: 'relative' }}>
+            <button
+              className="btn btn-sm"
+              onClick={() => setMeetingOutcomeDropdown(v => !v)}
+              disabled={savingMeetingOutcome}
+            >
+              {savingMeetingOutcome
+                ? 'Saving…'
+                : deal.meetingOutcome
+                  ? `Meeting Outcome: ${deal.meetingOutcome} ▾`
+                  : 'Meeting Outcome ▾'}
+            </button>
+            {meetingOutcomeDropdown && (
+              <div style={{
+                position: 'absolute', top: '100%', right: 0, zIndex: 200,
+                background: 'var(--surface)', border: '1px solid var(--line-2)',
+                borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-2)',
+                marginTop: 4, minWidth: 200, overflow: 'hidden'
+              }}>
+                {MEETING_OUTCOME_OPTIONS.map(opt => (
+                  <button key={opt}
+                    onClick={() => setMeetingOutcome(opt)}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left',
+                      padding: '10px 14px', border: 'none', background: 'none',
+                      fontSize: 13, cursor: 'pointer', color: 'var(--ink)',
+                      fontFamily: 'inherit', fontWeight: deal.meetingOutcome === opt ? 600 : 400
+                    }}
+                    onMouseEnter={e => e.target.style.background = 'var(--surface-2)'}
+                    onMouseLeave={e => e.target.style.background = 'none'}
+                  >
+                    {opt}
+                  </button>
+                ))}
+                {deal.meetingOutcome && (
+                  <div style={{ borderTop: '1px solid var(--line)', padding: '4px 0' }}>
+                    <button
+                      onClick={() => setMeetingOutcome('')}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left',
+                        padding: '10px 14px', border: 'none', background: 'none',
+                        fontSize: 13, cursor: 'pointer', color: 'var(--ink-3)',
+                        fontFamily: 'inherit'
+                      }}
+                      onMouseEnter={e => e.target.style.background = 'var(--surface-2)'}
+                      onMouseLeave={e => e.target.style.background = 'none'}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           {!isTerminal && (
             <>
               {!deal.saLogged && (
@@ -514,10 +600,6 @@ export default function DealDetail({ dealId }) {
               <div className="ws-side-row">
                 <span className="k">Product Type</span>
                 <span className="v">{deal.productType || <EmptyZohoBadge />}</span>
-              </div>
-              <div className="ws-side-row">
-                <span className="k">Meeting Outcome</span>
-                <span className="v">{deal.meetingOutcome || <EmptyZohoBadge />}</span>
               </div>
               <div className="ws-side-row">
                 <span className="k">Shipping Setup</span>

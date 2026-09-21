@@ -2173,6 +2173,53 @@ app.patch('/api/deals/:id/stage', requireAuth, async (c) => {
   }
 })
 
+const MEETING_OUTCOME_OPTIONS = ['Meeting Cancelled', 'Meeting No Show', 'Meeting Rescheduled']
+
+app.patch('/api/deals/:id/meeting-outcome', requireAuth, async (c) => {
+  try {
+    const dealId = c.req.param('id')
+    const user = c.get('user')
+    const { meetingOutcome } = await c.req.json()
+
+    if (meetingOutcome && !MEETING_OUTCOME_OPTIONS.includes(meetingOutcome)) {
+      return c.json({ error: 'Invalid meeting outcome' }, 400)
+    }
+
+    const t0 = Date.now()
+    const result = await updateDeal(c.env, dealId, { Meeting_Outcome: meetingOutcome || null })
+    const zohoResult = checkZohoResponse(result)
+    await logApiCall(c.env, {
+      service: 'zoho',
+      endpoint: `/Deals/${dealId}`,
+      method: 'PATCH',
+      dealId,
+      actorEmail: user.email,
+      actorName: user.name,
+      requestSummary: `Update Meeting Outcome to ${meetingOutcome || '(cleared)'}`,
+      success: zohoResult.success,
+      errorMessage: zohoResult.success ? null : `${zohoResult.code}: ${zohoResult.message}`,
+      durationMs: Date.now() - t0
+    })
+    await c.env.TOKEN_CACHE.delete('v3_deals_cache')
+
+    if (!zohoResult.success) {
+      return c.json({ error: zohoResult.message || 'Failed to update meeting outcome' }, 500)
+    }
+
+    await logTimelineEvent(c.env, dealId, {
+      eventType: 'meeting_outcome_updated',
+      description: `Meeting outcome updated to ${meetingOutcome || 'cleared'}`,
+      actorName: user.name,
+      actorEmail: user.email,
+      metadata: { meetingOutcome }
+    })
+
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: err.message }, 500)
+  }
+})
+
 app.post('/api/deals/:id/stage', requireAuth, async (c) => {
   try {
     const dealId = c.req.param('id')
