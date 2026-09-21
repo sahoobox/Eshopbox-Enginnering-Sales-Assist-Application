@@ -24,6 +24,10 @@ export function useLeads() {
       const url = forceRefresh ? '/api/leads?refresh=true' : '/api/leads'
       const res = await authFetch(url, { signal })
       const data = await res.json()
+      if (data.error) {
+        if (!silent) setError(data.details || data.error)
+        return
+      }
       const freshLeads = data.leads || []
       leadsCache = freshLeads
       leadsCacheTime = Date.now()

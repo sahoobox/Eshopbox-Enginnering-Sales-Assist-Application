@@ -14,6 +14,10 @@ export function useDeals() {
       const url = forceRefresh ? '/api/deals?refresh=true' : '/api/deals'
       const res = await authFetch(url)
       const data = await res.json()
+      if (data.error) {
+        setError(data.details || data.error)
+        return
+      }
       setDeals(data.deals || [])
     } catch (err) {
       setError(err.message)

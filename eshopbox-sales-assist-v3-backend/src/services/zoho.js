@@ -101,7 +101,7 @@ export async function getDeals(env) {
   const deals = []
   let page = 1
   const token = await getAccessToken(env)
-  while (page <= 200) {
+  while (page <= 25) {
     const res = await fetch(
       `https://www.zohoapis.com/crm/v2.1/Deals?fields=${DEAL_FIELDS}&per_page=200&page=${page}&sort_by=Modified_Time&sort_order=desc`,
       { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
@@ -115,6 +115,10 @@ export async function getDeals(env) {
     deals.push(...filtered)
     if (!res.info?.more_records) break
     page++
+    if (page > 25) {
+      console.error('getDeals: safety cap hit at 25 pages')
+      break
+    }
   }
 
   await env.TOKEN_CACHE.put('v3_deals_cache', JSON.stringify(deals), { expirationTtl: 7200 })
@@ -125,7 +129,7 @@ export async function getAllDeals(env) {
   const deals = []
   let page = 1
   const token = await getAccessToken(env)
-  while (true) {
+  while (page <= 25) {
     const res = await fetch(
       `https://www.zohoapis.com/crm/v2.1/Deals?fields=${DEAL_FIELDS}&per_page=200&page=${page}&sort_by=Modified_Time&sort_order=desc`,
       { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
@@ -139,6 +143,10 @@ export async function getAllDeals(env) {
     deals.push(...filtered)
     if (!res.info?.more_records) break
     page++
+    if (page > 25) {
+      console.error('getAllDeals: safety cap hit at 25 pages')
+      break
+    }
   }
 
   await env.TOKEN_CACHE.put('v3_deals_cache', JSON.stringify(deals), { expirationTtl: 7200 })
