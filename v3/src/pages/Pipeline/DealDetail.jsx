@@ -21,13 +21,15 @@ function EmptyZohoBadge() {
 const LOST_REASON_OTHERS = 'Others (Mandatory Notes Required)'
 
 const LOST_REASON_OPTIONS = [
-  'B2B Dealings only',
-  'Business model Misaligned',
+  '-None-',
+  'B2B Shipping Only',
   'Chose competitor',
-  "Could not connect/Couldn't reach decision maker",
-  'Duplicate opportunity',
   'Duplicate or Existing account',
   'Franchise Requirement',
+  'high RTO rate',
+  'Invalid/wrong contact details',
+  'lower order volume/ Not as per ICP',
+  'Meeting no-show',
   'No business/requirement',
   'Not shipping yet / too early',
   LOST_REASON_OTHERS,
@@ -36,6 +38,7 @@ const LOST_REASON_OPTIONS = [
   'Project cancelled',
   'Renewed with existing vendor',
   'Timeline misalignment',
+  'Unresponsive after follow-up attempts',
 ]
 
 const MEETING_OUTCOME_OPTIONS = ['Meeting Cancelled', 'Meeting No Show', 'Meeting Rescheduled']
