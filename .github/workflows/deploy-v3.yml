@@ -33,10 +33,9 @@ jobs:
           VITE_API_BASE: ${{ secrets.V3_API_BASE }}
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: eshopbox-sales-assist-v3
-          directory: v3/dist
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy v3/dist --project-name=eshopbox-sales-assist-v3 --branch=main
