@@ -387,15 +387,15 @@ export async function getAllLeads(env) {
   let allLeads = []
   let page = 1
 
-  while (true) {
+  while (page <= 25) {
     const res = await zohoAPI(env, 'GET',
       `/Leads/search?criteria=${criteria}&fields=${LEAD_FIELDS}&per_page=200&page=${page}`)
     if (!res?.data?.length) break
     allLeads = allLeads.concat(res.data)
     if (!res.info?.more_records) break
     page++
-    if (page > 500) {
-      console.error('getAllLeads: safety cap hit at 500 pages')
+    if (page > 25) {
+      console.error('getAllLeads: safety cap hit at 25 pages')
       break
     }
   }
