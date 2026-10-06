@@ -230,7 +230,18 @@ async function hashPassword(password) {
   return JSON.stringify({ salt: Array.from(salt), hash: Array.from(new Uint8Array(bits)) });
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function generateInviteEmailHTML(inviteLink, inviterName, role) {
+  inviterName = escapeHtml(inviterName);
+  role = escapeHtml(role);
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><style>
@@ -543,7 +554,19 @@ app.post('/auth/invite', requireAuth, async (c) => {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     await createInvite(c.env.DB, { id: crypto.randomUUID(), email, role: assignedRole, invited_by: user.email, token, expires_at: expiresAt });
     const inviteLink = `${c.env.FRONTEND_URL}/accept-invite?token=${token}`;
-    return c.json({ success: true, inviteLink });
+    let emailSent = false;
+    try {
+      const inviterName = user.name || user.email;
+      emailSent = await sendZeptoMailEmail(c.env, {
+        to: email,
+        subject: "You've been invited to Eshopbox Sales Assist",
+        htmlBody: generateInviteEmailHTML(inviteLink, inviterName, assignedRole),
+        textBody: `${inviterName} invited you to Eshopbox Sales Assist. Set up your account here (expires in 7 days): ${inviteLink}`,
+      });
+    } catch {
+      console.error('Invite email send failed');
+    }
+    return c.json({ success: true, inviteLink, emailSent });
   } catch (err) {
     return c.json({ error: 'Failed to create invite', details: err.message }, 500);
   }
@@ -579,10 +602,24 @@ app.post('/auth/invites/:id/resend', requireAuth, async (c) => {
   // Generate new invite link
   const inviteLink = `${c.env.FRONTEND_URL}/accept-invite?token=${invite.token}`
 
+  let emailSent = false
+  try {
+    const inviterName = user.name || user.email
+    emailSent = await sendZeptoMailEmail(c.env, {
+      to: invite.email,
+      subject: 'Reminder: your Eshopbox Sales Assist invite',
+      htmlBody: generateInviteEmailHTML(inviteLink, inviterName, invite.role),
+      textBody: `${inviterName} invited you to Eshopbox Sales Assist. Set up your account here (expires in 7 days): ${inviteLink}`,
+    })
+  } catch {
+    console.error('Invite resend email failed')
+  }
+
   return c.json({
     success: true,
     inviteLink,
-    expiresAt: newExpiry
+    expiresAt: newExpiry,
+    emailSent
   })
 })
 
