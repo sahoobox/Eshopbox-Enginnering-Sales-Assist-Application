@@ -10,6 +10,7 @@ import getAttentionFlags, { getAttentionLevel, RULE_META } from './services/atte
 import { logTimelineEvent } from './services/timeline.js';
 import { logLeadTimelineEvent } from './services/leadTimeline.js';
 import { sendGmailEmail, sendGmailEmailWithToken, createGmailDraft, checkDraftSent, getRealMessageId } from './services/gmail.js';
+import { sendZeptoMailEmail } from './services/zeptomail.js';
 
 // Patches specific lead(s) in-place inside the v3_leads_cache KV entry instead of
 // invalidating the whole cache. Falls back to a full delete if the cache is malformed.
@@ -862,11 +863,8 @@ app.post('/auth/forgot-password', async (c) => {
       'INSERT INTO password_reset_otps (id, email, otp, expires_at) VALUES (?, ?, ?, ?)'
     ).bind(crypto.randomUUID(), email, otp, Date.now() + 10 * 60 * 1000).run();
     try {
-      const accessToken = await getSenderAccessToken(c.env);
-      await sendGmailEmailWithToken(accessToken, {
-        fromEmail: 'nitiksha@eshopbox.com',
-        fromName: 'Eshopbox Sales Assist',
-        toEmail: email,
+      await sendZeptoMailEmail(c.env, {
+        to: email,
         subject: 'Your password reset OTP',
         htmlBody: `
           <div style="font-family: Inter, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
@@ -884,13 +882,21 @@ app.post('/auth/forgot-password', async (c) => {
             </p>
           </div>
         `,
+        textBody: `Your Sales Assist password reset OTP is ${otp}. It expires in 10 minutes. If you didn't request this, ignore this email.`,
       });
-    } catch (e) {
-      console.error('OTP email send failed:', e.message);
+    } catch {
+      try {
+        await c.env.DB.prepare(
+          'DELETE FROM password_reset_otps WHERE email = ? AND used = 0'
+        ).bind(email).run();
+      } catch {}
+      console.error('Password reset email send failed');
+      return c.json({ error: 'Could not send the reset email. Please try again later.' }, 502);
     }
     return c.json({ success: true });
   } catch (err) {
-    return c.json({ success: true });
+    console.error('forgot-password error');
+    return c.json({ error: 'Something went wrong. Please try again.' }, 500);
   }
 });
 
