@@ -1007,7 +1007,7 @@ function TimelineTab({ dealId, deal, onRefresh }) {
         })()
         const onHoldReason = event.event_type === 'stage_changed' && meta.to === 'On Hold' &&
           typeof meta.reason === 'string' && meta.reason.trim() ? meta.reason.trim() : ''
-        const displayDescription = onHoldReason ? `${event.description} — ${onHoldReason}` : event.description
+        const displayDescription = onHoldReason ? `${event.description} — Reason: ${onHoldReason}` : event.description
 
         return (
           <div key={event.id || i} style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--line)' }}>
