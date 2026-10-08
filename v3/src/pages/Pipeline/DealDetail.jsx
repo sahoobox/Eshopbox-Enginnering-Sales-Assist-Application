@@ -1001,7 +1001,13 @@ function TimelineTab({ dealId, deal, onRefresh }) {
       {filteredEvents.map((event, i) => {
         const color = colorMap[event.event_type] || '#6B7280'
         const icon = iconMap[event.event_type] || <RefreshCw size={14} />
-        const meta = (() => { try { return JSON.parse(event.metadata || '{}') } catch { return {} } })()
+        const meta = (() => {
+          if (event.metadata && typeof event.metadata === 'object') return event.metadata
+          try { return JSON.parse(event.metadata || '{}') || {} } catch { return {} }
+        })()
+        const onHoldReason = event.event_type === 'stage_changed' && meta.to === 'On Hold' &&
+          typeof meta.reason === 'string' && meta.reason.trim() ? meta.reason.trim() : ''
+        const displayDescription = onHoldReason ? `${event.description} — ${onHoldReason}` : event.description
 
         return (
           <div key={event.id || i} style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--line)' }}>
@@ -1010,7 +1016,7 @@ function TimelineTab({ dealId, deal, onRefresh }) {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-1)', marginBottom: 2 }}>
-                {event.description}
+                {displayDescription}
               </div>
               {event.actor_name && (
                 <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
